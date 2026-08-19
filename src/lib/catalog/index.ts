@@ -32,6 +32,7 @@ interface ProductRow {
   origin: string | null;
   brand: string | null;
   imageUrl: string | null;
+  source: string | null;
   ribbon: string | null;
   collections: string[];
   isFeatured: boolean;
@@ -58,6 +59,7 @@ function toProduct(row: ProductRow): Product {
     origin: row.origin,
     brand: row.brand,
     imageUrl: row.imageUrl,
+    source: row.source,
     ribbon: row.ribbon,
     isFeatured: row.isFeatured,
     categorySlug: row.category.slug,

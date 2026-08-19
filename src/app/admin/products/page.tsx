@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { bulkSetActive } from "@/app/admin/actions";
 import { getCurrentUser } from "@/lib/auth";
-import { getCategories } from "@/lib/catalog";
+import { getCategories, sourceLabel } from "@/lib/catalog";
 import { getPrisma } from "@/lib/db";
 import { formatPriceOrRequest } from "@/lib/utils";
 
@@ -125,6 +125,7 @@ export default async function AdminProducts({
                 <th className="w-8 p-3"></th>
                 <th className="w-16 p-3">Image</th>
                 <th className="p-3">Product</th>
+                <th className="p-3">Source</th>
                 <th className="p-3">Category</th>
                 <th className="p-3">Origin</th>
                 <th className="p-3">Price</th>
@@ -155,6 +156,11 @@ export default async function AdminProducts({
                         {p.name}
                       </Link>
                       {p.isCustom ? <span className="ml-2 rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-700">custom</span> : null}
+                    </td>
+                    <td className="p-3">
+                      <span className="rounded bg-olive-50 px-2 py-0.5 text-xs text-olive-600">
+                        {sourceLabel(p.source)}
+                      </span>
                     </td>
                     <td className="p-3 text-olive-600">{p.category.name}</td>
                     <td className="p-3 text-olive-600">{p.origin ?? "—"}</td>

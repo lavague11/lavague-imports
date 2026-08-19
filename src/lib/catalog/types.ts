@@ -25,6 +25,8 @@ export interface Product {
   origin: string | null;
   brand: string | null;
   imageUrl: string | null;
+  /** Internal: which import source this product came from (admin-only). */
+  source?: string | null;
   /** Freeform source ribbon, e.g. "Best Seller", "HOT ITEM", "Only 2 Left". */
   ribbon: string | null;
   isFeatured: boolean;
@@ -79,6 +81,21 @@ export function isOnSale(variant: Variant) {
 
 export function hasPrice(product: Product) {
   return product.variants.some((v) => v.retailPriceCents !== null);
+}
+
+/** Human-readable label for a product's internal import source (admin-only). */
+export const SOURCE_LABELS: Record<string, string> = {
+  wix: "La Vague (Wix)",
+  halalco: "halalco.com",
+  ziyad: "Ziyad",
+  fattals: "Fattal's",
+  mog: "Moroccan Olive Grove",
+  yemen: "Yemen catalog",
+};
+
+export function sourceLabel(source: string | null | undefined): string {
+  if (!source) return "Manual";
+  return SOURCE_LABELS[source] ?? source;
 }
 
 // Seasonings/bouillon that keyword-land in the meat category but aren't zabiha

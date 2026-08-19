@@ -51,6 +51,7 @@ async function main() {
       origin: product.origin,
       brand: product.brand,
       imageUrl: product.imageUrl,
+      source: product.source,
       ribbon: product.ribbon,
       collections: product.collections,
       isFeatured: product.isFeatured,

@@ -533,6 +533,8 @@ for (const p of grouped) {
     imageUrl: p.imageUrl ?? null,
     ribbon: p.ribbon ?? null,
     isFeatured: Boolean(p.isFeatured),
+    /// Internal: which import source this product came from (admin-only label).
+    source: p.source ?? null,
     categorySlug: p.categorySlug,
     categoryName: p.categoryName,
     collections: (p.collections || []).filter((c) => !GENERIC.has(c)),

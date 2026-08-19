@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { ProductEditForm } from "@/components/admin/product-edit-form";
 import { getCurrentUser } from "@/lib/auth";
-import { getCategories } from "@/lib/catalog";
+import { getCategories, sourceLabel } from "@/lib/catalog";
 import { COUNTRY_ISO } from "@/lib/countries";
 import { getPrisma } from "@/lib/db";
 
@@ -43,7 +43,8 @@ export default async function AdminEditProduct({
 
       <h1 className="font-display text-2xl text-olive-900">{product.name}</h1>
       <p className="mt-1 text-sm text-olive-500">
-        {product.category.name}
+        {product.category.name} · sourced from{" "}
+        <span className="font-medium text-olive-700">{sourceLabel(product.source)}</span>
         {product.isCustom ? " · custom product" : ""}
       </p>
 
