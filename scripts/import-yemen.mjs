@@ -7,6 +7,13 @@ import fs from "node:fs";
 
 const IN = "data-import/yemen-products.json";
 const OUT = "src/lib/catalog/catalog.yemen.json";
+const IMG_DIR = "public/products/yemen";
+
+// Product photos extracted by scripts/extract-yemen-images.py, keyed by SKU.
+function imageForSku(sku) {
+  const file = `${IMG_DIR}/${sku}.png`;
+  return fs.existsSync(file) ? `/products/yemen/${sku}.png` : null;
+}
 
 function slugify(s) {
   return (
@@ -61,7 +68,7 @@ for (const r of rows) {
       : `${name} — Yemeni import from La Vague's Yemen Collection.`,
     origin: "Yemen",
     brand: null,
-    imageUrl: null,
+    imageUrl: imageForSku(r.sku),
     ribbon: null,
     isFeatured: false,
     collections: r.category ? [r.category] : [],
