@@ -99,7 +99,16 @@ export default async function ProductPage({
           <h1 className="mt-3 text-3xl leading-tight text-olive-900 sm:text-4xl">
             {product.name}
           </h1>
-          {isZabihaMeat(product) ? <HalalBadge className="mt-4" /> : null}
+          {isZabihaMeat(product) || product.isFragile ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {isZabihaMeat(product) ? <HalalBadge /> : null}
+              {product.isFragile ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
+                  Fragile — ships in glass
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           {product.tagline ? (
             <p className="mt-3 text-lg text-olive-600">{product.tagline}</p>
           ) : null}

@@ -10,7 +10,7 @@ import { getPrisma } from "@/lib/db";
 import { formatPriceOrRequest } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
-type Filter = "missing-image" | "hidden" | "custom" | undefined;
+type Filter = "missing-image" | "hidden" | "custom" | "no-description" | undefined;
 type SortKey = "name" | "source" | "category" | "origin" | "price" | "status";
 const SORT_KEYS: SortKey[] = ["name", "source", "category", "origin", "price", "status"];
 
@@ -58,13 +58,29 @@ export default async function AdminProducts({
   const sortKey: SortKey | "" = SORT_KEYS.includes(rawSort as SortKey) ? (rawSort as SortKey) : "";
   const dir: "asc" | "desc" = firstValue(params.dir) === "desc" ? "desc" : "asc";
 
-  const where = {
-    ...(filter === "missing-image" ? { imageUrl: null } : {}),
-    ...(filter === "hidden" ? { isActive: false } : {}),
-    ...(filter === "custom" ? { isCustom: true } : {}),
+  const baseWhere: Prisma.ProductWhereInput = {
     ...(category ? { category: { slug: category } } : {}),
     ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
   };
+
+  let where: Prisma.ProductWhereInput = {
+    ...baseWhere,
+    ...(filter === "missing-image" ? { imageUrl: null } : {}),
+    ...(filter === "hidden" ? { isActive: false } : {}),
+    ...(filter === "custom" ? { isCustom: true } : {}),
+  };
+
+  // "No description": empty, still a pack code (e.g. "500g X 12"), or too short
+  // to be a real description. Needs a raw query (Prisma can't length/regex).
+  if (filter === "no-description") {
+    const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+      `SELECT id FROM "Product"
+       WHERE btrim(description) = ''
+          OR length(btrim(description)) < 45
+          OR btrim(description) ~* '^[0-9]+([.,][0-9]+)?[[:space:]]*[a-z]{0,10}[[:space:]]*[x×*][[:space:]]*[0-9]+$'`,
+    );
+    where = { ...baseWhere, id: { in: rows.map((r) => r.id) } };
+  }
 
   const [categories, total, rows] = await Promise.all([
     getCategories(),
@@ -82,6 +98,7 @@ export default async function AdminProducts({
   const tabs: { key: string; label: string; href: string; active: boolean }[] = [
     { key: "all", label: "All", href: "/admin/products", active: !filter && !category },
     { key: "missing-image", label: "Missing image", href: "/admin/products?filter=missing-image", active: filter === "missing-image" },
+    { key: "no-description", label: "No description", href: "/admin/products?filter=no-description", active: filter === "no-description" },
     { key: "hidden", label: "Hidden", href: "/admin/products?filter=hidden", active: filter === "hidden" },
     { key: "custom", label: "Custom", href: "/admin/products?filter=custom", active: filter === "custom" },
   ];
@@ -206,6 +223,7 @@ export default async function AdminProducts({
                       {p.name}
                     </Link>
                     {p.isCustom ? <span className="ml-2 rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-700">custom</span> : null}
+                    {p.isFragile ? <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">fragile</span> : null}
                   </td>
                   <td className="p-3">
                     <span className="rounded bg-olive-50 px-2 py-0.5 text-xs text-olive-600">

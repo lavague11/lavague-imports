@@ -61,6 +61,7 @@ export async function POST(request: Request) {
       priceCents: priceStr ? Math.round(parseFloat(priceStr) * 100) : null,
       unitSize: formatUnitSize(s(fd, "unitSizeAmount"), s(fd, "unitSizeUnit")),
       unitsPerCase: Number.isFinite(caseNum) && caseNum > 0 ? caseNum : null,
+      isFragile: fd.get("fragile") === "on",
     });
   } catch (error) {
     console.error("[admin] createProduct failed", error);

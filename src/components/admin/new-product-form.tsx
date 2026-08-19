@@ -94,6 +94,11 @@ export function NewProductForm({
         <textarea id="description" name="description" rows={3} className={`${inputClass} h-auto py-2`} />
       </div>
 
+      <label className="flex items-center gap-2 text-sm text-olive-800">
+        <input type="checkbox" name="fragile" className="h-4 w-4 accent-olive-800" />
+        Fragile (glass bottle / breakable)
+      </label>
+
       {errorMessage ? (
         <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{errorMessage}</p>
       ) : null}

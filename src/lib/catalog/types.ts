@@ -35,6 +35,8 @@ export interface Product {
   /** Freeform source ribbon, e.g. "Best Seller", "HOT ITEM", "Only 2 Left". */
   ribbon: string | null;
   isFeatured: boolean;
+  /** Breakable item (glass bottle/jar) — surfaced with a "Fragile" badge. */
+  isFragile?: boolean;
   /** Primary, curated category (drives the shop nav). */
   categorySlug: string;
   categoryName: string;

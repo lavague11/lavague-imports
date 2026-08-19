@@ -23,6 +23,7 @@ interface ProductData {
   ribbon: string | null;
   isFeatured: boolean;
   isActive: boolean;
+  isFragile: boolean;
   categorySlug: string;
   variants: Variant[];
 }
@@ -189,6 +190,10 @@ export function ProductEditForm({
         <label className="flex items-center gap-2 text-sm text-olive-800">
           <input type="checkbox" name="isFeatured" defaultChecked={product.isFeatured} className="h-4 w-4 accent-olive-800" />
           Featured (home best-sellers)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-olive-800">
+          <input type="checkbox" name="fragile" defaultChecked={product.isFragile} className="h-4 w-4 accent-olive-800" />
+          Fragile (glass bottle / breakable)
         </label>
       </div>
 

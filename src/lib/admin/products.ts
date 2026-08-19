@@ -23,6 +23,7 @@ export interface ProductEdits {
   categorySlug?: string;
   isFeatured?: boolean;
   isActive?: boolean;
+  isFragile?: boolean;
   /** Per-variant price in cents, keyed by SKU. null clears the price. */
   variantPrices?: Record<string, number | null>;
   /** Per-variant pack (size + units per case), keyed by SKU. */
@@ -123,6 +124,7 @@ export async function saveProductEdits(
     categorySlug: edits.categorySlug,
     isFeatured: edits.isFeatured,
     isActive: edits.isActive,
+    isFragile: edits.isFragile,
     variantPrices: edits.variantPrices ? (edits.variantPrices as Prisma.InputJsonValue) : undefined,
     variantPacks: edits.variantPacks ? (edits.variantPacks as unknown as Prisma.InputJsonValue) : undefined,
     updatedById,
@@ -151,6 +153,7 @@ export async function saveProductEdits(
   if (edits.ribbon !== undefined) data.ribbon = edits.ribbon;
   if (edits.isFeatured !== undefined) data.isFeatured = edits.isFeatured;
   if (edits.isActive !== undefined) data.isActive = edits.isActive;
+  if (edits.isFragile !== undefined) data.isFragile = edits.isFragile;
   if (edits.categorySlug !== undefined) data.categoryId = `cat_${edits.categorySlug}`;
   if (Object.keys(data).length) {
     await prisma.product.update({ where: { id: product.id }, data });
@@ -197,6 +200,7 @@ export interface NewProductInput {
   unitSize?: string | null;
   /** Units per wholesale case. */
   unitsPerCase?: number | null;
+  isFragile?: boolean;
 }
 
 /** Creates an admin-owned (isCustom) product with a single variant. */
@@ -217,6 +221,7 @@ export async function createCustomProduct(input: NewProductInput): Promise<void>
       collections: [],
       isCustom: true,
       isActive: true,
+      isFragile: input.isFragile ?? false,
       categoryId: `cat_${input.categorySlug}`,
       variants: {
         create: {

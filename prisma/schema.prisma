@@ -54,6 +54,9 @@ model Product {
   collections String[]
   isActive    Boolean @default(true)
   isFeatured  Boolean @default(false)
+  /// True for breakable items (glass bottles/jars) so the storefront can flag
+  /// them and wholesale packing can handle them with care.
+  isFragile   Boolean @default(false)
   /// True for products created in the admin portal (not from an imported
   /// source). The seed reset spares these so they survive a re-import.
   isCustom    Boolean @default(false)
@@ -360,6 +363,7 @@ model ProductOverride {
   categorySlug String?
   isFeatured  Boolean?
   isActive    Boolean?
+  isFragile   Boolean?
   /// Per-variant retail price overrides, keyed by SKU: { "<sku>": <cents> }.
   variantPrices Json?
   /// Per-variant pack overrides, keyed by SKU:

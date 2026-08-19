@@ -20,6 +20,8 @@ const statements = [
      "data" BYTEA NOT NULL,
      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
    );`,
+  `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "isFragile" BOOLEAN NOT NULL DEFAULT false;`,
+  `ALTER TABLE "ProductOverride" ADD COLUMN IF NOT EXISTS "isFragile" BOOLEAN;`,
 ];
 
 const client = new pg.Client({ connectionString });

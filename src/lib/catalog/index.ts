@@ -38,6 +38,7 @@ interface ProductRow {
   ribbon: string | null;
   collections: string[];
   isFeatured: boolean;
+  isFragile: boolean;
   category: { slug: string; name: string };
   variants: {
     id: string;
@@ -66,6 +67,7 @@ function toProduct(row: ProductRow): Product {
     minPriceCents: row.minPriceCents,
     ribbon: row.ribbon,
     isFeatured: row.isFeatured,
+    isFragile: row.isFragile,
     categorySlug: row.category.slug,
     categoryName: row.category.name,
     collections: row.collections,

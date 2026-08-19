@@ -119,6 +119,7 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
         categorySlug: str(fd, "categorySlug") || undefined,
         isFeatured: fd.get("isFeatured") === "on",
         isActive: fd.get("isActive") === "on",
+        isFragile: fd.get("fragile") === "on",
         variantPrices,
         variantPacks: collectPacks(fd),
       },

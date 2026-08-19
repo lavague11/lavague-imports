@@ -58,6 +58,7 @@ export default async function AdminEditProduct({
             ribbon: product.ribbon,
             isFeatured: product.isFeatured,
             isActive: product.isActive,
+            isFragile: product.isFragile,
             categorySlug: product.category.slug,
             variants: product.variants.map((v) => ({
               sku: v.sku,
