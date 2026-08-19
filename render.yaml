@@ -1,0 +1,22 @@
+# Render blueprint — one-click deploy of the Next.js app with auto-deploy on
+# every push. In Render: New → Blueprint → pick this repo. Then set the two
+# secret env vars (DATABASE_URL, NEXT_PUBLIC_SITE_URL) in the dashboard.
+#
+# Alternative: Vercel is zero-config for Next.js — just "Import Project" from
+# the GitHub repo and add the same env vars; no file needed.
+services:
+  - type: web
+    name: lavague-imports
+    runtime: node
+    plan: free
+    autoDeploy: true # redeploy on every push to the connected branch
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Set these in the Render dashboard (kept out of the repo):
+      - key: DATABASE_URL # your Neon/Supabase Postgres connection string
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL # e.g. https://lavague-imports.onrender.com
+        sync: false
