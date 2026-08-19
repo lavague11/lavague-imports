@@ -2,19 +2,29 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { Check, Plus, Search } from "lucide-react";
 
+import { useCart } from "@/components/cart/cart-provider";
 import { Flag } from "@/components/ui/flag";
 import { formatPriceOrRequest } from "@/lib/utils";
 
+interface SuggestVariant {
+  id: string;
+  sku: string;
+  name: string;
+  priceCents: number | null;
+  inStock: boolean;
+}
+interface SuggestProduct {
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+  priceCents: number | null;
+  hasRange: boolean;
+  variant: SuggestVariant | null;
+}
 interface Suggestions {
-  products: {
-    name: string;
-    slug: string;
-    imageUrl: string | null;
-    priceCents: number | null;
-    hasRange: boolean;
-  }[];
+  products: SuggestProduct[];
   countries: { name: string; slug: string; count: number }[];
 }
 
@@ -25,9 +35,11 @@ const EMPTY: Suggestions = { products: [], countries: [] };
 export function SearchBox({ initialQuery }: { initialQuery: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { addLine } = useCart();
   const [q, setQ] = useState(initialQuery);
   const [sugg, setSugg] = useState<Suggestions>(EMPTY);
   const [open, setOpen] = useState(false);
+  const [addedSlug, setAddedSlug] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   // Debounced suggestion fetch. All state updates happen inside the timeout
@@ -88,6 +100,23 @@ export function SearchBox({ initialQuery }: { initialQuery: string }) {
 
   const chooseCountry = (slug: string) => withParams((p) => p.set("country", slug));
 
+  function addToQuote(p: SuggestProduct) {
+    if (!p.variant) return;
+    addLine(
+      {
+        variantId: p.variant.id,
+        sku: p.variant.sku,
+        productSlug: p.slug,
+        productName: p.name,
+        variantName: p.variant.name,
+        unitPriceCents: p.variant.priceCents,
+      },
+      1,
+    );
+    setAddedSlug(p.slug);
+    window.setTimeout(() => setAddedSlug((s) => (s === p.slug ? null : s)), 1800);
+  }
+
   const hasResults = sugg.products.length > 0 || sugg.countries.length > 0;
 
   return (
@@ -138,12 +167,12 @@ export function SearchBox({ initialQuery }: { initialQuery: string }) {
             </li>
           ))}
           {sugg.products.map((p) => (
-            <li key={`p-${p.slug}`}>
+            <li key={`p-${p.slug}`} className="flex items-center gap-2 px-3 py-2 hover:bg-olive-50">
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => router.push(`/shop/${p.slug}`)}
-                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-olive-50"
+                className="flex min-w-0 flex-1 items-center gap-3 text-left"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-olive-100 bg-white">
                   {p.imageUrl ? (
@@ -153,15 +182,40 @@ export function SearchBox({ initialQuery }: { initialQuery: string }) {
                     <span className="text-[9px] text-olive-300">no image</span>
                   )}
                 </span>
-                <span className="line-clamp-2 min-w-0 flex-1 text-sm text-olive-800">{p.name}</span>
-                <span className="shrink-0 text-sm font-medium text-olive-900">
-                  {p.priceCents === null ? (
-                    <span className="text-olive-500">Quote</span>
-                  ) : (
-                    `${p.hasRange ? "From " : ""}${formatPriceOrRequest(p.priceCents)}`
-                  )}
+                <span className="min-w-0">
+                  <span className="line-clamp-1 text-sm text-olive-800">{p.name}</span>
+                  <span className="text-xs font-medium text-olive-900">
+                    {p.priceCents === null ? (
+                      <span className="text-olive-500">Price on request</span>
+                    ) : (
+                      `${p.hasRange ? "From " : ""}${formatPriceOrRequest(p.priceCents)}`
+                    )}
+                  </span>
                 </span>
               </button>
+              {p.variant && p.variant.inStock ? (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => addToQuote(p)}
+                  aria-label={`Add ${p.name} to quote`}
+                  className={
+                    addedSlug === p.slug
+                      ? "inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white"
+                      : "inline-flex shrink-0 items-center gap-1 rounded-full border border-olive-300 px-2.5 py-1.5 text-xs font-medium text-olive-800 hover:border-olive-500 hover:bg-white"
+                  }
+                >
+                  {addedSlug === p.slug ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" /> Added
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add
+                    </>
+                  )}
+                </button>
+              ) : null}
             </li>
           ))}
           <li className="border-t border-olive-50">

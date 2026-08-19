@@ -9,12 +9,14 @@ export async function GET(request: Request) {
   const q = (new URL(request.url).searchParams.get("q") ?? "").trim();
   if (q.length < 2) return NextResponse.json({ products: [], countries: [] });
 
+  interface Variant { id: string; sku: string; name: string; priceCents: number | null; inStock: boolean }
   let products: {
     name: string;
     slug: string;
     imageUrl: string | null;
     priceCents: number | null;
     hasRange: boolean;
+    variant: Variant | null;
   }[] = [];
   const prisma = getPrisma();
   if (prisma) {
@@ -25,19 +27,33 @@ export async function GET(request: Request) {
           name: true,
           slug: true,
           imageUrl: true,
-          minPriceCents: true,
-          _count: { select: { variants: true } },
+          variants: {
+            select: { id: true, sku: true, name: true, retailPriceCents: true, inStock: true },
+            orderBy: { position: "asc" },
+          },
         },
         orderBy: { name: "asc" },
         take: 8,
       });
-      products = rows.map((r) => ({
-        name: r.name,
-        slug: r.slug,
-        imageUrl: r.imageUrl,
-        priceCents: r.minPriceCents,
-        hasRange: r._count.variants > 1,
-      }));
+      products = rows.map((r) => {
+        // Primary variant = cheapest priced, else the first — matches the "from"
+        // price shown and is what the quick "Add" adds to the quote.
+        const priced = r.variants.filter((v) => v.retailPriceCents != null);
+        const primary =
+          (priced.length
+            ? priced.reduce((a, b) => (b.retailPriceCents! < a.retailPriceCents! ? b : a))
+            : r.variants[0]) ?? null;
+        return {
+          name: r.name,
+          slug: r.slug,
+          imageUrl: r.imageUrl,
+          priceCents: primary?.retailPriceCents ?? null,
+          hasRange: r.variants.length > 1,
+          variant: primary
+            ? { id: primary.id, sku: primary.sku, name: primary.name, priceCents: primary.retailPriceCents, inStock: primary.inStock }
+            : null,
+        };
+      });
     } catch {
       products = [];
     }
