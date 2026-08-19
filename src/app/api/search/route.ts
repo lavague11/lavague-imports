@@ -9,16 +9,35 @@ export async function GET(request: Request) {
   const q = (new URL(request.url).searchParams.get("q") ?? "").trim();
   if (q.length < 2) return NextResponse.json({ products: [], countries: [] });
 
-  let products: { name: string; slug: string }[] = [];
+  let products: {
+    name: string;
+    slug: string;
+    imageUrl: string | null;
+    priceCents: number | null;
+    hasRange: boolean;
+  }[] = [];
   const prisma = getPrisma();
   if (prisma) {
     try {
-      products = await prisma.product.findMany({
+      const rows = await prisma.product.findMany({
         where: { isActive: true, name: { contains: q, mode: "insensitive" } },
-        select: { name: true, slug: true },
+        select: {
+          name: true,
+          slug: true,
+          imageUrl: true,
+          minPriceCents: true,
+          _count: { select: { variants: true } },
+        },
         orderBy: { name: "asc" },
         take: 8,
       });
+      products = rows.map((r) => ({
+        name: r.name,
+        slug: r.slug,
+        imageUrl: r.imageUrl,
+        priceCents: r.minPriceCents,
+        hasRange: r._count.variants > 1,
+      }));
     } catch {
       products = [];
     }

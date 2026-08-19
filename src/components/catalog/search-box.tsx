@@ -5,9 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 
 import { Flag } from "@/components/ui/flag";
+import { formatPriceOrRequest } from "@/lib/utils";
 
 interface Suggestions {
-  products: { name: string; slug: string }[];
+  products: {
+    name: string;
+    slug: string;
+    imageUrl: string | null;
+    priceCents: number | null;
+    hasRange: boolean;
+  }[];
   countries: { name: string; slug: string; count: number }[];
 }
 
@@ -136,9 +143,24 @@ export function SearchBox({ initialQuery }: { initialQuery: string }) {
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => router.push(`/shop/${p.slug}`)}
-                className="flex w-full items-center px-3 py-2 text-left text-sm text-olive-800 hover:bg-olive-50"
+                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-olive-50"
               >
-                <span className="line-clamp-1">{p.name}</span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-olive-100 bg-white">
+                  {p.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.imageUrl} alt="" className="h-full w-full object-contain" />
+                  ) : (
+                    <span className="text-[9px] text-olive-300">no image</span>
+                  )}
+                </span>
+                <span className="line-clamp-2 min-w-0 flex-1 text-sm text-olive-800">{p.name}</span>
+                <span className="shrink-0 text-sm font-medium text-olive-900">
+                  {p.priceCents === null ? (
+                    <span className="text-olive-500">Quote</span>
+                  ) : (
+                    `${p.hasRange ? "From " : ""}${formatPriceOrRequest(p.priceCents)}`
+                  )}
+                </span>
               </button>
             </li>
           ))}
