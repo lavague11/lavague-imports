@@ -45,6 +45,9 @@ model Product {
   collections String[]
   isActive    Boolean @default(true)
   isFeatured  Boolean @default(false)
+  /// True for products created in the admin portal (not from an imported
+  /// source). The seed reset spares these so they survive a re-import.
+  isCustom    Boolean @default(false)
   position    Int     @default(0)
 
   categoryId String
@@ -283,4 +286,62 @@ model DeliveryZone {
   updatedAt DateTime @updatedAt
 
   @@index([storeId])
+}
+
+// ---------------------------------------------------------------------------
+// Admin portal — accounts and durable catalog edits (overrides layer)
+// ---------------------------------------------------------------------------
+
+enum AdminRole {
+  ADMIN
+  EDITOR
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  role         AdminRole @default(EDITOR)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions AdminSession[]
+}
+
+model AdminSession {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// Durable admin edits, keyed by product slug. Only set fields override the
+/// generated catalog; the seed re-applies these after re-importing sources.
+model ProductOverride {
+  id       String @id @default(cuid())
+  slug     String @unique
+
+  name        String?
+  tagline     String?
+  description String?
+  imageUrl    String?
+  /// A best-effort image candidate from scripts/suggest-images.mjs, shown for
+  /// approval in the edit form. Never applied automatically.
+  suggestedImageUrl String?
+  origin      String?
+  ribbon      String?
+  categorySlug String?
+  isFeatured  Boolean?
+  isActive    Boolean?
+  /// Per-variant retail price overrides, keyed by SKU: { "<sku>": <cents> }.
+  variantPrices Json?
+
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

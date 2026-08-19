@@ -19,11 +19,9 @@ async function main() {
 
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
-  // Reset catalog tables (variants cascade from products; categories last).
-  await prisma.productVariant.deleteMany({});
-  await prisma.product.deleteMany({});
-  await prisma.category.deleteMany({});
-
+  // Reset only the imported catalog — admin-created products (isCustom) and
+  // their variants are spared. Categories are upserted (not deleted) so custom
+  // products keep a valid categoryId.
   await prisma.category.createMany({
     data: categories.map((category, index) => ({
       id: category.id,
@@ -32,7 +30,16 @@ async function main() {
       description: category.description,
       position: index,
     })),
+    skipDuplicates: true,
   });
+  for (const [index, category] of categories.entries()) {
+    await prisma.category.update({
+      where: { slug: category.slug },
+      data: { name: category.name, description: category.description, position: index },
+    });
+  }
+
+  await prisma.product.deleteMany({ where: { isCustom: false } });
 
   await prisma.product.createMany({
     data: products.map((product, index) => ({
@@ -47,6 +54,7 @@ async function main() {
       ribbon: product.ribbon,
       collections: product.collections,
       isFeatured: product.isFeatured,
+      isCustom: false,
       position: index,
       categoryId: `cat_${product.categorySlug}`,
     })),
@@ -68,6 +76,35 @@ async function main() {
       })),
     ),
   });
+
+  // Re-apply durable admin edits on top of the freshly imported source rows,
+  // so nothing done in the portal is lost by a re-import.
+  const overrides = await prisma.productOverride.findMany();
+  for (const o of overrides) {
+    const product = await prisma.product.findUnique({ where: { slug: o.slug } });
+    if (!product) continue;
+    const data: Record<string, unknown> = {};
+    if (o.name != null) data.name = o.name;
+    if (o.tagline != null) data.tagline = o.tagline;
+    if (o.description != null) data.description = o.description;
+    if (o.imageUrl != null) data.imageUrl = o.imageUrl;
+    if (o.origin != null) data.origin = o.origin;
+    if (o.ribbon != null) data.ribbon = o.ribbon;
+    if (o.isFeatured != null) data.isFeatured = o.isFeatured;
+    if (o.isActive != null) data.isActive = o.isActive;
+    if (o.categorySlug != null) data.categoryId = `cat_${o.categorySlug}`;
+    if (Object.keys(data).length) {
+      await prisma.product.update({ where: { id: product.id }, data });
+    }
+    const prices = (o.variantPrices ?? {}) as Record<string, number>;
+    for (const [sku, cents] of Object.entries(prices)) {
+      await prisma.productVariant.updateMany({
+        where: { sku },
+        data: { retailPriceCents: cents },
+      });
+    }
+  }
+  if (overrides.length) console.log(`Re-applied ${overrides.length} product overrides.`);
 
   // The warehouse the storefront ships from today. Delivery zones are modelled
   // now so the future multi-store rollout has somewhere to hang.

@@ -48,3 +48,6 @@ next-env.d.ts
 .windsurf/
 .claude/skills/
 skills-lock.json
+
+# Admin runtime image uploads (not source)
+/public/products/custom/

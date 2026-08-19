@@ -167,12 +167,43 @@ launch:
    `scripts/import-wix-catalog.mjs` (`CURATED`); ~71 products landed in
    "Specialty & Other" because their collections didn't map elsewhere.
 
+## Admin portal (`/admin`)
+
+A password-protected portal to manage the catalog on top of the generated data:
+fix/replace images (paste a URL, "Search images ↗" link, or approve an
+auto-suggested one), edit every field, add products not in any source, and bulk
+show/hide. Per-user accounts with `ADMIN`/`EDITOR` roles.
+
+**How edits survive re-imports:** the portal writes a durable `ProductOverride`
+row *and* updates the live product. `npm run db:seed` re-imports the sources,
+then re-applies every override. Admin-created products are `Product` rows with
+`isCustom = true`, which the seed reset spares. So re-running the importers
+never clobbers manual work.
+
+Setup (needs a **real, persistent** Postgres — Neon, Supabase, or a *claimed*
+Prisma Postgres; the throwaway `npx create-db` instance is not durable enough):
+
+```bash
+# 1. Put a real connection string in .env as DATABASE_URL, then:
+npm run db:migrate        # creates catalog + admin tables (ProductOverride, AdminUser…)
+npm run db:seed
+# 2. Create the first admin:
+ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=change-me-8+ ADMIN_NAME="You" npm run admin:create
+# 3. Optional: pre-suggest images for products missing a photo (best-effort):
+npm run images:suggest    # stores suggestions to approve in the edit form
+```
+
+Then sign in at `/admin/login`. Pasted image URLs are downloaded into
+`public/products/custom/` (self-hosted). Auth is a scrypt-hashed password + a
+DB-backed session cookie; `src/middleware.ts` gates `/admin/*`. Note: image
+uploads and `images:suggest` write to the local filesystem — on a serverless
+host, point them at object storage instead.
+
 ## Not built yet
 
 - **Email notifications.** The three server actions save to the database and
   have a `TODO` where a provider (Resend, Postmark, SES) should go. Until then,
-  check submissions in Prisma Studio.
-- **Admin dashboard.** Reading quotes and applications is Prisma Studio for now.
+  check submissions in Prisma Studio or the admin portal.
 - **Online payment.** Deliberately out of scope — this is a quote-request flow.
 - **Customer accounts / gated B2B pricing.** Wholesale is application + manual
   quote, per the current plan.
