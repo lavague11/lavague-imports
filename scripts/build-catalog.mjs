@@ -540,6 +540,25 @@ for (const p of grouped) {
   });
 }
 
+// Cross-source image backfill: a product missing a photo borrows one from
+// another source's listing of the same product (identical name once size/pack
+// is stripped). The length guard avoids borrowing on over-generic base names.
+const imageByBase = new Map();
+for (const p of products) {
+  if (!p.imageUrl) continue;
+  const b = baseName(p.name);
+  if (b.length >= 12 && !imageByBase.has(b)) imageByBase.set(b, p.imageUrl);
+}
+let backfilled = 0;
+for (const p of products) {
+  if (p.imageUrl) continue;
+  const img = imageByBase.get(baseName(p.name));
+  if (img) {
+    p.imageUrl = img;
+    backfilled += 1;
+  }
+}
+
 // Categories that ended up with products, in priority order.
 const catPriority = [...CATEGORIES, FALLBACK].map((c) => c.slug);
 const categories = [...usedCats.values(), FALLBACK]
@@ -575,6 +594,8 @@ console.log("  grouped listings (multi-variant):", multiVariant.length, "| varia
 console.log("  largest groups:");
 multiVariant.sort((a, b) => b.variants.length - a.variants.length).slice(0, 12)
   .forEach((p) => console.log("   ", String(p.variants.length).padStart(3), p.name, "—", p.variants.map((v) => v.name).slice(0, 6).join(" / ").slice(0, 90)));
+const withImg = products.filter((p) => p.imageUrl).length;
+console.log("  images:", withImg, `of ${products.length} (${Math.round((withImg / products.length) * 100)}%); backfilled ${backfilled} cross-source, ${products.length - withImg} without a photo`);
 console.log("  categories:", categories.length, "| collection filters:", collections.length);
 const labelled = products.filter((p) => p.origin).length;
 console.log("  origin labelled:", labelled, `of ${products.length} (${Math.round((labelled / products.length) * 100)}%) across ${countries.length} countries; ${products.length - labelled} unspecified`);

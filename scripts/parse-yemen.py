@@ -74,6 +74,9 @@ def parse_page(page):
         for idx, sku in enumerate(col_skus):
             top = sku["top"]
             bottom = col_skus[idx + 1]["top"] - 6 if idx + 1 < len(col_skus) else 9999
+            # Never let a cell reach the page footer (contact band starts ~620),
+            # which would pull "Sales@…/www…/phone" into the last product's name.
+            bottom = min(bottom, 617)
             cell = [w for w in col_words if top < w["top"] < bottom]
             lines = line_group(cell)
             # The pack-size line is the lowest line containing a unit token.

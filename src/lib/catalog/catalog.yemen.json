@@ -1042,7 +1042,7 @@
       "slug": "krowka-kakaowa-luxury-cocoa-fudge",
       "name": "Krówka Kakaowa Luxury Cocoa Fudge",
       "tagline": null,
-      "description": "Krówka Kakaowa Luxury Cocoa Fudge — Yemeni import from La Vague's Yemen Collection. Pack size: 1 kg x 9.",
+      "description": "Krówka Kakaowa Luxury Cocoa Fudge — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/A1-039.png",
@@ -1058,7 +1058,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 9,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -1098,7 +1098,7 @@
       "slug": "krowka-truskawkowa-chocolate-fudge",
       "name": "Krówka Truskawkowa Chocolate Fudge",
       "tagline": null,
-      "description": "Krówka Truskawkowa Chocolate Fudge — Yemeni import from La Vague's Yemen Collection. Pack size: 200 g x 24.",
+      "description": "Krówka Truskawkowa Chocolate Fudge — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/A1-040.png",
@@ -1114,7 +1114,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 24,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -1154,7 +1154,7 @@
       "slug": "krowka-truskawkowa-strawberry-fudge",
       "name": "Krówka Truskawkowa Strawberry Fudge",
       "tagline": null,
-      "description": "Krówka Truskawkowa Strawberry Fudge — Yemeni import from La Vague's Yemen Collection. Pack size: 1 kg x 9.",
+      "description": "Krówka Truskawkowa Strawberry Fudge — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/A1-041.png",
@@ -1170,7 +1170,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 9,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -1542,11 +1542,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_gandour-boy-on-edge-assorted-1-x-40-x-54-x-4-la-vague-imports-llc-www-",
-      "slug": "gandour-boy-on-edge-assorted-1-x-40-x-54-x-4-la-vague-imports-llc-www-",
-      "name": "Gandour Boy On Edge Assorted 1 X 40 X 54 X 4 La Vague Imports LLC www.LaVagueImports.com",
+      "id": "yem_gandour-boy-on-edge-assorted-1-x-40-x-54-x-4",
+      "slug": "gandour-boy-on-edge-assorted-1-x-40-x-54-x-4",
+      "name": "Gandour Boy On Edge Assorted 1 X 40 X 54 X 4",
       "tagline": null,
-      "description": "Gandour Boy On Edge Assorted 1 X 40 X 54 X 4 La Vague Imports LLC www.LaVagueImports.com — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Gandour Boy On Edge Assorted 1 X 40 X 54 X 4 — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/A1-060.png",
@@ -1557,7 +1557,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_gandour-boy-on-edge-assorted-1-x-40-x-54-x-4-la-vague-imports-llc-www-",
+          "id": "yem_var_gandour-boy-on-edge-assorted-1-x-40-x-54-x-4",
           "sku": "A1-060",
           "name": "Each",
           "retailPriceCents": null,
@@ -1710,11 +1710,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_ginger-nut-biscuit-la-vague-imports-llc-www-lavagueimports-com",
-      "slug": "ginger-nut-biscuit-la-vague-imports-llc-www-lavagueimports-com",
-      "name": "Ginger Nut Biscuit La Vague Imports LLC www.LaVagueImports.com",
+      "id": "yem_ginger-nut-biscuit",
+      "slug": "ginger-nut-biscuit",
+      "name": "Ginger Nut Biscuit",
       "tagline": null,
-      "description": "Ginger Nut Biscuit La Vague Imports LLC www.LaVagueImports.com — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Ginger Nut Biscuit — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/A1-054.png",
@@ -1725,7 +1725,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_ginger-nut-biscuit-la-vague-imports-llc-www-lavagueimports-com",
+          "id": "yem_var_ginger-nut-biscuit",
           "sku": "A1-054",
           "name": "Each",
           "retailPriceCents": null,
@@ -1766,11 +1766,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_petit-four-biscuits-4-x-18-sales-lavagueimports-com-1-646-396-0775",
-      "slug": "petit-four-biscuits-4-x-18-sales-lavagueimports-com-1-646-396-0775",
-      "name": "Petit Four Biscuits 4 x 18 Sales@LaVagueImports.com +1(646)-396-0775",
+      "id": "yem_petit-four-biscuits-4-x-18",
+      "slug": "petit-four-biscuits-4-x-18",
+      "name": "Petit Four Biscuits 4 x 18",
       "tagline": null,
-      "description": "Petit Four Biscuits 4 x 18 Sales@LaVagueImports.com +1(646)-396-0775 — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Petit Four Biscuits 4 x 18 — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": null,
@@ -1781,7 +1781,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_petit-four-biscuits-4-x-18-sales-lavagueimports-com-1-646-396-0775",
+          "id": "yem_var_petit-four-biscuits-4-x-18",
           "sku": "A1-055",
           "name": "Each",
           "retailPriceCents": null,
@@ -4066,7 +4066,7 @@
       "slug": "doobi-chicken-flavor-cubes-24-tray-x-24-pack",
       "name": "Doobi Chicken Flavor Cubes 24 Tray x 24 pack",
       "tagline": null,
-      "description": "Doobi Chicken Flavor Cubes 24 Tray x 24 pack — Yemeni import from La Vague's Yemen Collection. Pack size: x 2 cubes x 10 g.",
+      "description": "Doobi Chicken Flavor Cubes 24 Tray x 24 pack — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/C3-024.png",
@@ -4850,7 +4850,7 @@
       "slug": "chamain-ginger-and-lemon-herbal-tea",
       "name": "Chamain Ginger & Lemon Herbal Tea",
       "tagline": null,
-      "description": "Chamain Ginger & Lemon Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain Ginger & Lemon Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-016.png",
@@ -4866,7 +4866,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -4906,7 +4906,7 @@
       "slug": "chamain-ginger-herbal-tea",
       "name": "Chamain Ginger Herbal Tea",
       "tagline": null,
-      "description": "Chamain Ginger Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain Ginger Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-017.png",
@@ -4922,7 +4922,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -4962,7 +4962,7 @@
       "slug": "chamain-green-tea-and-cardamom-herbal-tea",
       "name": "Chamain Green Tea & Cardamom Herbal Tea",
       "tagline": null,
-      "description": "Chamain Green Tea & Cardamom Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain Green Tea & Cardamom Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-018.png",
@@ -4978,7 +4978,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -5018,7 +5018,7 @@
       "slug": "chamain-green-tea-ginseng-and-honey-herbal-tea",
       "name": "Chamain Green Tea Ginseng & Honey Herbal Tea",
       "tagline": null,
-      "description": "Chamain Green Tea Ginseng & Honey Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain Green Tea Ginseng & Honey Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-022.png",
@@ -5034,7 +5034,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -5074,7 +5074,7 @@
       "slug": "chamain-pomegranate-and-berry-herbal-tea",
       "name": "Chamain Pomegranate & Berry Herbal Tea",
       "tagline": null,
-      "description": "Chamain Pomegranate & Berry Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain Pomegranate & Berry Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-033.png",
@@ -5090,7 +5090,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -5130,7 +5130,7 @@
       "slug": "chamain-sage-herbal-tea",
       "name": "Chamain Sage Herbal Tea",
       "tagline": null,
-      "description": "Chamain Sage Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain Sage Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-034.png",
@@ -5146,7 +5146,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -5186,7 +5186,7 @@
       "slug": "chamain-white-tea-and-pomegranate-herbal-tea",
       "name": "Chamain White Tea & Pomegranate Herbal Tea",
       "tagline": null,
-      "description": "Chamain White Tea & Pomegranate Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain White Tea & Pomegranate Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-038.png",
@@ -5202,7 +5202,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -5242,7 +5242,7 @@
       "slug": "chamain-zhourat-lebnaniah-herbal-tea",
       "name": "Chamain Zhourat Lebnaniah Herbal Tea",
       "tagline": null,
-      "description": "Chamain Zhourat Lebnaniah Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain Zhourat Lebnaniah Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-039.png",
@@ -5258,7 +5258,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -5298,7 +5298,7 @@
       "slug": "chamain-zhourat-shamia-herbal-tea",
       "name": "Chamain Zhourat Shamia Herbal Tea",
       "tagline": null,
-      "description": "Chamain Zhourat Shamia Herbal Tea — Yemeni import from La Vague's Yemen Collection. Pack size: 34 g x 12.",
+      "description": "Chamain Zhourat Shamia Herbal Tea — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/D4-040.png",
@@ -5314,7 +5314,7 @@
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": 12,
+          "unitsPerCase": null,
           "minOrderCases": null,
           "inStock": true
         }
@@ -6778,11 +6778,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_anis-seeds-1-x-12-la-vague-imports-llc-www-lavagueimports-com",
-      "slug": "anis-seeds-1-x-12-la-vague-imports-llc-www-lavagueimports-com",
-      "name": "Anis Seeds 1 X 12 La Vague Imports LLC www.LaVagueImports.com",
+      "id": "yem_anis-seeds-1-x-12",
+      "slug": "anis-seeds-1-x-12",
+      "name": "Anis Seeds 1 X 12",
       "tagline": null,
-      "description": "Anis Seeds 1 X 12 La Vague Imports LLC www.LaVagueImports.com — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Anis Seeds 1 X 12 — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": null,
@@ -6793,7 +6793,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_anis-seeds-1-x-12-la-vague-imports-llc-www-lavagueimports-com",
+          "id": "yem_var_anis-seeds-1-x-12",
           "sku": "E5-052",
           "name": "Each",
           "retailPriceCents": null,
@@ -6834,11 +6834,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_turmeric-1-x-12-sales-lavagueimports-com-1-646-396-0775",
-      "slug": "turmeric-1-x-12-sales-lavagueimports-com-1-646-396-0775",
-      "name": "Turmeric 1 X 12 Sales@LaVagueImports.com +1(646)-396-0775",
+      "id": "yem_turmeric-1-x-12",
+      "slug": "turmeric-1-x-12",
+      "name": "Turmeric 1 X 12",
       "tagline": null,
-      "description": "Turmeric 1 X 12 Sales@LaVagueImports.com +1(646)-396-0775 — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Turmeric 1 X 12 — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": null,
@@ -6849,7 +6849,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_turmeric-1-x-12-sales-lavagueimports-com-1-646-396-0775",
+          "id": "yem_var_turmeric-1-x-12",
           "sku": "E5-053",
           "name": "Each",
           "retailPriceCents": null,
@@ -6862,11 +6862,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_cumin-seed-1-x-12-1-917-496-4960-48",
-      "slug": "cumin-seed-1-x-12-1-917-496-4960-48",
-      "name": "Cumin Seed 1 X 12 +1(917)-496-4960 48",
+      "id": "yem_cumin-seed-1-x-12",
+      "slug": "cumin-seed-1-x-12",
+      "name": "Cumin Seed 1 X 12",
       "tagline": null,
-      "description": "Cumin Seed 1 X 12 +1(917)-496-4960 48 — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Cumin Seed 1 X 12 — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": null,
@@ -6877,7 +6877,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_cumin-seed-1-x-12-1-917-496-4960-48",
+          "id": "yem_var_cumin-seed-1-x-12",
           "sku": "E5-051",
           "name": "Each",
           "retailPriceCents": null,
@@ -8598,11 +8598,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_break-finger-chocolate-1-x-28-x-24-la-vague-imports-llc-www-lavagueimp",
-      "slug": "break-finger-chocolate-1-x-28-x-24-la-vague-imports-llc-www-lavagueimp",
-      "name": "Break Finger Chocolate 1 x 28 x 24 La Vague Imports LLC www.LaVagueImports.com",
+      "id": "yem_break-finger-chocolate-1-x-28-x-24",
+      "slug": "break-finger-chocolate-1-x-28-x-24",
+      "name": "Break Finger Chocolate 1 x 28 x 24",
       "tagline": null,
-      "description": "Break Finger Chocolate 1 x 28 x 24 La Vague Imports LLC www.LaVagueImports.com — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Break Finger Chocolate 1 x 28 x 24 — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/H8-034.png",
@@ -8613,7 +8613,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_break-finger-chocolate-1-x-28-x-24-la-vague-imports-llc-www-lavagueimp",
+          "id": "yem_var_break-finger-chocolate-1-x-28-x-24",
           "sku": "H8-034",
           "name": "Each",
           "retailPriceCents": null,
@@ -8654,11 +8654,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_breaksta-chocolate-1-x-24-x-12-sales-lavagueimports-com-1-646-396-0775",
-      "slug": "breaksta-chocolate-1-x-24-x-12-sales-lavagueimports-com-1-646-396-0775",
-      "name": "Breaksta Chocolate 1 x 24 x 12 Sales@LaVagueImports.com +1(646)-396-0775",
+      "id": "yem_breaksta-chocolate-1-x-24-x-12",
+      "slug": "breaksta-chocolate-1-x-24-x-12",
+      "name": "Breaksta Chocolate 1 x 24 x 12",
       "tagline": null,
-      "description": "Breaksta Chocolate 1 x 24 x 12 Sales@LaVagueImports.com +1(646)-396-0775 — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Breaksta Chocolate 1 x 24 x 12 — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/H8-035.png",
@@ -8669,7 +8669,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_breaksta-chocolate-1-x-24-x-12-sales-lavagueimports-com-1-646-396-0775",
+          "id": "yem_var_breaksta-chocolate-1-x-24-x-12",
           "sku": "H8-035",
           "name": "Each",
           "retailPriceCents": null,
@@ -8710,11 +8710,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_adore-milk-chocolate-1-x-24-x-24-1-917-496-4960-63",
-      "slug": "adore-milk-chocolate-1-x-24-x-24-1-917-496-4960-63",
-      "name": "Adore Milk Chocolate 1 x 24 x 24 +1(917)-496-4960 63",
+      "id": "yem_adore-milk-chocolate-1-x-24-x-24",
+      "slug": "adore-milk-chocolate-1-x-24-x-24",
+      "name": "Adore Milk Chocolate 1 x 24 x 24",
       "tagline": null,
-      "description": "Adore Milk Chocolate 1 x 24 x 24 +1(917)-496-4960 63 — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Adore Milk Chocolate 1 x 24 x 24 — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/H8-036.png",
@@ -8725,7 +8725,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_adore-milk-chocolate-1-x-24-x-24-1-917-496-4960-63",
+          "id": "yem_var_adore-milk-chocolate-1-x-24-x-24",
           "sku": "H8-036",
           "name": "Each",
           "retailPriceCents": null,
@@ -9242,11 +9242,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_almumtaz-future-table-cover-suefar-3-1-x-20-pc-size-90x100",
-      "slug": "almumtaz-future-table-cover-suefar-3-1-x-20-pc-size-90x100",
-      "name": "Almumtaz Future Table Cover (Suefar) 3*1 x 20 pc Size 90x100",
+      "id": "yem_almumtaz-future-table-cover-suefar",
+      "slug": "almumtaz-future-table-cover-suefar",
+      "name": "Almumtaz Future Table Cover (Suefar)",
       "tagline": null,
-      "description": "Almumtaz Future Table Cover (Suefar) 3*1 x 20 pc Size 90x100 — Yemeni import from La Vague's Yemen Collection. Pack size: Weight 3.6 kg.",
+      "description": "Almumtaz Future Table Cover (Suefar) — Yemeni import from La Vague's Yemen Collection. Pack size: 3*1 x 20 pc Size 90x100.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": "/products/yemen/J10-010.png",
@@ -9257,12 +9257,12 @@
       ],
       "variants": [
         {
-          "id": "yem_var_almumtaz-future-table-cover-suefar-3-1-x-20-pc-size-90x100",
+          "id": "yem_var_almumtaz-future-table-cover-suefar",
           "sku": "J10-010",
           "name": "Each",
           "retailPriceCents": null,
           "compareAtPriceCents": null,
-          "unitsPerCase": null,
+          "unitsPerCase": 100,
           "minOrderCases": null,
           "inStock": true
         }
@@ -9354,11 +9354,11 @@
     },
     {
       "source": "yemen",
-      "id": "yem_sufra-al-dhiyafa-future-table-cover-suefar-1-x-6-roll-85-x-110-high-th",
-      "slug": "sufra-al-dhiyafa-future-table-cover-suefar-1-x-6-roll-85-x-110-high-th",
-      "name": "Sufra Al Dhiyafa Future Table Cover (Suefar) 1 x 6 Roll 85 x 110 High Thickness, Weight 6.5kg +1(917)-496-4960 69",
+      "id": "yem_sufra-al-dhiyafa-future-table-cover-suefar-1-x-6-roll-85-x-110-high",
+      "slug": "sufra-al-dhiyafa-future-table-cover-suefar-1-x-6-roll-85-x-110-high",
+      "name": "Sufra Al Dhiyafa Future Table Cover (Suefar) 1 x 6 Roll 85 x 110 High",
       "tagline": null,
-      "description": "Sufra Al Dhiyafa Future Table Cover (Suefar) 1 x 6 Roll 85 x 110 High Thickness, Weight 6.5kg +1(917)-496-4960 69 — Yemeni import from La Vague's Yemen Collection.",
+      "description": "Sufra Al Dhiyafa Future Table Cover (Suefar) 1 x 6 Roll 85 x 110 High — Yemeni import from La Vague's Yemen Collection.",
       "origin": "Yemen",
       "brand": null,
       "imageUrl": null,
@@ -9369,7 +9369,7 @@
       ],
       "variants": [
         {
-          "id": "yem_var_sufra-al-dhiyafa-future-table-cover-suefar-1-x-6-roll-85-x-110-high-th",
+          "id": "yem_var_sufra-al-dhiyafa-future-table-cover-suefar-1-x-6-roll-85-x-110-high",
           "sku": "J10-012",
           "name": "Each",
           "retailPriceCents": null,

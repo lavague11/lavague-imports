@@ -261,7 +261,7 @@
   {
     "sku": "A1-039",
     "name": "Krówka Kakaowa Luxury Cocoa Fudge",
-    "size": "1 kg x 9",
+    "size": "",
     "category": "Biscuits, Candy & Halva",
     "page": 10
   },
@@ -275,7 +275,7 @@
   {
     "sku": "A1-040",
     "name": "Krówka Truskawkowa Chocolate Fudge",
-    "size": "200 g x 24",
+    "size": "",
     "category": "Biscuits, Candy & Halva",
     "page": 10
   },
@@ -289,7 +289,7 @@
   {
     "sku": "A1-041",
     "name": "Krówka Truskawkowa Strawberry Fudge",
-    "size": "1 kg x 9",
+    "size": "",
     "category": "Biscuits, Candy & Halva",
     "page": 10
   },
@@ -386,7 +386,7 @@
   },
   {
     "sku": "A1-060",
-    "name": "Gandour Boy On Edge Assorted 1 X 40 X 54 X 4 La Vague Imports LLC www.LaVagueImports.com",
+    "name": "Gandour Boy On Edge Assorted 1 X 40 X 54 X 4",
     "size": "",
     "category": "Biscuits, Candy & Halva",
     "page": 13
@@ -428,7 +428,7 @@
   },
   {
     "sku": "A1-054",
-    "name": "Ginger Nut Biscuit La Vague Imports LLC www.LaVagueImports.com",
+    "name": "Ginger Nut Biscuit",
     "size": "",
     "category": "Biscuits, Candy & Halva",
     "page": 14
@@ -442,7 +442,7 @@
   },
   {
     "sku": "A1-055",
-    "name": "Petit Four Biscuits 4 x 18 Sales@LaVagueImports.com +1(646)-396-0775",
+    "name": "Petit Four Biscuits 4 x 18",
     "size": "",
     "category": "Biscuits, Candy & Halva",
     "page": 14
@@ -1017,7 +1017,7 @@
   {
     "sku": "C3-024",
     "name": "Doobi Chicken Flavor Cubes 24 Tray x 24 pack",
-    "size": "x 2 cubes x 10 g",
+    "size": "",
     "category": "Tuna, Legumes & Rice",
     "page": 30
   },
@@ -1213,7 +1213,7 @@
   {
     "sku": "D4-016",
     "name": "Chamain Ginger & Lemon Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 37
   },
@@ -1227,7 +1227,7 @@
   {
     "sku": "D4-017",
     "name": "Chamain Ginger Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 37
   },
@@ -1241,7 +1241,7 @@
   {
     "sku": "D4-018",
     "name": "Chamain Green Tea & Cardamom Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 37
   },
@@ -1255,7 +1255,7 @@
   {
     "sku": "D4-022",
     "name": "Chamain Green Tea Ginseng & Honey Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 38
   },
@@ -1269,7 +1269,7 @@
   {
     "sku": "D4-033",
     "name": "Chamain Pomegranate & Berry Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 38
   },
@@ -1283,7 +1283,7 @@
   {
     "sku": "D4-034",
     "name": "Chamain Sage Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 38
   },
@@ -1297,7 +1297,7 @@
   {
     "sku": "D4-038",
     "name": "Chamain White Tea & Pomegranate Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 39
   },
@@ -1311,7 +1311,7 @@
   {
     "sku": "D4-039",
     "name": "Chamain Zhourat Lebnaniah Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 39
   },
@@ -1325,7 +1325,7 @@
   {
     "sku": "D4-040",
     "name": "Chamain Zhourat Shamia Herbal Tea",
-    "size": "34 g x 12",
+    "size": "",
     "category": "Tea & Coffee",
     "page": 39
   },
@@ -1695,7 +1695,7 @@
   },
   {
     "sku": "E5-052",
-    "name": "Anis Seeds 1 X 12 La Vague Imports LLC www.LaVagueImports.com",
+    "name": "Anis Seeds 1 X 12",
     "size": "",
     "category": "Oil, Ghee & Spices",
     "page": 50
@@ -1709,14 +1709,14 @@
   },
   {
     "sku": "E5-053",
-    "name": "Turmeric 1 X 12 Sales@LaVagueImports.com +1(646)-396-0775",
+    "name": "Turmeric 1 X 12",
     "size": "",
     "category": "Oil, Ghee & Spices",
     "page": 50
   },
   {
     "sku": "E5-051",
-    "name": "Cumin Seed 1 X 12 +1(917)-496-4960 48",
+    "name": "Cumin Seed 1 X 12",
     "size": "",
     "category": "Oil, Ghee & Spices",
     "page": 50
@@ -2150,7 +2150,7 @@
   },
   {
     "sku": "H8-034",
-    "name": "Break Finger Chocolate 1 x 28 x 24 La Vague Imports LLC www.LaVagueImports.com",
+    "name": "Break Finger Chocolate 1 x 28 x 24",
     "size": "",
     "category": "Dates, Honey & Pastries",
     "page": 65
@@ -2164,7 +2164,7 @@
   },
   {
     "sku": "H8-035",
-    "name": "Breaksta Chocolate 1 x 24 x 12 Sales@LaVagueImports.com +1(646)-396-0775",
+    "name": "Breaksta Chocolate 1 x 24 x 12",
     "size": "",
     "category": "Dates, Honey & Pastries",
     "page": 65
@@ -2178,7 +2178,7 @@
   },
   {
     "sku": "H8-036",
-    "name": "Adore Milk Chocolate 1 x 24 x 24 +1(917)-496-4960 63",
+    "name": "Adore Milk Chocolate 1 x 24 x 24",
     "size": "",
     "category": "Dates, Honey & Pastries",
     "page": 65
@@ -2311,8 +2311,8 @@
   },
   {
     "sku": "J10-010",
-    "name": "Almumtaz Future Table Cover (Suefar) 3*1 x 20 pc Size 90x100",
-    "size": "Weight 3.6 kg",
+    "name": "Almumtaz Future Table Cover (Suefar)",
+    "size": "3*1 x 20 pc Size 90x100",
     "category": "Other Products",
     "page": 71
   },
@@ -2339,7 +2339,7 @@
   },
   {
     "sku": "J10-012",
-    "name": "Sufra Al Dhiyafa Future Table Cover (Suefar) 1 x 6 Roll 85 x 110 High Thickness, Weight 6.5kg +1(917)-496-4960 69",
+    "name": "Sufra Al Dhiyafa Future Table Cover (Suefar) 1 x 6 Roll 85 x 110 High",
     "size": "",
     "category": "Other Products",
     "page": 71
