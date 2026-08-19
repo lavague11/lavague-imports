@@ -8,7 +8,7 @@ import {
   lowestPricedVariant,
   type Product,
 } from "@/lib/catalog/types";
-import { flagFor } from "@/lib/countries";
+import { Flag } from "@/components/ui/flag";
 import { formatPriceOrRequest } from "@/lib/utils";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -34,10 +34,12 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="flex flex-1 flex-col p-4 sm:p-5">
         <p className="eyebrow flex items-center gap-1.5 truncate">
           {product.origin ? (
-            <span className="not-italic normal-case tracking-normal text-olive-800">
-              <span aria-hidden="true">{flagFor(product.origin)}</span>{" "}
-              {product.origin}
-            </span>
+            <>
+              <Flag country={product.origin} className="w-4" />
+              <span className="normal-case tracking-normal text-olive-800">
+                {product.origin}
+              </span>
+            </>
           ) : (
             <span className="truncate">{product.categoryName}</span>
           )}

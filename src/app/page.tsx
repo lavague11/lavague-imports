@@ -5,6 +5,7 @@ import { OliveMark } from "@/components/brand/logo";
 import { ProductCard } from "@/components/catalog/product-card";
 import { buttonClasses } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import { Flag } from "@/components/ui/flag";
 import { getCategories, getCountryFilters, getProducts } from "@/lib/catalog";
 import { fullAddress, site } from "@/lib/site";
 
@@ -169,11 +170,9 @@ export default async function HomePage() {
               <Link
                 key={country.slug}
                 href={`/shop?country=${country.slug}`}
-                className="group flex flex-col items-center gap-1.5 rounded-card border border-olive-100 bg-white p-4 text-center transition-colors hover:border-olive-300 hover:bg-olive-50"
+                className="group flex flex-col items-center gap-2 rounded-card border border-olive-100 bg-white p-4 text-center transition-colors hover:border-olive-300 hover:bg-olive-50"
               >
-                <span className="text-3xl leading-none sm:text-4xl" aria-hidden="true">
-                  {country.flag}
-                </span>
+                <Flag country={country.name} className="w-11 sm:w-12" />
                 <span className="text-sm font-medium text-olive-900">
                   {country.name}
                 </span>

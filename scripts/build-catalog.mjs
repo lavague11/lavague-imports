@@ -15,6 +15,7 @@ const SOURCES = [
   "catalog.fattals.json",
   "catalog.mog.json",
   "catalog.ziyad.json",
+  "catalog.yemen.json",
   "catalog.wix.json",
 ];
 
@@ -157,6 +158,10 @@ const ALIASES = {
   "Halal Chicken Bouillon": "spices-herbs", Cheese: "dairy-cheese", "Whole Truffles": "canned-jarred",
   // mog (Shopify)
   "Olive oil": "oils-ghee", "Olive Oil": "oils-ghee",
+  // Yemen catalog (clean categories; mixed ones fall through to keywords)
+  "Biscuits, Candy & Halva": "sweets-snacks", "Juice & Soda": "beverages",
+  "Tea & Coffee": "beverages", "Milk & Cheese": "dairy-cheese",
+  "Nuts & Seeds": "nuts-dates", "Frozen Products": "frozen",
 };
 
 const CAT_BY_SLUG = Object.fromEntries([...CATEGORIES, FALLBACK].map((c) => [c.slug, c]));
@@ -225,7 +230,10 @@ try {
 // range and Moroccan Olive Grove are Moroccan importers, so anything from them
 // without a clearer signal is Moroccan. General importers (halalco, Ziyad,
 // Fattal's) span many origins and get no source default.
-const SOURCE_ORIGIN = { wix: "Morocco", mog: "Morocco" };
+// Ziyad Brothers is a Lebanese-American importer whose range is typically
+// Lebanese/Syrian/Turkish; default to Lebanon, and let name keywords split off
+// the Turkish (Turkey) and Syrian (Aleppo/Damascus) items above.
+const SOURCE_ORIGIN = { wix: "Morocco", mog: "Morocco", ziyad: "Lebanon" };
 
 function assignOrigin(p) {
   const slug = p.slug || slugify(p.name);

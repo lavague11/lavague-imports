@@ -14,7 +14,7 @@ import {
   getProductCount,
   getProducts,
 } from "@/lib/catalog";
-import { flagFor } from "@/lib/countries";
+import { Flag } from "@/components/ui/flag";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -99,11 +99,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
       <header className="max-w-2xl">
         <p className="eyebrow">{countryName ? "Foods of the world" : "The range"}</p>
         <h1 className="mt-3 flex items-center gap-3 text-4xl text-olive-900 sm:text-5xl">
-          {countryName ? (
-            <span className="text-4xl leading-none sm:text-5xl" aria-hidden="true">
-              {flagFor(countryName)}
-            </span>
-          ) : null}
+          {countryName ? <Flag country={countryName} className="w-10 sm:w-12" /> : null}
           <span>{headerTitle}</span>
         </h1>
         <p className="mt-4 leading-relaxed text-olive-700">
@@ -196,10 +192,10 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
                 defaultValue={activeCountrySlug ?? ""}
                 className="h-11 min-w-0 flex-1 rounded-full border border-olive-200 px-4 text-sm text-olive-900 focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none sm:flex-none"
               >
-                <option value="">🌍 All countries</option>
+                <option value="">All countries</option>
                 {countryFilters.map((country) => (
                   <option key={country.slug} value={country.slug}>
-                    {country.flag} {country.name} ({country.count})
+                    {country.name} ({country.count})
                   </option>
                 ))}
               </select>
@@ -233,7 +229,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
             <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-olive-700">
               {countryName ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-olive-100 px-3 py-1 font-medium text-olive-800">
-                  <span aria-hidden="true">{flagFor(countryName)}</span>
+                  <Flag country={countryName} className="w-4" />
                   {countryName}
                   <Link
                     href={hrefWith({ country: undefined, show: undefined })}
