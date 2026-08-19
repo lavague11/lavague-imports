@@ -70,6 +70,13 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   const shownCount = products.length;
   const remaining = total - shownCount;
 
+  // Header title: lead with the country (and its flag) when one is filtered.
+  const headerTitle = countryName
+    ? activeCategoryName
+      ? `${activeCategoryName} from ${countryName}`
+      : countryName
+    : (activeCategoryName ?? "Shop all");
+
   // Build hrefs that preserve the other active filters.
   const hrefWith = (overrides: Record<string, string | undefined>) => {
     const next = new URLSearchParams();
@@ -90,9 +97,14 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   return (
     <Container className="py-12 lg:py-16">
       <header className="max-w-2xl">
-        <p className="eyebrow">The range</p>
-        <h1 className="mt-3 text-4xl text-olive-900 sm:text-5xl">
-          {activeCategoryName ?? "Shop all"}
+        <p className="eyebrow">{countryName ? "Foods of the world" : "The range"}</p>
+        <h1 className="mt-3 flex items-center gap-3 text-4xl text-olive-900 sm:text-5xl">
+          {countryName ? (
+            <span className="text-4xl leading-none sm:text-5xl" aria-hidden="true">
+              {flagFor(countryName)}
+            </span>
+          ) : null}
+          <span>{headerTitle}</span>
         </h1>
         <p className="mt-4 leading-relaxed text-olive-700">
           Most of our range is sold wholesale and quoted to order. Add what you
