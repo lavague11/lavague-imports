@@ -40,6 +40,9 @@ model Product {
   /// Internal: which import source the product came from (e.g. "wix",
   /// "halalco", "yemen"). Admin-only; not shown on the storefront.
   source      String?
+  /// Lowest variant price in cents (null when quote-only), denormalized for
+  /// price sorting.
+  minPriceCents Int?
   /// Freeform storefront ribbon straight from the source catalog, e.g.
   /// "Best Seller", "HOT ITEM", "Only 2 Left". Null when the product has none.
   ribbon      String?

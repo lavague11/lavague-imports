@@ -52,6 +52,7 @@ async function main() {
       brand: product.brand,
       imageUrl: product.imageUrl,
       source: product.source,
+      minPriceCents: product.minPriceCents,
       ribbon: product.ribbon,
       collections: product.collections,
       isFeatured: product.isFeatured,

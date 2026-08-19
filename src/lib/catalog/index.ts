@@ -33,6 +33,7 @@ interface ProductRow {
   brand: string | null;
   imageUrl: string | null;
   source: string | null;
+  minPriceCents: number | null;
   ribbon: string | null;
   collections: string[];
   isFeatured: boolean;
@@ -60,6 +61,7 @@ function toProduct(row: ProductRow): Product {
     brand: row.brand,
     imageUrl: row.imageUrl,
     source: row.source,
+    minPriceCents: row.minPriceCents,
     ribbon: row.ribbon,
     isFeatured: row.isFeatured,
     categorySlug: row.category.slug,
@@ -133,8 +135,40 @@ export interface ProductQuery {
   /** Free-text match across name, brand, tagline, and country. */
   search?: string;
   featuredOnly?: boolean;
+  /** "featured" (default curated order) · "name" · "price-asc" · "price-desc". */
+  sort?: ProductSort;
   limit?: number;
   offset?: number;
+}
+
+export type ProductSort = "featured" | "name" | "price-asc" | "price-desc";
+
+const priceOf = (p: Product) => p.minPriceCents ?? Number.POSITIVE_INFINITY;
+
+function sortProducts(list: Product[], sort: ProductSort | undefined): Product[] {
+  switch (sort) {
+    case "name":
+      return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    case "price-asc":
+      return [...list].sort((a, b) => priceOf(a) - priceOf(b));
+    case "price-desc":
+      return [...list].sort((a, b) => (b.minPriceCents ?? -1) - (a.minPriceCents ?? -1));
+    default:
+      return list; // already in the curated featured/position order
+  }
+}
+
+function prismaOrderBy(sort: ProductSort | undefined) {
+  switch (sort) {
+    case "name":
+      return [{ name: "asc" as const }];
+    case "price-asc":
+      return [{ minPriceCents: { sort: "asc" as const, nulls: "last" as const } }, { name: "asc" as const }];
+    case "price-desc":
+      return [{ minPriceCents: { sort: "desc" as const, nulls: "last" as const } }, { name: "asc" as const }];
+    default:
+      return [{ position: "asc" as const }, { name: "asc" as const }];
+  }
 }
 
 function prismaWhere(query: ProductQuery) {
@@ -158,7 +192,7 @@ function prismaWhere(query: ProductQuery) {
 }
 
 function sliceSeed(query: ProductQuery): Product[] {
-  const filtered = filterSeedProducts(query);
+  const filtered = sortProducts(filterSeedProducts(query), query.sort);
   const start = query.offset ?? 0;
   return query.limit != null
     ? filtered.slice(start, start + query.limit)
@@ -175,7 +209,7 @@ export async function getProducts(query: ProductQuery = {}): Promise<Product[]> 
           category: true,
           variants: { orderBy: { position: "asc" } },
         },
-        orderBy: [{ position: "asc" }, { name: "asc" }],
+        orderBy: prismaOrderBy(query.sort),
         ...(query.limit != null ? { take: query.limit } : {}),
         ...(query.offset != null ? { skip: query.offset } : {}),
       });

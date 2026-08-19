@@ -535,6 +535,11 @@ for (const p of grouped) {
     isFeatured: Boolean(p.isFeatured),
     /// Internal: which import source this product came from (admin-only label).
     source: p.source ?? null,
+    /// Lowest priced variant in cents (null if all quote-only), for price sorting.
+    minPriceCents: variants.reduce(
+      (m, v) => (v.retailPriceCents != null ? (m == null ? v.retailPriceCents : Math.min(m, v.retailPriceCents)) : m),
+      null,
+    ),
     categorySlug: p.categorySlug,
     categoryName: p.categoryName,
     collections: (p.collections || []).filter((c) => !GENERIC.has(c)),
@@ -577,13 +582,20 @@ const categories = [...usedCats.values(), FALLBACK]
   .sort((a, b) => catPriority.indexOf(a.slug) - catPriority.indexOf(b.slug))
   .map((c) => ({ id: "cat_" + c.slug, slug: c.slug, name: c.name, description: c.description }));
 
-// Collection filters from all non-generic collections actually used.
+// Collection filters from all non-generic collections actually used. Names that
+// slugify to the same value (e.g. "Olive Oil" / "Olive oil") are merged so the
+// filter list has unique slugs.
 const colCounts = new Map();
 for (const p of products) for (const c of p.collections) colCounts.set(c, (colCounts.get(c) || 0) + 1);
-const collections = [...colCounts.entries()]
-  .filter(([, n]) => n >= 2)
-  .sort((a, b) => b[1] - a[1])
-  .map(([name, count]) => ({ name, slug: slugify(name), count }));
+const colBySlug = new Map();
+for (const [name, count] of colCounts) {
+  if (count < 2) continue;
+  const slug = slugify(name);
+  const existing = colBySlug.get(slug);
+  if (existing) existing.count += count;
+  else colBySlug.set(slug, { name, slug, count });
+}
+const collections = [...colBySlug.values()].sort((a, b) => b.count - a.count);
 
 // Country-of-origin filters, with flags, most stocked first.
 const countryCounts = new Map();

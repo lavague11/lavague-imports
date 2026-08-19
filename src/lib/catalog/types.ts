@@ -27,6 +27,8 @@ export interface Product {
   imageUrl: string | null;
   /** Internal: which import source this product came from (admin-only). */
   source?: string | null;
+  /** Lowest priced variant in cents (null if quote-only), for price sorting. */
+  minPriceCents?: number | null;
   /** Freeform source ribbon, e.g. "Best Seller", "HOT ITEM", "Only 2 Left". */
   ribbon: string | null;
   isFeatured: boolean;
