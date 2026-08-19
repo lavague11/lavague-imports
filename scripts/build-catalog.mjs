@@ -559,6 +559,14 @@ for (const p of products) {
   }
 }
 
+// Display order: best sellers first, then Morocco → Algeria → Egypt → the rest.
+// A stable sort preserves the existing order within each tier. The DB seed
+// writes `position` from this order and the no-DB fallback serves it as-is.
+const ORIGIN_RANK = { Morocco: 1, Algeria: 2, Egypt: 3 };
+const priorityRank = (p) =>
+  p.isFeatured ? 0 : (ORIGIN_RANK[p.origin] ?? 100);
+products.sort((a, b) => priorityRank(a) - priorityRank(b));
+
 // Categories that ended up with products, in priority order.
 const catPriority = [...CATEGORIES, FALLBACK].map((c) => c.slug);
 const categories = [...usedCats.values(), FALLBACK]
