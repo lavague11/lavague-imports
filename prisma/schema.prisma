@@ -37,6 +37,9 @@ model Product {
   origin      String?
   brand       String?
   imageUrl    String?
+  /// Up to three product photos. The first mirrors imageUrl (the card/primary
+  /// shot); the rest form the detail-page gallery.
+  images      String[]
   /// Internal: which import source the product came from (e.g. "wix",
   /// "halalco", "yemen"). Admin-only; not shown on the storefront.
   source      String?
@@ -336,6 +339,9 @@ model ProductOverride {
   tagline     String?
   description String?
   imageUrl    String?
+  /// Up to three product photos (JSON array of paths/URLs). Overrides the whole
+  /// gallery when set.
+  images      Json?
   /// A best-effort image candidate from scripts/suggest-images.mjs, shown for
   /// approval in the edit form. Never applied automatically.
   suggestedImageUrl String?
@@ -346,6 +352,9 @@ model ProductOverride {
   isActive    Boolean?
   /// Per-variant retail price overrides, keyed by SKU: { "<sku>": <cents> }.
   variantPrices Json?
+  /// Per-variant pack overrides, keyed by SKU:
+  /// { "<sku>": { "size": "70 g", "unitsPerCase": 24 } }.
+  variantPacks Json?
 
   updatedById String?
   createdAt   DateTime @default(now())

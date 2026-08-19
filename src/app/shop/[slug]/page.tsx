@@ -6,10 +6,11 @@ import { ChevronRight, Truck } from "lucide-react";
 import { AddToQuote } from "@/components/cart/add-to-quote";
 import { HalalBadge } from "@/components/catalog/halal-badge";
 import { ProductCard } from "@/components/catalog/product-card";
+import { ProductGallery } from "@/components/catalog/product-gallery";
 import { ProductImage } from "@/components/catalog/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Container } from "@/components/ui/container";
-import { getProductBySlug, getProducts, isZabihaMeat } from "@/lib/catalog";
+import { getProductBySlug, getProducts, isZabihaMeat, productImages } from "@/lib/catalog";
 import { site } from "@/lib/site";
 
 // Pre-render only the featured products; the full 600+ catalog renders on
@@ -46,6 +47,7 @@ export default async function ProductPage({
     .slice(0, 3);
 
   const casePack = product.variants.find((variant) => variant.unitsPerCase);
+  const gallery = productImages(product);
 
   return (
     <Container className="py-10 lg:py-14">
@@ -74,12 +76,16 @@ export default async function ProductPage({
 
       <div className="mt-8 grid gap-10 lg:grid-cols-2 lg:gap-16">
         <div className="relative">
-          <ProductImage
-            src={product.imageUrl}
-            alt={product.name}
-            priority
-            className="aspect-square w-full rounded-card border border-olive-100"
-          />
+          {gallery.length > 1 ? (
+            <ProductGallery images={gallery} alt={product.name} />
+          ) : (
+            <ProductImage
+              src={product.imageUrl}
+              alt={product.name}
+              priority
+              className="aspect-square w-full rounded-card border border-olive-100"
+            />
+          )}
           {product.ribbon ? (
             <Badge ribbon={product.ribbon} className="absolute top-4 left-4" />
           ) : null}

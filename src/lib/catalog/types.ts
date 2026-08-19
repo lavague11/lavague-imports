@@ -25,6 +25,9 @@ export interface Product {
   origin: string | null;
   brand: string | null;
   imageUrl: string | null;
+  /** Up to three photos; the first mirrors imageUrl. Optional so the generated
+   *  fallback catalog (which predates galleries) still type-checks. */
+  images?: string[];
   /** Internal: which import source this product came from (admin-only). */
   source?: string | null;
   /** Lowest priced variant in cents (null if quote-only), for price sorting. */
@@ -71,6 +74,16 @@ export function lowestPricedVariant(product: Product): Variant {
   return priced.reduce((cheapest, variant) =>
     variant.retailPriceCents! < cheapest.retailPriceCents! ? variant : cheapest,
   );
+}
+
+/** The product's photo gallery: explicit images if set, else the single
+ *  imageUrl, else empty. Always de-duped and free of blanks. */
+export function productImages(product: Product): string[] {
+  const list = (product.images && product.images.length > 0
+    ? product.images
+    : [product.imageUrl]
+  ).filter((src): src is string => Boolean(src));
+  return [...new Set(list)];
 }
 
 export function isOnSale(variant: Variant) {

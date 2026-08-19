@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 import {
   hashPassword,
@@ -10,10 +9,10 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import {
-  createCustomProduct,
-  localizeImage,
+  collectImagesFromForm,
   saveProductEdits,
   setActive,
+  type VariantPack,
 } from "@/lib/admin/products";
 import { requirePrisma } from "@/lib/db";
 import { type FormState } from "@/lib/form";
@@ -60,16 +59,33 @@ export async function changePassword(_prev: FormState, fd: FormData): Promise<Fo
 
 /* ---- products ---- */
 
+/** Per-variant packs: size__<sku> (label) and case__<sku> (units per case). */
+function collectPacks(fd: FormData): Record<string, VariantPack> {
+  const packs: Record<string, VariantPack> = {};
+  for (const [key, value] of fd.entries()) {
+    if (typeof value !== "string") continue;
+    let sku: string | null = null;
+    let field: "size" | "unitsPerCase" | null = null;
+    if (key.startsWith("size__")) { sku = key.slice("size__".length); field = "size"; }
+    else if (key.startsWith("case__")) { sku = key.slice("case__".length); field = "unitsPerCase"; }
+    if (!sku || !field) continue;
+    packs[sku] ??= {};
+    if (field === "size") {
+      packs[sku].size = value.trim() || null;
+    } else {
+      const n = parseInt(value.trim(), 10);
+      packs[sku].unitsPerCase = Number.isFinite(n) && n > 0 ? n : null;
+    }
+  }
+  return packs;
+}
+
 export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormState> {
   const user = await requireUser();
   const slug = str(fd, "slug");
   if (!slug) return { status: "error", message: "Missing product." };
 
-  // Resolve the image: localise a newly pasted remote URL, keep local paths.
-  let imageUrl = optStr(fd, "imageUrl");
-  if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
-    imageUrl = await localizeImage(slug, imageUrl);
-  }
+  const images = await collectImagesFromForm(fd, slug);
 
   // Per-variant prices: fields named price__<sku> in dollars.
   const variantPrices: Record<string, number | null> = {};
@@ -86,13 +102,14 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
       {
         name: str(fd, "name") || undefined,
         description: str(fd, "description") || undefined,
-        imageUrl,
+        images,
         origin: optStr(fd, "origin"),
         ribbon: optStr(fd, "ribbon"),
         categorySlug: str(fd, "categorySlug") || undefined,
         isFeatured: fd.get("isFeatured") === "on",
         isActive: fd.get("isActive") === "on",
         variantPrices,
+        variantPacks: collectPacks(fd),
       },
       user.id,
     );
@@ -114,44 +131,6 @@ export async function bulkSetActive(fd: FormData): Promise<void> {
   if (slugs.length) await setActive(slugs, isActive, user.id);
   revalidatePath("/admin/products");
   revalidatePath("/shop");
-}
-
-export async function createProduct(_prev: FormState, fd: FormData): Promise<FormState> {
-  await requireUser();
-  const name = str(fd, "name");
-  const categorySlug = str(fd, "categorySlug");
-  if (!name || !categorySlug) {
-    return { status: "error", message: "Name and category are required." };
-  }
-  const slug =
-    (str(fd, "slug") || name)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 70) || "product";
-  const priceStr = str(fd, "price");
-  let imageUrl = optStr(fd, "imageUrl");
-  if (imageUrl && /^https?:\/\//i.test(imageUrl)) imageUrl = await localizeImage(slug, imageUrl);
-
-  try {
-    await createCustomProduct({
-      name,
-      slug,
-      sku: str(fd, "sku") || `LV-${slug}`.toUpperCase().slice(0, 40),
-      categorySlug,
-      description: str(fd, "description") || `${name}.`,
-      origin: optStr(fd, "origin"),
-      ribbon: optStr(fd, "ribbon"),
-      imageUrl,
-      priceCents: priceStr ? Math.round(parseFloat(priceStr) * 100) : null,
-    });
-  } catch (error) {
-    console.error("[admin] createProduct failed", error);
-    return { status: "error", message: "Couldn't create the product (duplicate slug, or DB offline?)." };
-  }
-  revalidatePath("/admin/products");
-  revalidatePath("/shop");
-  redirect(`/admin/products/${slug}`);
 }
 
 /* ---- users (ADMIN) ---- */

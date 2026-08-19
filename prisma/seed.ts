@@ -89,7 +89,13 @@ async function main() {
     if (o.name != null) data.name = o.name;
     if (o.tagline != null) data.tagline = o.tagline;
     if (o.description != null) data.description = o.description;
-    if (o.imageUrl != null) data.imageUrl = o.imageUrl;
+    const images = (o.images ?? null) as string[] | null;
+    if (images && images.length) {
+      data.images = images;
+      data.imageUrl = images[0];
+    } else if (o.imageUrl != null) {
+      data.imageUrl = o.imageUrl;
+    }
     if (o.origin != null) data.origin = o.origin;
     if (o.ribbon != null) data.ribbon = o.ribbon;
     if (o.isFeatured != null) data.isFeatured = o.isFeatured;
@@ -104,6 +110,15 @@ async function main() {
         where: { sku },
         data: { retailPriceCents: cents },
       });
+    }
+    const packs = (o.variantPacks ?? {}) as Record<string, { size?: string | null; unitsPerCase?: number | null }>;
+    for (const [sku, pack] of Object.entries(packs)) {
+      const packData: Record<string, unknown> = {};
+      if (pack.size != null && pack.size !== "") packData.name = pack.size;
+      if (pack.unitsPerCase != null) packData.unitsPerCase = pack.unitsPerCase;
+      if (Object.keys(packData).length) {
+        await prisma.productVariant.updateMany({ where: { sku }, data: packData });
+      }
     }
   }
   if (overrides.length) console.log(`Re-applied ${overrides.length} product overrides.`);

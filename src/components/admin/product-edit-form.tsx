@@ -1,21 +1,23 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { saveProduct } from "@/app/admin/actions";
+import { ImageSlots } from "@/components/admin/image-slots";
 import { idleFormState } from "@/lib/form";
 
 interface Variant {
   sku: string;
   name: string;
   retailPriceCents: number | null;
+  unitsPerCase: number | null;
 }
 interface ProductData {
   slug: string;
   name: string;
   description: string;
-  imageUrl: string | null;
+  images: string[];
   origin: string | null;
   ribbon: string | null;
   isFeatured: boolean;
@@ -44,71 +46,19 @@ export function ProductEditForm({
   product,
   categories,
   countries,
-  suggestedImageUrl,
 }: {
   product: ProductData;
   categories: { slug: string; name: string }[];
   countries: string[];
-  suggestedImageUrl: string | null;
 }) {
   const [state, action] = useActionState(saveProduct, idleFormState);
-  const [imageUrl, setImageUrl] = useState(product.imageUrl ?? "");
-  const searchHref = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(product.name)}`;
 
   return (
     <form action={action} className="space-y-6 rounded-xl border border-olive-100 bg-white p-6">
       <input type="hidden" name="slug" value={product.slug} />
 
-      {/* Image */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label htmlFor="imageUrl" className="text-sm font-medium text-olive-800">
-            Image
-          </label>
-          <a href={searchHref} target="_blank" rel="noreferrer" className="text-xs font-medium text-olive-700 hover:underline">
-            Search images ↗
-          </a>
-        </div>
-        <div className="flex gap-4">
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-olive-100 bg-olive-50">
-            {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="" className="h-full w-full object-contain" />
-            ) : (
-              <span className="text-[10px] text-olive-400">no image</span>
-            )}
-          </div>
-          <div className="flex-1 space-y-2">
-            <input
-              id="imageUrl"
-              name="imageUrl"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="Paste an image URL (it will be saved to the store)…"
-              className={inputClass}
-            />
-            {suggestedImageUrl && suggestedImageUrl !== imageUrl ? (
-              <div className="flex items-center gap-2 rounded-lg bg-olive-50 p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={suggestedImageUrl} alt="" className="h-10 w-10 rounded object-contain" />
-                <span className="text-xs text-olive-600">Suggested image found online.</span>
-                <button
-                  type="button"
-                  onClick={() => setImageUrl(suggestedImageUrl)}
-                  className="ml-auto rounded-md border border-olive-300 px-2.5 py-1 text-xs hover:bg-white"
-                >
-                  Use this
-                </button>
-              </div>
-            ) : null}
-            {imageUrl ? (
-              <button type="button" onClick={() => setImageUrl("")} className="text-xs text-olive-500 hover:text-red-700">
-                Remove image
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
+      {/* Images */}
+      <ImageSlots initial={product.images} searchName={product.name} />
 
       {/* Name / description */}
       <div>
@@ -142,14 +92,20 @@ export function ProductEditForm({
           <label htmlFor="origin" className="mb-1 block text-sm font-medium text-olive-800">
             Country of origin
           </label>
-          <select id="origin" name="origin" defaultValue={product.origin ?? ""} className={inputClass}>
-            <option value="">Unspecified</option>
+          {/* Pick a known country or type a new one. */}
+          <input
+            id="origin"
+            name="origin"
+            list="country-options"
+            defaultValue={product.origin ?? ""}
+            placeholder="Type or choose…"
+            className={inputClass}
+          />
+          <datalist id="country-options">
             {countries.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <option key={c} value={c} />
             ))}
-          </select>
+          </datalist>
         </div>
         <div>
           <label htmlFor="ribbon" className="mb-1 block text-sm font-medium text-olive-800">
@@ -159,21 +115,48 @@ export function ProductEditForm({
         </div>
       </div>
 
-      {/* Variant prices */}
+      {/* Variants: price, unit size, units per case */}
       <div>
-        <p className="mb-2 text-sm font-medium text-olive-800">Prices (leave blank for “price on request”)</p>
-        <div className="space-y-2">
+        <p className="mb-1 text-sm font-medium text-olive-800">Options &amp; case sizes</p>
+        <p className="mb-3 text-xs text-olive-500">
+          Unit size is the weight/volume of one item (e.g. “70 g”). Units per case is how many
+          ship in a wholesale case (shown to trade buyers).
+        </p>
+        <div className="space-y-3">
           {product.variants.map((v) => (
-            <div key={v.sku} className="flex items-center gap-3">
-              <span className="w-40 text-sm text-olive-600">{v.name}</span>
-              <span className="text-sm text-olive-500">$</span>
-              <input
-                name={`price__${v.sku}`}
-                defaultValue={v.retailPriceCents != null ? (v.retailPriceCents / 100).toFixed(2) : ""}
-                inputMode="decimal"
-                className="h-9 w-28 rounded-lg border border-olive-200 px-3 text-sm"
-              />
-              <span className="text-xs text-olive-400">{v.sku}</span>
+            <div key={v.sku} className="rounded-lg border border-olive-100 bg-olive-50/40 p-3">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs text-olive-600">Unit size / weight</span>
+                  <input
+                    name={`size__${v.sku}`}
+                    defaultValue={v.name}
+                    placeholder="e.g. 70 g"
+                    className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs text-olive-600">Units per case</span>
+                  <input
+                    name={`case__${v.sku}`}
+                    defaultValue={v.unitsPerCase ?? ""}
+                    inputMode="numeric"
+                    placeholder="e.g. 24"
+                    className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs text-olive-600">Price each (USD)</span>
+                  <input
+                    name={`price__${v.sku}`}
+                    defaultValue={v.retailPriceCents != null ? (v.retailPriceCents / 100).toFixed(2) : ""}
+                    inputMode="decimal"
+                    placeholder="blank = on request"
+                    className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
+                  />
+                </label>
+              </div>
+              <p className="mt-2 text-[11px] text-olive-400">{v.sku}</p>
             </div>
           ))}
         </div>

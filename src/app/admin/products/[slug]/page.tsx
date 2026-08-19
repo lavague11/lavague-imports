@@ -18,12 +18,11 @@ export default async function AdminEditProduct({
   if (!prisma) return <p className="text-olive-700">Database not connected — see the dashboard.</p>;
 
   const { slug } = await params;
-  const [product, override, categories] = await Promise.all([
+  const [product, categories] = await Promise.all([
     prisma.product.findUnique({
       where: { slug },
       include: { category: true, variants: { orderBy: { position: "asc" } } },
     }),
-    prisma.productOverride.findUnique({ where: { slug } }),
     getCategories(),
   ]);
   if (!product) notFound();
@@ -54,7 +53,7 @@ export default async function AdminEditProduct({
             slug: product.slug,
             name: product.name,
             description: product.description,
-            imageUrl: product.imageUrl,
+            images: product.images?.length ? product.images : product.imageUrl ? [product.imageUrl] : [],
             origin: product.origin,
             ribbon: product.ribbon,
             isFeatured: product.isFeatured,
@@ -64,11 +63,11 @@ export default async function AdminEditProduct({
               sku: v.sku,
               name: v.name,
               retailPriceCents: v.retailPriceCents,
+              unitsPerCase: v.unitsPerCase,
             })),
           }}
           categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
           countries={countries}
-          suggestedImageUrl={override?.suggestedImageUrl ?? null}
         />
       </div>
     </div>

@@ -32,6 +32,7 @@ interface ProductRow {
   origin: string | null;
   brand: string | null;
   imageUrl: string | null;
+  images: string[];
   source: string | null;
   minPriceCents: number | null;
   ribbon: string | null;
@@ -60,6 +61,7 @@ function toProduct(row: ProductRow): Product {
     origin: row.origin,
     brand: row.brand,
     imageUrl: row.imageUrl,
+    images: row.images ?? [],
     source: row.source,
     minPriceCents: row.minPriceCents,
     ribbon: row.ribbon,
