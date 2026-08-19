@@ -104,22 +104,38 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
     return qs ? `/shop?${qs}` : "/shop";
   };
 
+  // The three filter controls, shared by the desktop row and the mobile
+  // "Filters" disclosure.
+  const filterControls = () => (
+    <>
+      <CountrySelect selected={countryName ?? null} countries={countryFilters} />
+      <ParamSelect
+        param="collection"
+        value={activeCollectionSlug ?? ""}
+        placeholder="All collections"
+        options={collectionFilters.map((c) => ({ value: c.slug, label: `${c.name} (${c.count})` }))}
+      />
+      <SortSelect value={sort} />
+    </>
+  );
+
   return (
-    <Container className="py-12 lg:py-16">
+    <Container className="py-6 sm:py-12 lg:py-16">
       <header className="max-w-2xl">
         <p className="eyebrow">{countryName ? "Foods of the world" : "The range"}</p>
-        <h1 className="mt-3 flex items-center gap-3 text-4xl text-olive-900 sm:text-5xl">
-          {countryName ? <Flag country={countryName} className="w-10 sm:w-12" /> : null}
+        <h1 className="mt-2 flex items-center gap-3 text-3xl text-olive-900 sm:mt-3 sm:text-5xl">
+          {countryName ? <Flag country={countryName} className="w-9 sm:w-12" /> : null}
           <span>{headerTitle}</span>
         </h1>
-        <p className="mt-4 leading-relaxed text-olive-700">
+        {/* Long intro is desktop-only — kept minimal on phones. */}
+        <p className="mt-4 hidden leading-relaxed text-olive-700 sm:block">
           Most of our range is sold wholesale and quoted to order. Add what you
           need to your quote list and we&apos;ll come back with pricing, case
           packs, and freight — usually the same business day.
         </p>
       </header>
 
-      <div className="mt-10 lg:grid lg:grid-cols-[210px_1fr] lg:gap-10">
+      <div className="mt-6 lg:mt-10 lg:grid lg:grid-cols-[210px_1fr] lg:gap-10">
         {/* Departments — sidebar on desktop */}
         <aside className="hidden lg:block">
           <nav
@@ -194,17 +210,18 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
             </button>
           </form>
 
-          {/* Country · collection · sort — all apply instantly on change */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <CountrySelect selected={countryName ?? null} countries={countryFilters} />
-            <ParamSelect
-              param="collection"
-              value={activeCollectionSlug ?? ""}
-              placeholder="All collections"
-              options={collectionFilters.map((c) => ({ value: c.slug, label: `${c.name} (${c.count})` }))}
-            />
-            <SortSelect value={sort} />
+          {/* Country · collection · sort — instant on change. Inline on desktop,
+              tucked behind a "Filters" disclosure on phones to stay minimal. */}
+          <div className="mt-3 hidden flex-wrap items-center gap-2 sm:flex">
+            {filterControls()}
           </div>
+          <details className="group mt-3 sm:hidden">
+            <summary className="flex h-11 cursor-pointer list-none items-center justify-between rounded-full border border-olive-200 px-4 text-sm font-medium text-olive-700 [&::-webkit-details-marker]:hidden">
+              Filters &amp; sort
+              <span className="text-olive-400 transition-transform group-open:rotate-180">▾</span>
+            </summary>
+            <div className="mt-2 flex flex-col gap-2">{filterControls()}</div>
+          </details>
 
           {/* Active filter chips */}
           {countryName || collectionName ? (
