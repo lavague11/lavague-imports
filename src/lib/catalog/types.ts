@@ -80,3 +80,18 @@ export function isOnSale(variant: Variant) {
 export function hasPrice(product: Product) {
   return product.variants.some((v) => v.retailPriceCents !== null);
 }
+
+// Seasonings/bouillon that keyword-land in the meat category but aren't zabiha
+// meat. "Cubes" alone isn't enough (a "Beef Stew (Beef Cubes)" is real meat),
+// so it only counts as seasoning alongside a bouillon brand.
+const SEASONING = /\b(bouillon|stock|broth|seasoning|flavou?r|noodles?|instant|granules?|powder|masala)\b/i;
+const BOUILLON_BRAND = /\b(golden|doobi|zaghloul|maggi|knorr)\b/i;
+
+/** True only for genuine zabiha meat — used to place the halal badge. */
+export function isZabihaMeat(product: Product): boolean {
+  if (product.categorySlug !== "meat") return false;
+  const name = product.name;
+  if (SEASONING.test(name)) return false;
+  if (/\bcubes?\b/i.test(name) && BOUILLON_BRAND.test(name)) return false;
+  return true;
+}

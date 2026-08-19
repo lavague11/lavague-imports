@@ -6,6 +6,7 @@ import { ProductImage } from "@/components/catalog/product-image";
 import { Badge } from "@/components/ui/badge";
 import {
   isOnSale,
+  isZabihaMeat,
   lowestPricedVariant,
   type Product,
 } from "@/lib/catalog/types";
@@ -28,7 +29,7 @@ export function ProductCard({ product }: { product: Product }) {
         {product.ribbon ? (
           <Badge ribbon={product.ribbon} className="absolute top-3 left-3" />
         ) : null}
-        {product.categorySlug === "meat" ? (
+        {isZabihaMeat(product) ? (
           <HalalBadge className="absolute top-3 right-3" />
         ) : null}
       </Link>

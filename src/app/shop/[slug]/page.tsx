@@ -9,7 +9,7 @@ import { ProductCard } from "@/components/catalog/product-card";
 import { ProductImage } from "@/components/catalog/product-image";
 import { Badge } from "@/components/ui/badge";
 import { Container } from "@/components/ui/container";
-import { getProductBySlug, getProducts } from "@/lib/catalog";
+import { getProductBySlug, getProducts, isZabihaMeat } from "@/lib/catalog";
 import { site } from "@/lib/site";
 
 // Pre-render only the featured products; the full 600+ catalog renders on
@@ -93,9 +93,7 @@ export default async function ProductPage({
           <h1 className="mt-3 text-3xl leading-tight text-olive-900 sm:text-4xl">
             {product.name}
           </h1>
-          {product.categorySlug === "meat" ? (
-            <HalalBadge className="mt-4" />
-          ) : null}
+          {isZabihaMeat(product) ? <HalalBadge className="mt-4" /> : null}
           {product.tagline ? (
             <p className="mt-3 text-lg text-olive-600">{product.tagline}</p>
           ) : null}
