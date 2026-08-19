@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireUser } from "@/lib/auth";
 import { collectImagesFromForm, createCustomProduct } from "@/lib/admin/products";
+import { formatUnitSize } from "@/lib/units";
 
 // Create a product via a full-page POST (Post/Redirect/Get), NOT a Server
 // Action — server-action redirects re-render through the client error boundary
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
       .replace(/^-+|-+$/g, "")
       .slice(0, 70) || "product";
 
-  const images = await collectImagesFromForm(fd, slug);
+  const images = await collectImagesFromForm(fd);
   const priceStr = s(fd, "price");
   const caseStr = s(fd, "unitsPerCase");
   const caseNum = parseInt(caseStr, 10);
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
       ribbon: optS(fd, "ribbon"),
       images,
       priceCents: priceStr ? Math.round(parseFloat(priceStr) * 100) : null,
-      unitSize: optS(fd, "unitSize"),
+      unitSize: formatUnitSize(s(fd, "unitSizeAmount"), s(fd, "unitSizeUnit")),
       unitsPerCase: Number.isFinite(caseNum) && caseNum > 0 ? caseNum : null,
     });
   } catch (error) {

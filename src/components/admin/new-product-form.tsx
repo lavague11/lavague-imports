@@ -1,4 +1,5 @@
 import { ImageSlots } from "@/components/admin/image-slots";
+import { UNIT_OPTIONS } from "@/lib/units";
 
 const inputClass =
   "h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none";
@@ -59,10 +60,17 @@ export function NewProductForm({
       </div>
 
       {/* Unit size / case / price */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <div>
-          <label htmlFor="unitSize" className="mb-1 block text-sm font-medium text-olive-800">Unit size / weight</label>
-          <input id="unitSize" name="unitSize" placeholder="e.g. 70 g" className={inputClass} />
+          <label htmlFor="unitSizeAmount" className="mb-1 block text-sm font-medium text-olive-800">Unit size</label>
+          <input id="unitSizeAmount" name="unitSizeAmount" inputMode="decimal" placeholder="e.g. 70" className={inputClass} />
+        </div>
+        <div>
+          <label htmlFor="unitSizeUnit" className="mb-1 block text-sm font-medium text-olive-800">Unit</label>
+          <select id="unitSizeUnit" name="unitSizeUnit" defaultValue="" className={inputClass}>
+            <option value="">— none —</option>
+            {UNIT_OPTIONS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+          </select>
         </div>
         <div>
           <label htmlFor="unitsPerCase" className="mb-1 block text-sm font-medium text-olive-800">Units per case</label>

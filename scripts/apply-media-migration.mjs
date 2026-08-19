@@ -14,6 +14,12 @@ const statements = [
   `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "images" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];`,
   `ALTER TABLE "ProductOverride" ADD COLUMN IF NOT EXISTS "images" JSONB;`,
   `ALTER TABLE "ProductOverride" ADD COLUMN IF NOT EXISTS "variantPacks" JSONB;`,
+  `CREATE TABLE IF NOT EXISTS "MediaAsset" (
+     "id" TEXT PRIMARY KEY,
+     "contentType" TEXT NOT NULL,
+     "data" BYTEA NOT NULL,
+     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+   );`,
 ];
 
 const client = new pg.Client({ connectionString });

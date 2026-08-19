@@ -16,6 +16,7 @@ import {
 } from "@/lib/admin/products";
 import { requirePrisma } from "@/lib/db";
 import { type FormState } from "@/lib/form";
+import { formatUnitSize } from "@/lib/units";
 import { makeReference } from "@/lib/utils";
 
 function str(fd: FormData, k: string) {
@@ -59,23 +60,33 @@ export async function changePassword(_prev: FormState, fd: FormData): Promise<Fo
 
 /* ---- products ---- */
 
-/** Per-variant packs: size__<sku> (label) and case__<sku> (units per case). */
+/**
+ * Per-variant packs from the form: sizeAmount__<sku> + sizeUnit__<sku> combine
+ * into the size label, and case__<sku> is the units per case.
+ */
 function collectPacks(fd: FormData): Record<string, VariantPack> {
-  const packs: Record<string, VariantPack> = {};
+  const amounts: Record<string, string> = {};
+  const units: Record<string, string> = {};
+  const cases: Record<string, string> = {};
   for (const [key, value] of fd.entries()) {
     if (typeof value !== "string") continue;
-    let sku: string | null = null;
-    let field: "size" | "unitsPerCase" | null = null;
-    if (key.startsWith("size__")) { sku = key.slice("size__".length); field = "size"; }
-    else if (key.startsWith("case__")) { sku = key.slice("case__".length); field = "unitsPerCase"; }
-    if (!sku || !field) continue;
-    packs[sku] ??= {};
-    if (field === "size") {
-      packs[sku].size = value.trim() || null;
-    } else {
-      const n = parseInt(value.trim(), 10);
-      packs[sku].unitsPerCase = Number.isFinite(n) && n > 0 ? n : null;
+    if (key.startsWith("sizeAmount__")) amounts[key.slice("sizeAmount__".length)] = value;
+    else if (key.startsWith("sizeUnit__")) units[key.slice("sizeUnit__".length)] = value;
+    else if (key.startsWith("case__")) cases[key.slice("case__".length)] = value;
+  }
+
+  const skus = new Set([...Object.keys(amounts), ...Object.keys(units), ...Object.keys(cases)]);
+  const packs: Record<string, VariantPack> = {};
+  for (const sku of skus) {
+    const pack: VariantPack = {};
+    if (sku in amounts || sku in units) {
+      pack.size = formatUnitSize(amounts[sku], units[sku]);
     }
+    if (sku in cases) {
+      const n = parseInt((cases[sku] ?? "").trim(), 10);
+      pack.unitsPerCase = Number.isFinite(n) && n > 0 ? n : null;
+    }
+    packs[sku] = pack;
   }
   return packs;
 }
@@ -85,7 +96,7 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
   const slug = str(fd, "slug");
   if (!slug) return { status: "error", message: "Missing product." };
 
-  const images = await collectImagesFromForm(fd, slug);
+  const images = await collectImagesFromForm(fd);
 
   // Per-variant prices: fields named price__<sku> in dollars.
   const variantPrices: Record<string, number | null> = {};

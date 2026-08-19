@@ -1,8 +1,5 @@
 import "server-only";
 
-import { writeFile, mkdir } from "node:fs/promises";
-import path from "node:path";
-
 import { Prisma } from "@/generated/prisma/client";
 import { requirePrisma } from "@/lib/db";
 
@@ -32,30 +29,36 @@ export interface ProductEdits {
   variantPacks?: Record<string, VariantPack>;
 }
 
-const IMG_DIR = path.join(process.cwd(), "public", "products", "custom");
+/** True for paths we serve ourselves (DB media or bundled files) — never
+ *  re-download these. */
+function isLocalPath(url: string): boolean {
+  return url.startsWith("/media/") || url.startsWith("/products/");
+}
 
-function extFromType(type: string): string {
-  return type.includes("png") ? "png" : type.includes("webp") ? "webp" : type.includes("gif") ? "gif" : "jpg";
+/** Stores raw image bytes in the database and returns its /media/<id> URL. */
+async function storeMedia(contentType: string, data: Buffer): Promise<string> {
+  const prisma = requirePrisma();
+  const asset = await prisma.mediaAsset.create({
+    data: { contentType: contentType || "image/jpeg", data: Uint8Array.from(data) },
+    select: { id: true },
+  });
+  return `/media/${asset.id}`;
 }
 
 /**
- * Downloads a remote image into public/products/custom so the storefront serves
- * it locally (no per-host next.config wiring, no hotlinking). Returns the local
- * path, or the original URL if the download fails. `index` disambiguates the
- * filename so a product can carry several photos. Note: writes to the local
- * filesystem — for a serverless host, swap this for object storage.
+ * Downloads a remote image and stores it in the database (MediaAsset), returning
+ * a durable /media/<id> URL that survives redeploys. Local paths pass through;
+ * on any download failure the original URL is returned unchanged.
  */
-export async function localizeImage(slug: string, url: string, index = 0): Promise<string> {
-  if (!url || url.startsWith("/products/")) return url;
+export async function localizeImage(url: string): Promise<string> {
+  if (!url || isLocalPath(url)) return url;
   try {
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
     if (!res.ok) return url;
-    const ext = extFromType(res.headers.get("content-type") ?? "");
+    const contentType = res.headers.get("content-type") ?? "image/jpeg";
     const buf = Buffer.from(await res.arrayBuffer());
-    await mkdir(IMG_DIR, { recursive: true });
-    const file = `${slug}-${index}.${ext}`;
-    await writeFile(path.join(IMG_DIR, file), buf);
-    return `/products/custom/${file}`;
+    if (buf.length === 0) return url;
+    return await storeMedia(contentType, buf);
   } catch {
     return url;
   }
@@ -67,12 +70,12 @@ export async function localizeImage(slug: string, url: string, index = 0): Promi
  * Remote URLs are downloaded locally; local paths pass through. Returns the
  * ordered, de-blanked gallery.
  */
-export async function collectImagesFromForm(fd: FormData, slug: string, count = 3): Promise<string[]> {
+export async function collectImagesFromForm(fd: FormData, count = 3): Promise<string[]> {
   const images: string[] = [];
   for (let i = 0; i < count; i++) {
     const file = fd.get(`imageFile${i}`);
     if (file instanceof File && file.size > 0) {
-      const saved = await saveUploadedImage(slug, file, i);
+      const saved = await saveUploadedImage(file);
       if (saved) {
         images.push(saved);
         continue;
@@ -81,22 +84,20 @@ export async function collectImagesFromForm(fd: FormData, slug: string, count = 
     const raw = fd.get(`imageUrl${i}`);
     const url = typeof raw === "string" ? raw.trim() : "";
     if (!url) continue;
-    images.push(/^https?:\/\//i.test(url) ? await localizeImage(slug, url, i) : url);
+    images.push(/^https?:\/\//i.test(url) ? await localizeImage(url) : url);
+    // (local /media or /products paths pass through unchanged)
   }
   return images;
 }
 
-/** Stores an uploaded image file under public/products/custom, returning its
- *  local path. Returns null on any failure (empty file, write error). */
-export async function saveUploadedImage(slug: string, file: File, index = 0): Promise<string | null> {
+/** Stores an uploaded image file in the database (MediaAsset), returning its
+ *  durable /media/<id> URL. Returns null on any failure (empty file, DB error). */
+export async function saveUploadedImage(file: File): Promise<string | null> {
   if (!file || typeof file.arrayBuffer !== "function" || file.size === 0) return null;
   try {
-    const ext = extFromType(file.type || "");
     const buf = Buffer.from(await file.arrayBuffer());
-    await mkdir(IMG_DIR, { recursive: true });
-    const name = `${slug}-up${index}.${ext}`;
-    await writeFile(path.join(IMG_DIR, name), buf);
-    return `/products/custom/${name}`;
+    if (buf.length === 0) return null;
+    return await storeMedia(file.type || "image/jpeg", buf);
   } catch {
     return null;
   }

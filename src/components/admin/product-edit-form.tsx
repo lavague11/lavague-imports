@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { saveProduct } from "@/app/admin/actions";
 import { ImageSlots } from "@/components/admin/image-slots";
 import { idleFormState } from "@/lib/form";
+import { UNIT_OPTIONS, parseUnitSize } from "@/lib/units";
 
 interface Variant {
   sku: string;
@@ -123,42 +124,59 @@ export function ProductEditForm({
           ship in a wholesale case (shown to trade buyers).
         </p>
         <div className="space-y-3">
-          {product.variants.map((v) => (
-            <div key={v.sku} className="rounded-lg border border-olive-100 bg-olive-50/40 p-3">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="block">
-                  <span className="mb-1 block text-xs text-olive-600">Unit size / weight</span>
-                  <input
-                    name={`size__${v.sku}`}
-                    defaultValue={v.name}
-                    placeholder="e.g. 70 g"
-                    className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs text-olive-600">Units per case</span>
-                  <input
-                    name={`case__${v.sku}`}
-                    defaultValue={v.unitsPerCase ?? ""}
-                    inputMode="numeric"
-                    placeholder="e.g. 24"
-                    className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs text-olive-600">Price each (USD)</span>
-                  <input
-                    name={`price__${v.sku}`}
-                    defaultValue={v.retailPriceCents != null ? (v.retailPriceCents / 100).toFixed(2) : ""}
-                    inputMode="decimal"
-                    placeholder="blank = on request"
-                    className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
-                  />
-                </label>
+          {product.variants.map((v) => {
+            const parsed = parseUnitSize(v.name);
+            return (
+              <div key={v.sku} className="rounded-lg border border-olive-100 bg-olive-50/40 p-3">
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-olive-600">Unit size</span>
+                    <input
+                      name={`sizeAmount__${v.sku}`}
+                      defaultValue={parsed.amount}
+                      inputMode="decimal"
+                      placeholder="e.g. 70"
+                      className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-olive-600">Unit</span>
+                    <select
+                      name={`sizeUnit__${v.sku}`}
+                      defaultValue={parsed.unit}
+                      className="h-9 w-full rounded-lg border border-olive-200 px-2 text-sm"
+                    >
+                      <option value="">— none —</option>
+                      {UNIT_OPTIONS.map((u) => (
+                        <option key={u.value} value={u.value}>{u.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-olive-600">Units per case</span>
+                    <input
+                      name={`case__${v.sku}`}
+                      defaultValue={v.unitsPerCase ?? ""}
+                      inputMode="numeric"
+                      placeholder="e.g. 24"
+                      className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-olive-600">Price each (USD)</span>
+                    <input
+                      name={`price__${v.sku}`}
+                      defaultValue={v.retailPriceCents != null ? (v.retailPriceCents / 100).toFixed(2) : ""}
+                      inputMode="decimal"
+                      placeholder="blank = on request"
+                      className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm"
+                    />
+                  </label>
+                </div>
+                <p className="mt-2 text-[11px] text-olive-400">{v.sku}</p>
               </div>
-              <p className="mt-2 text-[11px] text-olive-400">{v.sku}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

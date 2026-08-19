@@ -329,6 +329,16 @@ model AdminSession {
   @@index([userId])
 }
 
+/// Admin-uploaded / localized product photos, stored in the database so they
+/// survive redeploys (the server's public/ dir is rebuilt on every deploy).
+/// Served by the /media/[id] route.
+model MediaAsset {
+  id          String   @id @default(cuid())
+  contentType String
+  data        Bytes
+  createdAt   DateTime @default(now())
+}
+
 /// Durable admin edits, keyed by product slug. Only set fields override the
 /// generated catalog; the seed re-applies these after re-importing sources.
 model ProductOverride {
