@@ -342,6 +342,20 @@ model MediaAsset {
   createdAt   DateTime @default(now())
 }
 
+/// A customer's request to be emailed when an out-of-stock product returns.
+model StockNotification {
+  id          String   @id @default(cuid())
+  email       String
+  productSlug String
+  productName String
+  variantSku  String?
+  notified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([productSlug])
+  @@index([notified])
+}
+
 /// Durable admin edits, keyed by product slug. Only set fields override the
 /// generated catalog; the seed re-applies these after re-importing sources.
 model ProductOverride {

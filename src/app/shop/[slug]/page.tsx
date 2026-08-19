@@ -5,6 +5,7 @@ import { ChevronRight, Truck } from "lucide-react";
 
 import { AddToQuote } from "@/components/cart/add-to-quote";
 import { HalalBadge } from "@/components/catalog/halal-badge";
+import { NotifyWhenInStock } from "@/components/catalog/notify-when-in-stock";
 import { ProductCard } from "@/components/catalog/product-card";
 import { ProductGallery } from "@/components/catalog/product-gallery";
 import { ProductImage } from "@/components/catalog/product-image";
@@ -48,6 +49,7 @@ export default async function ProductPage({
 
   const casePack = product.variants.find((variant) => variant.unitsPerCase);
   const gallery = productImages(product);
+  const anyInStock = product.variants.some((variant) => variant.inStock);
 
   return (
     <Container className="py-10 lg:py-14">
@@ -121,6 +123,13 @@ export default async function ProductPage({
                 variants: product.variants,
               }}
             />
+            {!anyInStock ? (
+              <NotifyWhenInStock
+                productSlug={product.slug}
+                productName={product.name}
+                className="mt-6"
+              />
+            ) : null}
           </div>
 
           <div className="mt-8 flex items-start gap-3 rounded-card border border-olive-100 bg-olive-50 p-4 text-sm text-olive-700">

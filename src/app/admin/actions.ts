@@ -155,6 +155,17 @@ export async function toggleActive(fd: FormData): Promise<void> {
   revalidatePath("/shop");
 }
 
+/** Mark a stock-notification request handled (customer has been emailed). */
+export async function markNotified(fd: FormData): Promise<void> {
+  await requireUser();
+  const id = str(fd, "id");
+  if (id) {
+    const prisma = requirePrisma();
+    await prisma.stockNotification.update({ where: { id }, data: { notified: true } });
+  }
+  revalidatePath("/admin/notifications");
+}
+
 /* ---- users (ADMIN) ---- */
 
 export async function createUser(_prev: FormState, fd: FormData): Promise<FormState> {

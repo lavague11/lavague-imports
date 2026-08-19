@@ -22,6 +22,17 @@ const statements = [
    );`,
   `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "isFragile" BOOLEAN NOT NULL DEFAULT false;`,
   `ALTER TABLE "ProductOverride" ADD COLUMN IF NOT EXISTS "isFragile" BOOLEAN;`,
+  `CREATE TABLE IF NOT EXISTS "StockNotification" (
+     "id" TEXT PRIMARY KEY,
+     "email" TEXT NOT NULL,
+     "productSlug" TEXT NOT NULL,
+     "productName" TEXT NOT NULL,
+     "variantSku" TEXT,
+     "notified" BOOLEAN NOT NULL DEFAULT false,
+     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+   );`,
+  `CREATE INDEX IF NOT EXISTS "StockNotification_productSlug_idx" ON "StockNotification" ("productSlug");`,
+  `CREATE INDEX IF NOT EXISTS "StockNotification_notified_idx" ON "StockNotification" ("notified");`,
 ];
 
 const client = new pg.Client({ connectionString });
