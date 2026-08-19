@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
-  createSession,
   hashPassword,
   requireAdmin,
   requireUser,
@@ -30,23 +29,6 @@ function optStr(fd: FormData, k: string) {
 }
 
 /* ---- auth ---- */
-
-export async function login(_prev: FormState, fd: FormData): Promise<FormState> {
-  const email = str(fd, "email").toLowerCase();
-  const password = str(fd, "password");
-  const next = str(fd, "next") || "/admin";
-  try {
-    const prisma = requirePrisma();
-    const user = await prisma.adminUser.findUnique({ where: { email } });
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
-      return { status: "error", message: "Incorrect email or password." };
-    }
-    await createSession(user.id);
-  } catch {
-    return { status: "error", message: "Sign-in is unavailable — is the database connected?" };
-  }
-  redirect(next.startsWith("/admin") ? next : "/admin");
-}
 
 export async function changePassword(_prev: FormState, fd: FormData): Promise<FormState> {
   const user = await requireUser();
