@@ -8,6 +8,7 @@ import {
   lowestPricedVariant,
   type Product,
 } from "@/lib/catalog/types";
+import { flagFor } from "@/lib/countries";
 import { formatPriceOrRequest } from "@/lib/utils";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -31,7 +32,16 @@ export function ProductCard({ product }: { product: Product }) {
       {/* Fixed-height rows keep the category, name, price, and button aligned
           across every card regardless of how long the product name is. */}
       <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <p className="eyebrow truncate">{product.categoryName}</p>
+        <p className="eyebrow flex items-center gap-1.5 truncate">
+          {product.origin ? (
+            <span className="not-italic normal-case tracking-normal text-olive-800">
+              <span aria-hidden="true">{flagFor(product.origin)}</span>{" "}
+              {product.origin}
+            </span>
+          ) : (
+            <span className="truncate">{product.categoryName}</span>
+          )}
+        </p>
         <h3 className="mt-1.5 min-h-[2.6rem] text-sm leading-snug sm:min-h-[2.9rem] sm:text-base">
           <Link
             href={`/shop/${product.slug}`}

@@ -1,0 +1,9 @@
+{
+  "_readme": "Fill in country of origin the automatic inference misses. `brands` maps a lowercased brand name to a country (applies to every product of that brand); `slugs` maps a single product slug to a country and wins over everything. After editing, run: node scripts/build-catalog.mjs && npm run db:seed. Use country names exactly as in COUNTRY_FLAGS (e.g. \"Morocco\", \"Saudi Arabia\", \"United Arab Emirates\").",
+  "brands": {
+    "sahadi": "Lebanon",
+    "cortas": "Lebanon",
+    "cafe najjar coffee": "Lebanon"
+  },
+  "slugs": {}
+}

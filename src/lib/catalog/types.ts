@@ -49,6 +49,14 @@ export interface CollectionFilter {
   count: number;
 }
 
+export interface CountryFilter {
+  name: string;
+  slug: string;
+  /** Flag emoji for the country. */
+  flag: string;
+  count: number;
+}
+
 /**
  * The cheapest variant that carries a price, or the first variant if the whole
  * product is quote-only. Used for "from $X" labels.

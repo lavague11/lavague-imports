@@ -1,5 +1,10 @@
 import catalog from "./catalog.json";
-import type { Category, CollectionFilter, Product } from "./types";
+import type {
+  Category,
+  CollectionFilter,
+  CountryFilter,
+  Product,
+} from "./types";
 
 /**
  * The catalog is generated from the Wix export by
@@ -11,3 +16,4 @@ import type { Category, CollectionFilter, Product } from "./types";
 export const categories: Category[] = catalog.categories;
 export const products: Product[] = catalog.products as Product[];
 export const collectionFilters: CollectionFilter[] = catalog.collections;
+export const countryFilters: CountryFilter[] = catalog.countries;

@@ -4,9 +4,15 @@ import { getPrisma } from "@/lib/db";
 import {
   categories as seedCategories,
   collectionFilters as seedCollectionFilters,
+  countryFilters as seedCountryFilters,
   products as seedProducts,
 } from "./data";
-import type { Category, CollectionFilter, Product } from "./types";
+import type {
+  Category,
+  CollectionFilter,
+  CountryFilter,
+  Product,
+} from "./types";
 
 export * from "./types";
 
@@ -107,11 +113,22 @@ export function collectionNameForSlug(slug: string): string | undefined {
   return seedCollectionFilters.find((c) => c.slug === slug)?.name;
 }
 
+/** The countries products are stocked from, with flags and counts. */
+export function getCountryFilters(): CountryFilter[] {
+  return seedCountryFilters;
+}
+
+export function countryNameForSlug(slug: string): string | undefined {
+  return seedCountryFilters.find((c) => c.slug === slug)?.name;
+}
+
 export interface ProductQuery {
   categorySlug?: string;
   /** Raw source collection name, e.g. "Marrakesh Spices". */
   collectionName?: string;
-  /** Free-text match across name, brand, and tagline. */
+  /** Country of origin, e.g. "Morocco". */
+  country?: string;
+  /** Free-text match across name, brand, tagline, and country. */
   search?: string;
   featuredOnly?: boolean;
   limit?: number;
@@ -123,6 +140,7 @@ function prismaWhere(query: ProductQuery) {
     isActive: true,
     ...(query.categorySlug ? { category: { slug: query.categorySlug } } : {}),
     ...(query.collectionName ? { collections: { has: query.collectionName } } : {}),
+    ...(query.country ? { origin: query.country } : {}),
     ...(query.featuredOnly ? { isFeatured: true } : {}),
     ...(query.search
       ? {
@@ -130,6 +148,7 @@ function prismaWhere(query: ProductQuery) {
             { name: { contains: query.search, mode: "insensitive" as const } },
             { brand: { contains: query.search, mode: "insensitive" as const } },
             { tagline: { contains: query.search, mode: "insensitive" as const } },
+            { origin: { contains: query.search, mode: "insensitive" as const } },
           ],
         }
       : {}),
@@ -286,11 +305,20 @@ function filterSeedProducts(query: ProductQuery): Product[] {
     if (query.collectionName && !product.collections.includes(query.collectionName)) {
       return false;
     }
+    if (query.country && product.origin !== query.country) {
+      return false;
+    }
     if (query.featuredOnly && !product.isFeatured) {
       return false;
     }
     if (needle) {
-      const haystack = [product.name, product.brand, product.tagline, product.categoryName]
+      const haystack = [
+        product.name,
+        product.brand,
+        product.tagline,
+        product.origin,
+        product.categoryName,
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();

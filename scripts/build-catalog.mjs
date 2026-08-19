@@ -161,6 +161,78 @@ const ALIASES = {
 
 const CAT_BY_SLUG = Object.fromEntries([...CATEGORIES, FALLBACK].map((c) => [c.slug, c]));
 
+/* ---- country of origin ----
+ * Inferred conservatively. Demonyms in the name (and a few single-country
+ * brands) are reliable; house brands that span many origins are left
+ * Unspecified rather than guessed. Fill gaps in data-import/origin-overrides.json
+ * ({ "brands": { "brand": "Country" }, "slugs": { "product-slug": "Country" } }).
+ */
+export const COUNTRY_FLAGS = {
+  Morocco: "🇲🇦", Algeria: "🇩🇿", Tunisia: "🇹🇳", Egypt: "🇪🇬", Turkey: "🇹🇷",
+  Lebanon: "🇱🇧", Palestine: "🇵🇸", Syria: "🇸🇾", Jordan: "🇯🇴", Iraq: "🇮🇶",
+  "Saudi Arabia": "🇸🇦", "United Arab Emirates": "🇦🇪", Yemen: "🇾🇪", Iran: "🇮🇷",
+  Pakistan: "🇵🇰", India: "🇮🇳", Afghanistan: "🇦🇫", Greece: "🇬🇷", Italy: "🇮🇹",
+  Spain: "🇪🇸", France: "🇫🇷", "United Kingdom": "🇬🇧", "United States": "🇺🇸",
+};
+
+// Demonyms / strong single-signal keywords → country (tested on name + collections).
+const DEMONYMS = [
+  [/\bmorocc|\bmaroc|ouazzania|mordjene|maghrib|marrakesh|argan/i, "Morocco"],
+  [/\balgeri/i, "Algeria"],
+  [/\btunisia|\bnabeul/i, "Tunisia"],
+  [/\begypt/i, "Egypt"],
+  [/\bturkish|\bturkey\b|türk|\bantep\b|\bmaras\b/i, "Turkey"],
+  [/\blebanese|\blebanon\b|\bbaalbek/i, "Lebanon"],
+  [/\bpalestin|\bnabulsi|al[' ]?ard/i, "Palestine"],
+  [/\bsyrian|\baleppo|\bdamascus|holw el sham/i, "Syria"],
+  [/\bjordan/i, "Jordan"],
+  [/\biraqi|\biraq\b/i, "Iraq"],
+  [/\bsaudi|\bzamzam|almarai|alameed|\bmecca|\bmedina/i, "Saudi Arabia"],
+  [/\bemirati|\bdubai|california garden/i, "United Arab Emirates"],
+  [/\byemeni|\byemen\b/i, "Yemen"],
+  [/\bpersian|\biranian|\biran\b/i, "Iran"],
+  [/\bpakistan|\bshan\b|laziza|\btapal\b|\bnational\b|karachi/i, "Pakistan"],
+  [/\bindian\b|\bindia\b|\bhaldiram|\bmdh\b/i, "India"],
+  [/\bafghan/i, "Afghanistan"],
+  [/\bgreek\b|\bgreece\b|krinos/i, "Greece"],
+  [/\bitalian\b|\bitaly\b/i, "Italy"],
+  [/\bspanish\b|\bspain\b/i, "Spain"],
+];
+
+// Single-country brands (brand field, lowercased). House/importer brands that
+// span origins (Ziyad, Fattal's, Sahadi, Nestle, Vimto) are intentionally absent.
+const BRAND_ORIGIN = {
+  "moroccan olive grove": "Morocco", "el ouazzania": "Morocco", ouazzania: "Morocco",
+  "al maghribya": "Morocco", alshark: "Morocco", "al-ghazal": "Morocco",
+  "el mordjene": "Algeria",
+  duru: "Turkey", torku: "Turkey", ülker: "Turkey", ulker: "Turkey", "içim": "Turkey", icim: "Turkey",
+  castania: "Lebanon", "al wadi": "Lebanon", "cafe najjar coffee": "Lebanon", cortas: "Lebanon", baroody: "Lebanon",
+  krinos: "Greece",
+  "california garden": "United Arab Emirates",
+  shan: "Pakistan", national: "Pakistan", laziza: "Pakistan", tapal: "Pakistan",
+  almarai: "Saudi Arabia", "alameed coffee": "Saudi Arabia",
+  "holw el sham": "Syria",
+};
+
+let ORIGIN_OVERRIDES = { brands: {}, slugs: {} };
+try {
+  ORIGIN_OVERRIDES = JSON.parse(fs.readFileSync(`${DIR.replace("src/lib/catalog", "data-import")}/origin-overrides.json`, "utf8"));
+} catch {
+  /* optional file */
+}
+
+function assignOrigin(p) {
+  const slug = p.slug || slugify(p.name);
+  if (ORIGIN_OVERRIDES.slugs?.[slug]) return ORIGIN_OVERRIDES.slugs[slug];
+  const brandKey = (p.brand || "").toLowerCase().trim();
+  if (brandKey && ORIGIN_OVERRIDES.brands?.[brandKey]) return ORIGIN_OVERRIDES.brands[brandKey];
+  if (p.origin) return p.origin; // set explicitly by a source importer
+  const hay = `${p.name} ${(p.collections || []).join(" ")}`;
+  for (const [re, country] of DEMONYMS) if (re.test(hay)) return country;
+  if (brandKey && BRAND_ORIGIN[brandKey]) return BRAND_ORIGIN[brandKey];
+  return null;
+}
+
 function categorize(product) {
   const cols = product.collections || [];
   // 1) explicit source-category alias
@@ -223,7 +295,7 @@ for (const key of order) {
   const p = merged.get(key);
   if (!p) continue;
   const cat = categorize(p);
-  records.push({ ...p, categorySlug: cat.slug, categoryName: cat.name });
+  records.push({ ...p, origin: assignOrigin(p), categorySlug: cat.slug, categoryName: cat.name });
 }
 
 /* ---- variation grouping ----
@@ -463,7 +535,14 @@ const collections = [...colCounts.entries()]
   .sort((a, b) => b[1] - a[1])
   .map(([name, count]) => ({ name, slug: slugify(name), count }));
 
-fs.writeFileSync(OUT, JSON.stringify({ categories, collections, products }, null, 2));
+// Country-of-origin filters, with flags, most stocked first.
+const countryCounts = new Map();
+for (const p of products) if (p.origin) countryCounts.set(p.origin, (countryCounts.get(p.origin) || 0) + 1);
+const countries = [...countryCounts.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .map(([name, count]) => ({ name, slug: slugify(name), flag: COUNTRY_FLAGS[name] ?? "🌍", count }));
+
+fs.writeFileSync(OUT, JSON.stringify({ categories, collections, countries, products }, null, 2));
 
 const priced = products.filter((p) => p.variants[0].retailPriceCents != null).length;
 const inputTotal = loaded.reduce((s, x) => s + x.count, 0);
@@ -476,5 +555,7 @@ console.log("  largest groups:");
 multiVariant.sort((a, b) => b.variants.length - a.variants.length).slice(0, 12)
   .forEach((p) => console.log("   ", String(p.variants.length).padStart(3), p.name, "—", p.variants.map((v) => v.name).slice(0, 6).join(" / ").slice(0, 90)));
 console.log("  categories:", categories.length, "| collection filters:", collections.length);
-console.log("  category spread:");
-for (const c of categories) console.log("   ", String(products.filter((p) => p.categorySlug === c.slug).length).padStart(4), c.name);
+const labelled = products.filter((p) => p.origin).length;
+console.log("  origin labelled:", labelled, `of ${products.length} (${Math.round((labelled / products.length) * 100)}%) across ${countries.length} countries; ${products.length - labelled} unspecified`);
+console.log("  countries:");
+for (const c of countries) console.log("   ", c.flag, String(c.count).padStart(4), c.name);

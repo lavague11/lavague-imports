@@ -7,11 +7,14 @@ import { ShowMore } from "@/components/catalog/show-more";
 import { Container } from "@/components/ui/container";
 import {
   collectionNameForSlug,
+  countryNameForSlug,
   getCategories,
   getCollectionFilters,
+  getCountryFilters,
   getProductCount,
   getProducts,
 } from "@/lib/catalog";
+import { flagFor } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -30,6 +33,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   const params = await searchParams;
   const activeCategory = firstValue(params.category);
   const activeCollectionSlug = firstValue(params.collection);
+  const activeCountrySlug = firstValue(params.country);
   const search = firstValue(params.q)?.trim() ?? "";
   // Progressive "Show more": `show` is how many products to render so far.
   const show = Math.max(
@@ -40,19 +44,25 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   const collectionName = activeCollectionSlug
     ? collectionNameForSlug(activeCollectionSlug)
     : undefined;
+  const countryName = activeCountrySlug
+    ? countryNameForSlug(activeCountrySlug)
+    : undefined;
 
   const query = {
     categorySlug: activeCategory,
     collectionName,
+    country: countryName,
     search: search || undefined,
   };
 
-  const [categories, collectionFilters, total, products] = await Promise.all([
-    getCategories(),
-    Promise.resolve(getCollectionFilters()),
-    getProductCount(query),
-    getProducts({ ...query, limit: show, offset: 0 }),
-  ]);
+  const [categories, collectionFilters, countryFilters, total, products] =
+    await Promise.all([
+      getCategories(),
+      Promise.resolve(getCollectionFilters()),
+      Promise.resolve(getCountryFilters()),
+      getProductCount(query),
+      getProducts({ ...query, limit: show, offset: 0 }),
+    ]);
 
   const activeCategoryName = categories.find(
     (category) => category.slug === activeCategory,
@@ -66,6 +76,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
     const merged = {
       category: activeCategory,
       collection: activeCollectionSlug,
+      country: activeCountrySlug,
       q: search || undefined,
       ...overrides,
     };
@@ -141,29 +152,45 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
             ))}
           </nav>
 
-          {/* Search + collection refine */}
-          <form action="/shop" className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center lg:mt-0">
+          {/* Search + country / collection refine */}
+          <form action="/shop" className="mt-4 flex flex-col gap-3 lg:mt-0">
             {activeCategory ? (
               <input type="hidden" name="category" value={activeCategory} />
             ) : null}
-            <div className="relative flex-1">
+            <div className="relative">
               <Search
                 className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-olive-400"
                 aria-hidden="true"
               />
               <label className="sr-only" htmlFor="q">
-                Search products
+                Search by product or country
               </label>
               <input
                 id="q"
                 name="q"
                 type="search"
                 defaultValue={search}
-                placeholder="Search 2,000+ products…"
+                placeholder="Search by product or country — e.g. harissa, Morocco…"
                 className="h-11 w-full rounded-full border border-olive-200 pr-4 pl-9 text-sm text-olive-900 placeholder:text-olive-400 focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <label className="sr-only" htmlFor="country">
+                Filter by country
+              </label>
+              <select
+                id="country"
+                name="country"
+                defaultValue={activeCountrySlug ?? ""}
+                className="h-11 min-w-0 flex-1 rounded-full border border-olive-200 px-4 text-sm text-olive-900 focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none sm:flex-none"
+              >
+                <option value="">🌍 All countries</option>
+                {countryFilters.map((country) => (
+                  <option key={country.slug} value={country.slug}>
+                    {country.flag} {country.name} ({country.count})
+                  </option>
+                ))}
+              </select>
               <label className="sr-only" htmlFor="collection">
                 Filter by collection
               </label>
@@ -189,20 +216,34 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
             </div>
           </form>
 
-          {/* Active collection chip */}
-          {collectionName ? (
-            <div className="mt-4 flex items-center gap-2 text-sm text-olive-700">
-              <span>Collection:</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-olive-100 px-3 py-1 font-medium text-olive-800">
-                {collectionName}
-                <Link
-                  href={hrefWith({ collection: undefined, show: undefined })}
-                  aria-label="Clear collection filter"
-                  className="text-olive-500 hover:text-olive-900"
-                >
-                  ✕
-                </Link>
-              </span>
+          {/* Active filter chips */}
+          {countryName || collectionName ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-olive-700">
+              {countryName ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-olive-100 px-3 py-1 font-medium text-olive-800">
+                  <span aria-hidden="true">{flagFor(countryName)}</span>
+                  {countryName}
+                  <Link
+                    href={hrefWith({ country: undefined, show: undefined })}
+                    aria-label="Clear country filter"
+                    className="text-olive-500 hover:text-olive-900"
+                  >
+                    ✕
+                  </Link>
+                </span>
+              ) : null}
+              {collectionName ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-olive-100 px-3 py-1 font-medium text-olive-800">
+                  {collectionName}
+                  <Link
+                    href={hrefWith({ collection: undefined, show: undefined })}
+                    aria-label="Clear collection filter"
+                    className="text-olive-500 hover:text-olive-900"
+                  >
+                    ✕
+                  </Link>
+                </span>
+              ) : null}
             </div>
           ) : null}
 
