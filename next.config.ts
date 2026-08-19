@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // nodemailer is a server-only dependency; keep it out of the bundle.
+  serverExternalPackages: ["nodemailer"],
   images: {
     remotePatterns: [
       // Product photography imported from the source catalogs. Replace with your
