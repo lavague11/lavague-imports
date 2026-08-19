@@ -1,0 +1,286 @@
+// La Vague Imports — commerce schema
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Catalog
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String?
+  position    Int       @default(0)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([position])
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  tagline     String?
+  description String
+  /// Country or region of origin, e.g. "Morocco", "Egypt".
+  origin      String?
+  brand       String?
+  imageUrl    String?
+  /// Freeform storefront ribbon straight from the source catalog, e.g.
+  /// "Best Seller", "HOT ITEM", "Only 2 Left". Null when the product has none.
+  ribbon      String?
+  /// Every raw source collection this product belongs to, used for the shop's
+  /// collection filters. The single `category` below is its primary, curated home.
+  collections String[]
+  isActive    Boolean @default(true)
+  isFeatured  Boolean @default(false)
+  position    Int     @default(0)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  variants   ProductVariant[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([categoryId])
+  @@index([isFeatured])
+}
+
+/// A purchasable size/pack of a product. Prices are stored in cents to avoid
+/// floating point rounding errors.
+model ProductVariant {
+  id        String  @id @default(cuid())
+  sku       String  @unique
+  name      String
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// Null means "price on request" — most wholesale lines are quoted, not
+  /// listed. The storefront shows a request-a-quote call to action instead.
+  retailPriceCents    Int?
+  /// Original price when the variant is on sale; shown struck through.
+  compareAtPriceCents Int?
+  /// Per-case price offered to approved wholesale accounts.
+  casePriceCents      Int?
+  unitsPerCase        Int?
+  /// Minimum number of cases a wholesale account must order.
+  minOrderCases       Int?
+
+  inStock  Boolean @default(true)
+  position Int     @default(0)
+
+  quoteItems QuoteItem[]
+
+  @@index([productId])
+}
+
+// ---------------------------------------------------------------------------
+// Quote requests (the storefront cart submits one of these instead of a payment)
+// ---------------------------------------------------------------------------
+
+enum CustomerType {
+  RETAIL
+  WHOLESALE
+}
+
+enum QuoteStatus {
+  NEW
+  IN_REVIEW
+  QUOTED
+  WON
+  LOST
+}
+
+model QuoteRequest {
+  id        String @id @default(cuid())
+  /// Human-friendly reference shown to the customer, e.g. "LVQ-7K3M2A".
+  reference String @unique
+
+  customerType CustomerType @default(RETAIL)
+  name         String
+  email        String
+  phone        String
+  company      String?
+  message      String?
+
+  deliveryCity       String?
+  deliveryState      String?
+  deliveryPostalCode String?
+
+  status QuoteStatus @default(NEW)
+  /// Sum of the line items at list price, before any negotiated discount.
+  estimatedTotalCents Int         @default(0)
+  items               QuoteItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model QuoteItem {
+  id             String       @id @default(cuid())
+  quoteRequestId String
+  quoteRequest   QuoteRequest @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+
+  /// Nulled out if the variant is later deleted; the snapshot fields below keep
+  /// the quote readable regardless.
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  productName String
+  variantName String
+  sku         String
+
+  quantity       Int
+  /// Null for quote-only lines with no listed price. estimatedTotalCents on the
+  /// parent then reflects only the lines that do carry a price.
+  unitPriceCents Int?
+  lineTotalCents Int?
+
+  @@index([quoteRequestId])
+}
+
+// ---------------------------------------------------------------------------
+// Wholesale applications
+// ---------------------------------------------------------------------------
+
+enum BusinessType {
+  RESTAURANT
+  GROCERY
+  DISTRIBUTOR
+  CAFE
+  CATERER
+  OTHER
+}
+
+enum ApplicationStatus {
+  NEW
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model WholesaleApplication {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  businessName String
+  businessType BusinessType
+  contactName  String
+  email        String
+  phone        String
+  website      String?
+
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+
+  /// EIN / federal tax ID, collected for resale certificate verification.
+  taxId            String?
+  resaleCertNumber String?
+
+  estimatedMonthlyVolume String?
+  productInterest        String[]
+  message                String?
+
+  status    ApplicationStatus @default(NEW)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// General enquiries
+// ---------------------------------------------------------------------------
+
+enum ContactTopic {
+  GENERAL
+  WHOLESALE
+  ORDER
+  PRODUCT
+  DELIVERY
+}
+
+model ContactMessage {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  name    String
+  email   String
+  phone   String?
+  topic   ContactTopic @default(GENERAL)
+  message String
+
+  handled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([handled])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Stores & delivery — not surfaced in the storefront yet, modelled now so the
+// future multi-store delivery rollout doesn't need a destructive migration.
+// ---------------------------------------------------------------------------
+
+model Store {
+  id     String @id @default(cuid())
+  slug   String @unique
+  name   String
+
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+  phone        String?
+  email        String?
+
+  latitude  Float?
+  longitude Float?
+
+  /// Opening hours keyed by weekday, e.g. { "mon": ["09:00", "17:00"] }.
+  openingHours Json?
+  isActive     Boolean @default(true)
+
+  deliveryZones DeliveryZone[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model DeliveryZone {
+  id      String @id @default(cuid())
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  name        String
+  postalCodes String[]
+
+  deliveryFeeCents           Int  @default(0)
+  freeDeliveryThresholdCents Int?
+  minOrderCents              Int  @default(0)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId])
+}

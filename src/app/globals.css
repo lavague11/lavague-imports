@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand palette sampled from the La Vague Imports mark: a deep olive
+     wordmark with a lighter olive-fruit green, on white. */
+  --color-olive-50: #f6f8f1;
+  --color-olive-100: #e9eedd;
+  --color-olive-200: #d4dec0;
+  --color-olive-300: #b8c79c;
+  --color-olive-400: #9caf7b;
+  --color-olive-500: #82965f;
+  --color-olive-600: #67794a;
+  --color-olive-700: #4f5d3b;
+  --color-olive-800: #3d4830;
+  --color-olive-900: #333d22;
+  --color-olive-950: #1b210f;
+
+  --color-cream: #fbfaf6;
+  --color-sand: #efebe1;
+
+  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: var(--color-olive-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: var(--color-olive-200);
+    color: var(--color-olive-950);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-olive-600);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Hide the scrollbar on the mobile department strip while keeping it scrollable. */
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Small caps label used above section headings and on form legends. */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-olive-600);
+  }
+}

@@ -1,0 +1,509 @@
+{
+  "products": [
+    {
+      "source": "mog",
+      "id": "mog_the-red-moroccan-extra-virgin-olive-oil-3l-tin",
+      "slug": "the-red-moroccan-extra-virgin-olive-oil-3l-tin",
+      "name": "The Red - Moroccan Extra Virgin Olive Oil - 3L Tin",
+      "tagline": null,
+      "description": "Our heritage bold extra virgin olive oil hails from a single origin farm nestled at the foot of the Atlas Mountains near the enchanting red city of Marrakech. Current crop and cold pressed within hours of harvest.  Dynamic fruit with hints of green tomato and artichoke. A flavor deepened by the subtle touch of bitter and spice. Be adventurous and let this uniquely curated early harvest blend dazzle and delight. Taste Profile: Fruity, floral and ripe notes coming from the traditional Moroccan Picholine variety with a slight touch of spice, bitterness and ardence at the end. Typical taste of the Marrakech style olive oil. Press: Pressed within hours of harvest in the farm's mill. Extraction Mode: Cold Extraction 0.2% Acidity level when bottled. Farm Location: Marrakech-Beni Mellal Region. Storage: stored in state of the art stainless steel cisterns prior to bottling. Marries well with: Our",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/MOG-red-tin.png?v=1660143583",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive oil",
+        "Moroccan",
+        "olive oil",
+        "tin"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_the-red-moroccan-extra-virgin-olive-oil-3l-tin",
+          "sku": "Red - 1L Tin FBA",
+          "name": "Each",
+          "retailPriceCents": 4899,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": false
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-olive-grove-bold-and-dynamic-duo-pack-extra-virgin-olive-oil-",
+      "slug": "moroccan-olive-grove-bold-and-dynamic-duo-pack-extra-virgin-olive-oil-",
+      "name": "Moroccan Olive Grove Bold And Dynamic Duo Pack- Extra Virgin Olive Oil (2x500mL)",
+      "tagline": null,
+      "description": "Bold & Dynamic Extra Virgin Olive Oil Crafted from premium Moroccan olives and cold extracted to preserve its natural flavor, our Bold & Dynamic Extra Virgin Olive Oil offers a rich, full-bodied taste with herbaceous notes and a signature peppery finish. Perfect for those who enjoy a more robust olive oil, it's ideal for dipping, drizzling, roasting, and enhancing your favorite Mediterranean dishes. Why You'll Love It • 100% Moroccan Extra Virgin Olive Oil • Cold extracted • Rich, bold & peppery flavor • No additives or preservatives • Perfect for bread, grilled meats, roasted vegetables, and pasta • Imported from Morocco Ingredients: 100% Moroccan Extra Virgin Olive Oil.",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/files/716cKkmUJIL._SL1500.jpg?v=1785901657",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-olive-grove-bold-and-dynamic-duo-pack-extra-virgin-olive-oil-",
+          "sku": "Red Duo Pack",
+          "name": "Each",
+          "retailPriceCents": 3199,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-olive-grove-bright-and-fruity-duo-pack-extra-virgin-olive-oil",
+      "slug": "moroccan-olive-grove-bright-and-fruity-duo-pack-extra-virgin-olive-oil",
+      "name": "Moroccan Olive Grove Bright And Fruity Duo Pack- Extra Virgin Olive Oil (2x500mL)",
+      "tagline": null,
+      "description": "Bright & Fruity Extra Virgin Olive Oil Experience the vibrant taste of Morocco with our Bright & Fruity Extra Virgin Olive Oil. Cold extracted from premium Moroccan olives, it offers a smooth, delicate flavor with fresh grassy notes and a light fruity finish. Ideal for salads, seafood, vegetables, fresh bread, and everyday cooking. Why You'll Love It • 100% Moroccan Extra Virgin Olive Oil • Cold extracted • Smooth, bright & fruity flavor • No additives or preservatives • Perfect for dipping, drizzling, and finishing dishes • Imported from Morocco Ingredients: 100% Moroccan Extra Virgin Olive Oil.",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/files/61qD3u93X7L._SL1500.jpg?v=1785899775",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-olive-grove-bright-and-fruity-duo-pack-extra-virgin-olive-oil",
+          "sku": "BLUE - 500ml Bottle 2 Pack - FBA",
+          "name": "Each",
+          "retailPriceCents": 3199,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-spicy-olives-740g",
+      "slug": "moroccan-spicy-olives-740g",
+      "name": "Moroccan Spicy Olives - 740g",
+      "tagline": null,
+      "description": "Our spicy mix has a layered kick done in a traditional Moroccan style. Pairs well with cheese, wine, or grilled meats, and vegetables. INGREDIENTS: Whole green olives, water, chili peppers, salt, citric acid Net wt 26.28oz (740g)/Drained wt 15.87oz(450g)",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/moroccan-mixed-olives.png?v=1669158578",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil",
+        "picholine olives",
+        "shoptok",
+        "spicy"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-spicy-olives-740g",
+          "sku": "Spicy Olives - 740g - 1 Pack FBA",
+          "name": "Each",
+          "retailPriceCents": 999,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-olive-grove-bold-and-dynamic-bright-and-fruity-combo-pack",
+      "slug": "moroccan-olive-grove-bold-and-dynamic-bright-and-fruity-combo-pack",
+      "name": "MOROCCAN OLIVE GROVE - Bold & Dynamic / Bright & Fruity Combo Pack",
+      "tagline": null,
+      "description": "MOROCCAN OLIVE GROVE Premium Desert Extra Virgin Olive Oil Our heritage bold extra virgin olive oil hails from a single origin farm nestled at the foot of the Atlas Mountains near the enchanting red city of Marrakech Current crop and cold pressed within hours of harvest Dynamic fruit with hints of green tomato and artichoke, a flavor deepened by the subtle touch of bitter and spice Be adventurous and let this uniquely curated early harvest blend dazzle and delight your palate All natural - Non GMO",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/MOG_duo.png?v=1632783033",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-olive-grove-bold-and-dynamic-bright-and-fruity-combo-pack",
+          "sku": "Red/Blue Combo 500ml - FBA",
+          "name": "Each",
+          "retailPriceCents": 3199,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_the-red-olive-oil-bold-and-dynamic-500ml",
+      "slug": "the-red-olive-oil-bold-and-dynamic-500ml",
+      "name": "The Red Olive Oil - Bold & Dynamic - 500ml",
+      "tagline": null,
+      "description": "Our heritage bold extra virgin olive oil hails from a single origin farm nestled at the foot of the Atlas Mountains near the enchanting red city of Marrakesh. Current crop and cold pressed within hours of harvest.  Dynamic fruit with hints of green tomato and artichoke. A flavor deepened by the subtle touch of bitter and spice. Be adventurous and let this uniquely curated early harvest blend dazzle and delight. Taste Profile: Fruity, floral and ripe notes coming from the traditional Moroccan Picholine variety with a slight touch of spice, bitterness and ardence at the end. Typical taste of the Marrakech style olive oil. Press: Pressed within hours of harvest in the farm's mill. Extraction Mode: Cold Extraction 0.2% Acidity level when bottled. Farm Location: Marrakech-Beni Mellal Region. Storage: stored in state of the art stainless steel cisterns prior to bottling. Marries well with: Our",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/MOG_Bold_dynamic.png?v=1620693080",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive oil",
+        "Moroccan",
+        "olive oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_the-red-olive-oil-bold-and-dynamic-500ml",
+          "sku": "Red 500ml - FBA",
+          "name": "Each",
+          "retailPriceCents": 1999,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_whole-oil-cured-olives-500g",
+      "slug": "whole-oil-cured-olives-500g",
+      "name": "Whole oil cured olives 500g",
+      "tagline": null,
+      "description": "Whole oil cured olives are a traditional Moroccan delicacy, carefully preserved in their own rich oil. These plump, flavorful olives retain their natural texture and authentic taste, making them perfect for antipasto platters, salads, or enjoying straight from the jar. Each 500g package delivers the authentic essence of Morocco's olive groves in every bite.",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/files/photo_2026-04-25_14-54-23.jpg?v=1777178420",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "goods"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_whole-oil-cured-olives-500g",
+          "sku": "wlmp000131",
+          "name": "Each",
+          "retailPriceCents": 899,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-preserved-lemons-740-g",
+      "slug": "moroccan-preserved-lemons-740-g",
+      "name": "Moroccan Preserved Lemons 740 g",
+      "tagline": null,
+      "description": "Authentic Moroccan preserved lemons crafted using traditional brining methods. These golden, tangy lemons are essential to North African cooking, delivering complex flavor to tagines, couscous, grilled meats, and seafood. The soft, edible rind and intense citrus notes add depth to marinades, dressings, and sauces. Rich in probiotics from natural fermentation, they enhance digestion while elevating your culinary creations. A staple of Moroccan cuisine for centuries, each jar brings genuine taste and tradition to your table.",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/files/imgi_12_moroccan-preserved-lemon-26_28oz_webp.webp?v=1777178678",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "goods"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-preserved-lemons-740-g",
+          "sku": "Preserved Lemons -745g - FBA",
+          "name": "Each",
+          "retailPriceCents": 899,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-olive-cured-olives-250g",
+      "slug": "moroccan-olive-cured-olives-250g",
+      "name": "Moroccan Olive Cured Olives - 250g",
+      "tagline": null,
+      "description": "Our oil cured olives carry on a centuries long tradition. Cured with salt and oil, then pressed with rock stones to blister the olives, creating a uniquely intense flavor. Enjoy with harissa, creamy cheeses and olive oil. INGREDIENTS: Olives, water, salt, lemon, garlic, laurel, citric acid Net wt 250g/8.82oz",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/moroccan-oil-cured-olives.png?v=1669159827",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-olive-cured-olives-250g",
+          "sku": "Oil Cured Olives -740g - FBA",
+          "name": "Each",
+          "retailPriceCents": 699,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-natural-purple-olives-740g",
+      "slug": "moroccan-natural-purple-olives-740g",
+      "name": "Moroccan Natural Purple Olives - 740g",
+      "tagline": null,
+      "description": "Our olives are cured in the typical tradition with lemon creating intenselayers of citrus flavor. INGREDIENTS: Whole natural purple olives, water, salt, vinegar, citric acid Net wt 26.28oz(740g)/Drained wt 15.87oz (450g)",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/moroccan-natural-purple-olives.png?v=1669158902",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-natural-purple-olives-740g",
+          "sku": "Purple Olives -740g - FBA",
+          "name": "Each",
+          "retailPriceCents": 999,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-harissa-800g",
+      "slug": "moroccan-harissa-800g",
+      "name": "Moroccan Harissa - 800g",
+      "tagline": null,
+      "description": "This bright versatile hot sauce that can be used as marinade, condiment or sauce in curries, and stews. Enjoy this North African favorite that will surely become your favorite hot sauce too! INGREDIENTS: Hot red peppers, lemon, salt, garlic, olive oil,cumin, coriander, vinegar, citric acid Net wt: 28.22oz (800g)",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/harissa.png?v=1669158754",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil",
+        "Harissa",
+        "Hot Sauce",
+        "Moroccan",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-harissa-800g",
+          "sku": "Harissa - 800g - FBA",
+          "name": "Each",
+          "retailPriceCents": 999,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-mixed-olives-740g",
+      "slug": "moroccan-mixed-olives-740g",
+      "name": "Moroccan Mixed Olives - 740g",
+      "tagline": null,
+      "description": "Our signature mix represents classic flavors of Morocco; cumin and coriander. A souk favorite. Perfect with grilled meats and vegetables. INGREDIENTS: Green and purple olives, water,sweet peppers,lemon, salt, cumin, coriander, citric acid. Net wt 26.28oz (740g)/Drained wt 15.87oz (450g)",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/moroccanmixed-olives.png?v=1669158136",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-mixed-olives-740g",
+          "sku": "Mixed Olives - 740g - 1 Pack FBA",
+          "name": "Each",
+          "retailPriceCents": 999,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-pitted-picholine-olives-700g",
+      "slug": "moroccan-pitted-picholine-olives-700g",
+      "name": "Moroccan Pitted Picholine Olives - 700g",
+      "tagline": null,
+      "description": "Our flavorful olives have a firm texture, with a well balanced flavor; tart, nutty and fruity. Perfect for tagines, tapas and your favorite Mediterranean recipes. INGREDIENTS: Whole green olives, water, lemon, salt, garlic, laurel, citric acid May contain pits or pit fragments",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/moroccan-pitted-picholine-olives.png?v=1669157974",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-pitted-picholine-olives-700g",
+          "sku": "Picholine Pitted Olives 740g 1 Pack FBA",
+          "name": "Each",
+          "retailPriceCents": 1099,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": false
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_moroccan-picholine-olives-740g",
+      "slug": "moroccan-picholine-olives-740g",
+      "name": "Moroccan Picholine Olives - 740g",
+      "tagline": null,
+      "description": "Our flavorful olives have a firm texture, with a well balanced flavor; tart, nutty and fruity. Perfect for tagines, tapas and your favorite Mediterranean recipes. INGREDIENTS: Whole green olives, water, lemon, salt, garlic, laurel, citric acid Net wt 26.28oz (740g)/Drained wt 15.87oz(450g)",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/moroccan-picholine-olives.png?v=1669157717",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_moroccan-picholine-olives-740g",
+          "sku": "Picholine Olives - 740g - 1 Pack FBA",
+          "name": "Each",
+          "retailPriceCents": 999,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_bold-and-dynamic-travel-sized-mini-bottles-20ml",
+      "slug": "bold-and-dynamic-travel-sized-mini-bottles-20ml",
+      "name": "Bold & Dynamic - Travel Sized Mini Bottles - 20ml",
+      "tagline": null,
+      "description": "MOROCCAN OLIVE GROVE Premium Desert Extra Virgin Olive Oil Our heritage bold extra virgin olive oil hails from a single origin farm nestled at the foot of the Atlas Mountains near the enchanting red city of Marrakech Current crop and cold pressed within hours of harvest Herbacous with ripe fruit with hints of green almond deepened by the subtle touch of spice Be adventurous and let this uniquely curated early harvest blend dazzle and delight your palate All natural - Non GMO Ideal for Backpackers, campers, and single use in hospitality settings Morning Shots of olive oil. 2 tablespoons per bottle. Take your healthy habits with you while traveling!",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/minired10pack.jpg?v=1638567346",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive oil",
+        "Mini Bottles",
+        "Moroccan",
+        "olive oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_bold-and-dynamic-travel-sized-mini-bottles-20ml",
+          "sku": "Red 20ml Travel - 10 Pack - FBM",
+          "name": "Options",
+          "retailPriceCents": 1399,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_bright-and-fruity-travel-sized-mini-bottles-20ml",
+      "slug": "bright-and-fruity-travel-sized-mini-bottles-20ml",
+      "name": "Bright & Fruity - Travel Sized Mini Bottles - 20ml",
+      "tagline": null,
+      "description": "MOROCCAN OLIVE GROVE Premium Desert Extra Virgin Olive Oil Our heritage bright extra virgin olive oil hails from a single origin farm in the north of Morocco. An homage to the peaceful Rif mountain village Chefchaouen. An aquatic looking paradise with homes painted the color of the sky, known as Morocco’s blue pearl. Current crop and cold pressed within hours of harvest. Ripe fruit with bright hints of apples and almonds rounded out with a touch of spice. Be enlightened and let this uniquely curated late harvest blend cheerfully energize your palate All Natural - Non GMO Ideal for Backpackers, campers, and single use in hospitality settings Morning Shots of olive oil. 2 tablespoons per bottle. Take your healthy habits with you while traveling!",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/miniblue10pack.jpg?v=1638566750",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive oil",
+        "Moroccan",
+        "olive oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_bright-and-fruity-travel-sized-mini-bottles-20ml",
+          "sku": "BLUE - 12 Pack Travel Size - FBM",
+          "name": "Options",
+          "retailPriceCents": 1399,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    },
+    {
+      "source": "mog",
+      "id": "mog_the-blue-olive-oil-bright-and-fruity-500ml",
+      "slug": "the-blue-olive-oil-bright-and-fruity-500ml",
+      "name": "The Blue Olive Oil - Bright & Fruity - 500ml",
+      "tagline": null,
+      "description": "Our heritage bright extra virgin olive oil hails from a single origin farm in the north of Morocco. An homage to the peaceful Rif mountain village Chefchaouen. An aquatic looking paradise with homes painted the color of the sky, known as Morocco’s blue pearl. Current crop and cold pressed within hours of harvest. Ripe fruit with bright hints of apples and almonds rounded out with a touch of spice. Taste Profile: A bright and fruity body along with notes of fresh grass, and thyme a long lasting peppery finish in the throat, reminds us of the packed polyphenols level in this oil. Marries well with: Bitter greens, salads, vegetables, braised meats and pasta dishes Press: Pressed within hours of harvest in the farm's mill. Extraction Mode: Cold extraction 0.2% acidity level when bottled Storage: stored in state of the art stainless steel cisterns prior to bottling",
+      "origin": "Morocco",
+      "brand": "Moroccan Olive Grove",
+      "imageUrl": "https://cdn.shopify.com/s/files/1/0568/4032/3267/products/MOG_Bright_fruitycopy.png?v=1620693215",
+      "ribbon": null,
+      "isFeatured": false,
+      "collections": [
+        "Olive Oil",
+        "Moroccan",
+        "olive oil",
+        "shoptok"
+      ],
+      "variants": [
+        {
+          "id": "mog_var_the-blue-olive-oil-bright-and-fruity-500ml",
+          "sku": "BLUE - 500ml Bottle - FBA",
+          "name": "Each",
+          "retailPriceCents": 1999,
+          "compareAtPriceCents": null,
+          "unitsPerCase": null,
+          "minOrderCases": null,
+          "inStock": true
+        }
+      ]
+    }
+  ]
+}
