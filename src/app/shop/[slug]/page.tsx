@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ChevronRight, Truck } from "lucide-react";
 
 import { AddToQuote } from "@/components/cart/add-to-quote";
+import { HalalBadge } from "@/components/catalog/halal-badge";
 import { ProductCard } from "@/components/catalog/product-card";
 import { ProductImage } from "@/components/catalog/product-image";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +93,9 @@ export default async function ProductPage({
           <h1 className="mt-3 text-3xl leading-tight text-olive-900 sm:text-4xl">
             {product.name}
           </h1>
+          {product.categorySlug === "meat" ? (
+            <HalalBadge className="mt-4" />
+          ) : null}
           {product.tagline ? (
             <p className="mt-3 text-lg text-olive-600">{product.tagline}</p>
           ) : null}

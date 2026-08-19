@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AddToQuote } from "@/components/cart/add-to-quote";
+import { HalalBadge } from "@/components/catalog/halal-badge";
 import { ProductImage } from "@/components/catalog/product-image";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,6 +27,9 @@ export function ProductCard({ product }: { product: Product }) {
         />
         {product.ribbon ? (
           <Badge ribbon={product.ribbon} className="absolute top-3 left-3" />
+        ) : null}
+        {product.categorySlug === "meat" ? (
+          <HalalBadge className="absolute top-3 right-3" />
         ) : null}
       </Link>
 
