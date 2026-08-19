@@ -177,8 +177,8 @@ export const COUNTRY_FLAGS = {
 
 // Demonyms / strong single-signal keywords → country (tested on name + collections).
 const DEMONYMS = [
-  [/\bmorocc|\bmaroc|ouazzania|mordjene|maghrib|marrakesh|argan/i, "Morocco"],
-  [/\balgeri/i, "Algeria"],
+  [/\bmorocc|\bmaroc|ouazzania|maghrib|marrakesh|argan/i, "Morocco"],
+  [/\balgeri|mordjene|amor ben ?amor/i, "Algeria"],
   [/\btunisia|\bnabeul/i, "Tunisia"],
   [/\begypt/i, "Egypt"],
   [/\bturkish|\bturkey\b|türk|\bantep\b|\bmaras\b/i, "Turkey"],
@@ -221,15 +221,24 @@ try {
   /* optional file */
 }
 
+// Sources whose catalog is single-country by nature. La Vague's own (Wix)
+// range and Moroccan Olive Grove are Moroccan importers, so anything from them
+// without a clearer signal is Moroccan. General importers (halalco, Ziyad,
+// Fattal's) span many origins and get no source default.
+const SOURCE_ORIGIN = { wix: "Morocco", mog: "Morocco" };
+
 function assignOrigin(p) {
   const slug = p.slug || slugify(p.name);
   if (ORIGIN_OVERRIDES.slugs?.[slug]) return ORIGIN_OVERRIDES.slugs[slug];
   const brandKey = (p.brand || "").toLowerCase().trim();
   if (brandKey && ORIGIN_OVERRIDES.brands?.[brandKey]) return ORIGIN_OVERRIDES.brands[brandKey];
   if (p.origin) return p.origin; // set explicitly by a source importer
+  // A clear country signal in the name/brand always wins over the source
+  // default, so Egyptian Schweppes, Zamzam, El Mordjene stay correct.
   const hay = `${p.name} ${(p.collections || []).join(" ")}`;
   for (const [re, country] of DEMONYMS) if (re.test(hay)) return country;
   if (brandKey && BRAND_ORIGIN[brandKey]) return BRAND_ORIGIN[brandKey];
+  if (p.source && SOURCE_ORIGIN[p.source]) return SOURCE_ORIGIN[p.source];
   return null;
 }
 
@@ -263,6 +272,10 @@ for (const file of SOURCES) {
     continue;
   }
   const data = JSON.parse(fs.readFileSync(path, "utf8"));
+  // Tag each product with its source (the Wix importer predates the field), so
+  // origin inference can apply source-level defaults.
+  const srcName = file.replace("catalog.", "").replace(".json", "");
+  for (const p of data.products) if (!p.source) p.source = srcName;
   loaded.push({ file, count: data.products.length, products: data.products });
 }
 
