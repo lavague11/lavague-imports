@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { bulkSetActive } from "@/app/admin/actions";
+import { VisibilityToggle } from "@/components/admin/visibility-toggle";
+import { Prisma } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { getCategories, sourceLabel } from "@/lib/catalog";
 import { getPrisma } from "@/lib/db";
@@ -9,9 +11,30 @@ import { formatPriceOrRequest } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 type Filter = "missing-image" | "hidden" | "custom" | undefined;
+type SortKey = "name" | "source" | "category" | "origin" | "price" | "status";
+const SORT_KEYS: SortKey[] = ["name", "source", "category", "origin", "price", "status"];
 
 function firstValue(v: string | string[] | undefined) {
   return Array.isArray(v) ? v[0] : v;
+}
+
+function orderByFor(sortKey: SortKey | "", dir: "asc" | "desc"): Prisma.ProductOrderByWithRelationInput[] {
+  switch (sortKey) {
+    case "name":
+      return [{ name: dir }];
+    case "source":
+      return [{ source: dir }, { name: "asc" }];
+    case "category":
+      return [{ category: { name: dir } }, { name: "asc" }];
+    case "origin":
+      return [{ origin: { sort: dir, nulls: "last" } }, { name: "asc" }];
+    case "price":
+      return [{ minPriceCents: { sort: dir, nulls: "last" } }, { name: "asc" }];
+    case "status":
+      return [{ isActive: dir }, { name: "asc" }];
+    default:
+      return [{ isActive: "desc" }, { name: "asc" }];
+  }
 }
 
 export default async function AdminProducts({
@@ -31,6 +54,9 @@ export default async function AdminProducts({
   const category = firstValue(params.category);
   const search = firstValue(params.q)?.trim() ?? "";
   const page = Math.max(1, Number(firstValue(params.page)) || 1);
+  const rawSort = firstValue(params.sort) ?? "";
+  const sortKey: SortKey | "" = SORT_KEYS.includes(rawSort as SortKey) ? (rawSort as SortKey) : "";
+  const dir: "asc" | "desc" = firstValue(params.dir) === "desc" ? "desc" : "asc";
 
   const where = {
     ...(filter === "missing-image" ? { imageUrl: null } : {}),
@@ -46,7 +72,7 @@ export default async function AdminProducts({
     prisma.product.findMany({
       where,
       include: { category: true, variants: { orderBy: { position: "asc" }, take: 1 } },
-      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+      orderBy: orderByFor(sortKey, dir),
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
     }),
@@ -59,6 +85,29 @@ export default async function AdminProducts({
     { key: "hidden", label: "Hidden", href: "/admin/products?filter=hidden", active: filter === "hidden" },
     { key: "custom", label: "Custom", href: "/admin/products?filter=custom", active: filter === "custom" },
   ];
+
+  // A sortable column header: clicking cycles asc → desc on that column.
+  const sortTh = (label: string, col: SortKey) => {
+    const nextDir = sortKey === col && dir === "asc" ? "desc" : "asc";
+    const q = new URLSearchParams();
+    if (filter) q.set("filter", filter);
+    if (category) q.set("category", category);
+    if (search) q.set("q", search);
+    q.set("sort", col);
+    q.set("dir", nextDir);
+    const active = sortKey === col;
+    return (
+      <th className="p-3">
+        <Link
+          href={`/admin/products?${q.toString()}`}
+          className={`inline-flex items-center gap-1 hover:text-olive-900 ${active ? "font-semibold text-olive-900" : ""}`}
+        >
+          {label}
+          <span className="text-olive-400">{active ? (dir === "asc" ? "▲" : "▼") : "↕"}</span>
+        </Link>
+      </th>
+    );
+  };
 
   return (
     <div>
@@ -107,83 +156,79 @@ export default async function AdminProducts({
         {totalPages > 1 ? ` · page ${page} of ${totalPages}` : ""}
       </p>
 
-      <form action={bulkSetActive} className="mt-3">
-        <div className="mb-2 flex items-center gap-2 text-sm">
-          <span className="text-olive-600">With selected:</span>
-          <button name="action" value="show" className="rounded-md border border-olive-300 px-3 py-1 hover:bg-olive-50">
-            Show
-          </button>
-          <button name="action" value="hide" className="rounded-md border border-olive-300 px-3 py-1 hover:bg-olive-50">
-            Hide
-          </button>
-        </div>
-
-        <div className="overflow-hidden rounded-xl border border-olive-100 bg-white">
-          <table className="w-full text-sm">
-            <thead className="border-b border-olive-100 bg-olive-50/60 text-left text-olive-600">
-              <tr>
-                <th className="w-8 p-3"></th>
-                <th className="w-16 p-3">Image</th>
-                <th className="p-3">Product</th>
-                <th className="p-3">Source</th>
-                <th className="p-3">Category</th>
-                <th className="p-3">Origin</th>
-                <th className="p-3">Price</th>
-                <th className="p-3">Status</th>
-                <th className="p-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => {
-                const price = p.variants[0]?.retailPriceCents ?? null;
-                return (
-                  <tr key={p.id} className="border-b border-olive-50 last:border-0">
-                    <td className="p-3">
-                      <input type="checkbox" name="slug" value={p.slug} className="h-4 w-4 accent-olive-800" />
-                    </td>
-                    <td className="p-3">
-                      {p.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.imageUrl} alt="" className="h-10 w-10 rounded object-contain" />
-                      ) : (
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded bg-amber-50 text-[10px] font-medium text-amber-700">
-                          none
-                        </span>
-                      )}
-                    </td>
-                    <td className="max-w-xs p-3">
-                      <Link href={`/admin/products/${p.slug}`} className="font-medium text-olive-900 hover:underline">
-                        {p.name}
-                      </Link>
-                      {p.isCustom ? <span className="ml-2 rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-700">custom</span> : null}
-                    </td>
-                    <td className="p-3">
-                      <span className="rounded bg-olive-50 px-2 py-0.5 text-xs text-olive-600">
-                        {sourceLabel(p.source)}
-                      </span>
-                    </td>
-                    <td className="p-3 text-olive-600">{p.category.name}</td>
-                    <td className="p-3 text-olive-600">{p.origin ?? "—"}</td>
-                    <td className="p-3 text-olive-700">{formatPriceOrRequest(price)}</td>
-                    <td className="p-3">
-                      {p.isActive ? (
-                        <span className="text-emerald-700">Visible</span>
-                      ) : (
-                        <span className="text-olive-400">Hidden</span>
-                      )}
-                    </td>
-                    <td className="p-3 text-right">
-                      <Link href={`/admin/products/${p.slug}`} className="text-olive-700 hover:underline">
-                        Edit
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      {/* Bulk-select controls. The row checkboxes below associate with this form
+          via form="bulk", so the per-row toggle forms aren't nested inside it. */}
+      <form id="bulk" action={bulkSetActive} className="mt-3 mb-2 flex items-center gap-2 text-sm">
+        <span className="text-olive-600">With selected:</span>
+        <button name="action" value="show" className="rounded-md border border-olive-300 px-3 py-1 hover:bg-olive-50">
+          Show
+        </button>
+        <button name="action" value="hide" className="rounded-md border border-olive-300 px-3 py-1 hover:bg-olive-50">
+          Hide
+        </button>
       </form>
+
+      <div className="overflow-hidden rounded-xl border border-olive-100 bg-white">
+        <table className="w-full text-sm">
+          <thead className="border-b border-olive-100 bg-olive-50/60 text-left text-olive-600">
+            <tr>
+              <th className="w-8 p-3"></th>
+              <th className="w-16 p-3">Image</th>
+              {sortTh("Product", "name")}
+              {sortTh("Source", "source")}
+              {sortTh("Category", "category")}
+              {sortTh("Origin", "origin")}
+              {sortTh("Price", "price")}
+              {sortTh("Status", "status")}
+              <th className="p-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((p) => {
+              const price = p.variants[0]?.retailPriceCents ?? null;
+              return (
+                <tr key={p.id} className="border-b border-olive-50 last:border-0">
+                  <td className="p-3">
+                    <input type="checkbox" name="slug" value={p.slug} form="bulk" className="h-4 w-4 accent-olive-800" />
+                  </td>
+                  <td className="p-3">
+                    {p.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.imageUrl} alt="" className="h-10 w-10 rounded object-contain" />
+                    ) : (
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded bg-amber-50 text-[10px] font-medium text-amber-700">
+                        none
+                      </span>
+                    )}
+                  </td>
+                  <td className="max-w-xs p-3">
+                    <Link href={`/admin/products/${p.slug}`} className="font-medium text-olive-900 hover:underline">
+                      {p.name}
+                    </Link>
+                    {p.isCustom ? <span className="ml-2 rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-700">custom</span> : null}
+                  </td>
+                  <td className="p-3">
+                    <span className="rounded bg-olive-50 px-2 py-0.5 text-xs text-olive-600">
+                      {sourceLabel(p.source)}
+                    </span>
+                  </td>
+                  <td className="p-3 text-olive-600">{p.category.name}</td>
+                  <td className="p-3 text-olive-600">{p.origin ?? "—"}</td>
+                  <td className="p-3 text-olive-700">{formatPriceOrRequest(price)}</td>
+                  <td className="p-3">
+                    <VisibilityToggle slug={p.slug} active={p.isActive} />
+                  </td>
+                  <td className="p-3 text-right">
+                    <Link href={`/admin/products/${p.slug}`} className="text-olive-700 hover:underline">
+                      Edit
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {totalPages > 1 ? (
         <div className="mt-6 flex items-center justify-between">

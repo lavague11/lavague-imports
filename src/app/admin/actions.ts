@@ -144,6 +144,16 @@ export async function bulkSetActive(fd: FormData): Promise<void> {
   revalidatePath("/shop");
 }
 
+/** Toggle a single product's visibility. `active` is the desired new state. */
+export async function toggleActive(fd: FormData): Promise<void> {
+  const user = await requireUser();
+  const slug = str(fd, "slug");
+  const active = fd.get("active") === "true";
+  if (slug) await setActive([slug], active, user.id);
+  revalidatePath("/admin/products");
+  revalidatePath("/shop");
+}
+
 /* ---- users (ADMIN) ---- */
 
 export async function createUser(_prev: FormState, fd: FormData): Promise<FormState> {
