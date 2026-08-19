@@ -5,7 +5,7 @@ import { OliveMark } from "@/components/brand/logo";
 import { ProductCard } from "@/components/catalog/product-card";
 import { buttonClasses } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
-import { getCategories, getProducts } from "@/lib/catalog";
+import { getCategories, getCountryFilters, getProducts } from "@/lib/catalog";
 import { fullAddress, site } from "@/lib/site";
 
 const guarantees = [
@@ -32,9 +32,10 @@ const guarantees = [
 ];
 
 export default async function HomePage() {
-  const [featured, categories] = await Promise.all([
+  const [featured, categories, countries] = await Promise.all([
     getProducts({ featuredOnly: true }),
     getCategories(),
+    Promise.resolve(getCountryFilters()),
   ]);
 
   return (
@@ -136,6 +137,50 @@ export default async function HomePage() {
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featured.map((product) => (
               <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* Shop by country */}
+      <section className="border-t border-olive-100">
+        <Container className="py-16 lg:py-20">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="eyebrow">Foods of the world</p>
+              <h2 className="mt-2 text-3xl text-olive-900 sm:text-4xl">
+                Shop by country
+              </h2>
+              <p className="mt-3 max-w-lg text-olive-700">
+                Pick a country and see everything we carry from it — {countries.length}{" "}
+                origins and counting.
+              </p>
+            </div>
+            <Link
+              href="/shop"
+              className="text-sm font-medium text-olive-700 underline-offset-4 hover:text-olive-900 hover:underline"
+            >
+              Browse all products →
+            </Link>
+          </div>
+
+          <div className="mt-10 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+            {countries.map((country) => (
+              <Link
+                key={country.slug}
+                href={`/shop?country=${country.slug}`}
+                className="group flex flex-col items-center gap-1.5 rounded-card border border-olive-100 bg-white p-4 text-center transition-colors hover:border-olive-300 hover:bg-olive-50"
+              >
+                <span className="text-3xl leading-none sm:text-4xl" aria-hidden="true">
+                  {country.flag}
+                </span>
+                <span className="text-sm font-medium text-olive-900">
+                  {country.name}
+                </span>
+                <span className="text-xs text-olive-500">
+                  {country.count} {country.count === 1 ? "item" : "items"}
+                </span>
+              </Link>
             ))}
           </div>
         </Container>
