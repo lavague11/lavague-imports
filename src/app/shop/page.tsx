@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Search } from "lucide-react";
 
 import { CountrySelect } from "@/components/catalog/country-select";
 import { ParamSelect } from "@/components/catalog/param-select";
 import { ProductCard } from "@/components/catalog/product-card";
+import { SearchBox } from "@/components/catalog/search-box";
 import { ShowMore } from "@/components/catalog/show-more";
 import { SortSelect } from "@/components/catalog/sort-select";
 import { Container } from "@/components/ui/container";
@@ -189,26 +189,8 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
             ))}
           </nav>
 
-          {/* Search (with country + sort preserved) */}
-          <form action="/shop" className="relative mt-4 lg:mt-0">
-            {activeCategory ? <input type="hidden" name="category" value={activeCategory} /> : null}
-            {activeCountrySlug ? <input type="hidden" name="country" value={activeCountrySlug} /> : null}
-            {activeCollectionSlug ? <input type="hidden" name="collection" value={activeCollectionSlug} /> : null}
-            {sort !== "featured" ? <input type="hidden" name="sort" value={sort} /> : null}
-            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-olive-400" aria-hidden="true" />
-            <label className="sr-only" htmlFor="q">Search by product or country</label>
-            <input
-              id="q"
-              name="q"
-              type="search"
-              defaultValue={search}
-              placeholder="Search by product or country — e.g. harissa, Morocco…"
-              className="h-11 w-full rounded-full border border-olive-200 pr-20 pl-9 text-sm text-olive-900 placeholder:text-olive-400 focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none"
-            />
-            <button type="submit" className="absolute top-1/2 right-1.5 h-8 -translate-y-1/2 rounded-full bg-olive-900 px-4 text-xs font-medium text-white hover:bg-olive-800">
-              Search
-            </button>
-          </form>
+          {/* Search with live product/country suggestions */}
+          <SearchBox initialQuery={search} />
 
           {/* Country · collection · sort — instant on change. Inline on desktop,
               tucked behind a "Filters" disclosure on phones to stay minimal. */}
