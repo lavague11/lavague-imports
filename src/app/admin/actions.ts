@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 
 import {
   createSession,
-  destroySession,
   hashPassword,
   requireAdmin,
   requireUser,
@@ -47,11 +46,6 @@ export async function login(_prev: FormState, fd: FormData): Promise<FormState> 
     return { status: "error", message: "Sign-in is unavailable — is the database connected?" };
   }
   redirect(next.startsWith("/admin") ? next : "/admin");
-}
-
-export async function logout(): Promise<void> {
-  await destroySession();
-  redirect("/admin/login");
 }
 
 export async function changePassword(_prev: FormState, fd: FormData): Promise<FormState> {

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { logout } from "@/app/admin/actions";
 import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
@@ -55,7 +54,7 @@ export default async function AdminLayout({
             </Link>
             <span className="text-olive-400">·</span>
             <span className="text-olive-600">{user.email}</span>
-            <form action={logout}>
+            <form action="/admin/logout" method="post">
               <button className="rounded-md border border-olive-200 px-3 py-1 text-olive-700 hover:bg-olive-50">
                 Sign out
               </button>
