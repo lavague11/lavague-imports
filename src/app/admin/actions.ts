@@ -54,6 +54,34 @@ export async function logout(): Promise<void> {
   redirect("/admin/login");
 }
 
+export async function changePassword(_prev: FormState, fd: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const current = str(fd, "current");
+  const next = str(fd, "next");
+  const confirm = str(fd, "confirm");
+
+  if (next.length < 8) {
+    return { status: "error", message: "New password must be at least 8 characters." };
+  }
+  if (next !== confirm) {
+    return { status: "error", message: "The new passwords don't match." };
+  }
+  try {
+    const prisma = requirePrisma();
+    const row = await prisma.adminUser.findUnique({ where: { id: user.id } });
+    if (!row || !(await verifyPassword(current, row.passwordHash))) {
+      return { status: "error", message: "Your current password is incorrect." };
+    }
+    await prisma.adminUser.update({
+      where: { id: user.id },
+      data: { passwordHash: await hashPassword(next) },
+    });
+  } catch {
+    return { status: "error", message: "Couldn't update the password — is the database connected?" };
+  }
+  return { status: "success", message: "Password changed.", reference: user.id };
+}
+
 /* ---- products ---- */
 
 export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormState> {

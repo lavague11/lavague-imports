@@ -28,6 +28,7 @@ export default async function AdminLayout({
     { href: "/admin/products", label: "Products" },
     { href: "/admin/products/new", label: "New product" },
     ...(user.role === "ADMIN" ? [{ href: "/admin/users", label: "Users" }] : []),
+    { href: "/admin/account", label: "Account" },
   ];
 
   return (
