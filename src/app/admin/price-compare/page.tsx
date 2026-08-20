@@ -57,13 +57,16 @@ export default async function AdminPriceCompare({
     }),
   ]);
 
-  // Competitor prices grouped by slug → source → lowest price.
+  // Competitor prices grouped by slug → source → lowest price (for the columns),
+  // plus every raw price per slug (for a fair reference median).
   const compMap = new Map<string, Partial<Record<Source, number>>>();
+  const compAll = new Map<string, number[]>();
   for (const r of comps) {
     const g = compMap.get(r.productSlug) ?? {};
     const src = (SOURCES as readonly string[]).includes(r.source) ? (r.source as Source) : "specialty";
     if (g[src] == null || r.priceCents < g[src]!) g[src] = r.priceCents;
     compMap.set(r.productSlug, g);
+    (compAll.get(r.productSlug) ?? compAll.set(r.productSlug, []).get(r.productSlug)!).push(r.priceCents);
   }
 
   const benchmarks = buildBenchmarks(
@@ -85,7 +88,7 @@ export default async function AdminPriceCompare({
     const v = primaryVariant(p.variants);
     const our = p.minPriceCents!;
     const c = compMap.get(p.slug) ?? {};
-    const compVals = SOURCES.map((s) => c[s]).filter((x): x is number => x != null);
+    const compVals = compAll.get(p.slug) ?? [];
     let refCents: number | null = null;
     let refKind: Row["refKind"] = null;
     if (compVals.length) { refCents = median(compVals); refKind = "market"; }
