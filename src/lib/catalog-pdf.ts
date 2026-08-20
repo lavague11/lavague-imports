@@ -6,8 +6,6 @@ const PAGE_W = 612;
 const PAGE_H = 792;
 const MARGIN = 50;
 const COLS = 3;
-const ROWS = 4;
-const PER_PAGE = COLS * ROWS;
 
 const OLIVE = rgb(0.2, 0.23, 0.12);
 const OLIVE_MID = rgb(0.42, 0.44, 0.31);
@@ -25,9 +23,15 @@ export interface PdfProduct {
   origin: string | null;
   image?: { bytes: Uint8Array; type: "png" | "jpg" } | null;
 }
-export interface PdfCategory {
-  name: string;
+/** A labelled run of products within a section (e.g. a category inside a
+ *  country). An empty label draws no sub-divider. */
+export interface PdfSubgroup {
+  label: string;
   products: PdfProduct[];
+}
+export interface PdfSection {
+  name: string;
+  subgroups: PdfSubgroup[];
 }
 export interface CatalogPdfInput {
   scopeLabel: string;
@@ -35,7 +39,7 @@ export interface CatalogPdfInput {
   shopUrl: string;
   phone: string;
   email: string;
-  categories: PdfCategory[];
+  sections: PdfSection[];
   /** Country name → flag image bytes (embedded once, reused per product). */
   flags: Record<string, { bytes: Uint8Array; type: "png" | "jpg" }>;
 }
@@ -161,107 +165,140 @@ function centered2(page: PDFPage, font: PDFFont, text: string, x: number, y: num
   page.drawText(text, { x: x + (w - tw) / 2, y, size, font, color });
 }
 
-async function drawCategory(ctx: Ctx, cat: PdfCategory, startPage: number): Promise<number> {
-  const gap = 16;
-  const cellW = (PAGE_W - MARGIN * 2 - gap * (COLS - 1)) / COLS;
-  const gridTop = PAGE_H - 118;
-  const gridBottom = 66;
-  const rowH = (gridTop - gridBottom - gap * (ROWS - 1)) / ROWS;
+/** One product card at the given top-left position. */
+async function drawCard(ctx: Ctx, page: PDFPage, prod: PdfProduct, x: number, cellTop: number, cellW: number, rowH: number) {
   const pad = 8;
-  const headerFlag = ctx.flags.get(cat.name);
+  const cellBottom = cellTop - rowH;
+  page.drawRectangle({ x, y: cellBottom, width: cellW, height: rowH, color: rgb(1, 1, 1), borderColor: LINE, borderWidth: 0.6 });
 
-  let pageNo = startPage;
-  const pages = Math.max(1, Math.ceil(cat.products.length / PER_PAGE));
-  for (let pi = 0; pi < pages; pi++) {
-    const page = ctx.doc.addPage([PAGE_W, PAGE_H]);
+  const imgTop = cellTop - pad;
+  const imgBottom = cellBottom + 56;
+  const imgH = imgTop - imgBottom;
+  const imgLeft = x + pad;
+  const imgW = cellW - pad * 2;
 
-    // ── header ────────────────────────────────────────────────────────────
-    page.drawText("LA VAGUE IMPORTS  ·  INTERNATIONAL TASTES", { x: MARGIN, y: PAGE_H - 48, size: 7.5, font: ctx.sansBold, color: OLIVE_MID });
-    let hx = MARGIN;
-    if (headerFlag) {
-      const fw = 27;
-      const fh = (headerFlag.height / headerFlag.width) * fw;
-      page.drawImage(headerFlag, { x: MARGIN, y: PAGE_H - 76, width: fw, height: fh });
-      page.drawRectangle({ x: MARGIN, y: PAGE_H - 76, width: fw, height: fh, borderColor: LINE, borderWidth: 0.5 });
-      hx = MARGIN + fw + 11;
+  let drew = false;
+  if (prod.image) {
+    try {
+      const img = prod.image.type === "png" ? await ctx.doc.embedPng(prod.image.bytes) : await ctx.doc.embedJpg(prod.image.bytes);
+      const scale = Math.min(imgW / img.width, imgH / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      page.drawImage(img, { x: imgLeft + (imgW - dw) / 2, y: imgBottom + (imgH - dh) / 2, width: dw, height: dh });
+      drew = true;
+    } catch {
+      /* placeholder below */
     }
-    page.drawText(cat.name, { x: hx, y: PAGE_H - 73, size: 23, font: ctx.serif, color: OLIVE });
-    if (pages > 1) {
-      const pl = `${pi + 1} / ${pages}`;
-      const plw = ctx.sans.widthOfTextAtSize(pl, 9);
-      page.drawText(pl, { x: PAGE_W - MARGIN - plw, y: PAGE_H - 68, size: 9, font: ctx.sans, color: GRAY });
-    }
-    page.drawRectangle({ x: MARGIN, y: PAGE_H - 88, width: 46, height: 2.5, color: OLIVE });
-    page.drawLine({ start: { x: MARGIN + 54, y: PAGE_H - 87 }, end: { x: PAGE_W - MARGIN, y: PAGE_H - 87 }, thickness: 0.75, color: LINE });
-
-    // ── product cards ─────────────────────────────────────────────────────
-    const slice = cat.products.slice(pi * PER_PAGE, (pi + 1) * PER_PAGE);
-    for (let i = 0; i < slice.length; i++) {
-      const prod = slice[i];
-      const col = i % COLS;
-      const row = Math.floor(i / COLS);
-      const x = MARGIN + col * (cellW + gap);
-      const cellTop = gridTop - row * (rowH + gap);
-      const cellBottom = cellTop - rowH;
-
-      // card
-      page.drawRectangle({ x, y: cellBottom, width: cellW, height: rowH, color: rgb(1, 1, 1), borderColor: LINE, borderWidth: 0.6 });
-
-      const imgTop = cellTop - pad;
-      const imgBottom = cellBottom + 56; // reserve bottom band for text
-      const imgH = imgTop - imgBottom;
-      const imgLeft = x + pad;
-      const imgW = cellW - pad * 2;
-
-      let drew = false;
-      if (prod.image) {
-        try {
-          const img = prod.image.type === "png" ? await ctx.doc.embedPng(prod.image.bytes) : await ctx.doc.embedJpg(prod.image.bytes);
-          const scale = Math.min(imgW / img.width, imgH / img.height);
-          const dw = img.width * scale;
-          const dh = img.height * scale;
-          page.drawImage(img, { x: imgLeft + (imgW - dw) / 2, y: imgBottom + (imgH - dh) / 2, width: dw, height: dh });
-          drew = true;
-        } catch {
-          /* placeholder below */
-        }
-      }
-      if (!drew) centered2(page, ctx.serif, "La Vague", imgLeft, imgBottom + imgH / 2 - 4, imgW, 12, rgb(0.78, 0.8, 0.7));
-
-      // divider under image
-      page.drawLine({ start: { x: x + pad, y: cellBottom + 52 }, end: { x: x + cellW - pad, y: cellBottom + 52 }, thickness: 0.5, color: LINE });
-
-      // name (top-aligned in text band, 2 lines)
-      let ty = cellBottom + 42;
-      for (const ln of wrap(prod.name, ctx.sansBold, 8.5, imgW, 2)) {
-        page.drawText(ln, { x: x + pad, y: ty, size: 8.5, font: ctx.sansBold, color: OLIVE });
-        ty -= 10;
-      }
-      // SKU anchored to the bottom
-      if (prod.sku) page.drawText(`SKU ${prod.sku}`, { x: x + pad, y: cellBottom + 9, size: 7, font: ctx.sans, color: OLIVE_MID });
-      // flag + meta just above the SKU
-      const metaY = cellBottom + 21;
-      let mx = x + pad;
-      const flag = prod.origin ? ctx.flags.get(prod.origin) : undefined;
-      if (flag) {
-        const fw = 12;
-        const fh = (flag.height / flag.width) * fw;
-        page.drawImage(flag, { x: x + pad, y: metaY - 1, width: fw, height: fh });
-        page.drawRectangle({ x: x + pad, y: metaY - 1, width: fw, height: fh, borderColor: LINE, borderWidth: 0.4 });
-        mx = x + pad + fw + 5;
-      }
-      if (prod.meta) {
-        page.drawText(wrap(prod.meta, ctx.sans, 7, imgW - (mx - (x + pad)), 1)[0] ?? "", { x: mx, y: metaY + 1, size: 7, font: ctx.sans, color: GRAY });
-      }
-    }
-    footer(page, ctx, pageNo);
-    pageNo++;
   }
-  return pageNo;
+  if (!drew) centered2(page, ctx.serif, "La Vague", imgLeft, imgBottom + imgH / 2 - 4, imgW, 12, rgb(0.78, 0.8, 0.7));
+
+  page.drawLine({ start: { x: x + pad, y: cellBottom + 52 }, end: { x: x + cellW - pad, y: cellBottom + 52 }, thickness: 0.5, color: LINE });
+
+  let ty = cellBottom + 42;
+  for (const ln of wrap(prod.name, ctx.sansBold, 8.5, imgW, 2)) {
+    page.drawText(ln, { x: x + pad, y: ty, size: 8.5, font: ctx.sansBold, color: OLIVE });
+    ty -= 10;
+  }
+  if (prod.sku) page.drawText(`SKU ${prod.sku}`, { x: x + pad, y: cellBottom + 9, size: 7, font: ctx.sans, color: OLIVE_MID });
+
+  const metaY = cellBottom + 21;
+  let mx = x + pad;
+  const flag = prod.origin ? ctx.flags.get(prod.origin) : undefined;
+  if (flag) {
+    const fw = 12;
+    const fh = (flag.height / flag.width) * fw;
+    page.drawImage(flag, { x: x + pad, y: metaY - 1, width: fw, height: fh });
+    page.drawRectangle({ x: x + pad, y: metaY - 1, width: fw, height: fh, borderColor: LINE, borderWidth: 0.4 });
+    mx = x + pad + fw + 5;
+  }
+  if (prod.meta) page.drawText(wrap(prod.meta, ctx.sans, 7, imgW - (mx - (x + pad)), 1)[0] ?? "", { x: mx, y: metaY + 1, size: 7, font: ctx.sans, color: GRAY });
 }
 
-function drawOrderPages(ctx: Ctx, cats: PdfCategory[], input: CatalogPdfInput, startPage: number) {
-  const all = cats.flatMap((c) => c.products);
+/** Section (country/category) header, drawn atop every page of that section. */
+function drawSectionHeader(ctx: Ctx, page: PDFPage, section: PdfSection) {
+  page.drawText("LA VAGUE IMPORTS  ·  INTERNATIONAL TASTES", { x: MARGIN, y: PAGE_H - 48, size: 7.5, font: ctx.sansBold, color: OLIVE_MID });
+  let hx = MARGIN;
+  const headerFlag = ctx.flags.get(section.name);
+  if (headerFlag) {
+    const fw = 27;
+    const fh = (headerFlag.height / headerFlag.width) * fw;
+    page.drawImage(headerFlag, { x: MARGIN, y: PAGE_H - 76, width: fw, height: fh });
+    page.drawRectangle({ x: MARGIN, y: PAGE_H - 76, width: fw, height: fh, borderColor: LINE, borderWidth: 0.5 });
+    hx = MARGIN + fw + 11;
+  }
+  page.drawText(section.name, { x: hx, y: PAGE_H - 73, size: 23, font: ctx.serif, color: OLIVE });
+  page.drawRectangle({ x: MARGIN, y: PAGE_H - 88, width: 46, height: 2.5, color: OLIVE });
+  page.drawLine({ start: { x: MARGIN + 54, y: PAGE_H - 87 }, end: { x: PAGE_W - MARGIN, y: PAGE_H - 87 }, thickness: 0.75, color: LINE });
+}
+
+/** A category sub-divider inside a section: label + rule. */
+function drawSubdivider(ctx: Ctx, page: PDFPage, label: string, yTop: number) {
+  const up = label.toUpperCase();
+  page.drawText(up, { x: MARGIN, y: yTop - 12, size: 9, font: ctx.sansBold, color: OLIVE_MID });
+  const lw = ctx.sansBold.widthOfTextAtSize(up, 9);
+  page.drawLine({ start: { x: MARGIN + lw + 10, y: yTop - 9 }, end: { x: PAGE_W - MARGIN, y: yTop - 9 }, thickness: 0.6, color: LINE });
+}
+
+/**
+ * Flows sections (each a country or category) with category sub-dividers,
+ * breaking pages as needed. draw:false measures per-section page counts for the
+ * TOC; draw:true renders. Returns pages used per section.
+ */
+async function renderSections(ctx: Ctx, sections: PdfSection[], opts: { draw: boolean; startAbs: number }): Promise<number[]> {
+  const gap = 16;
+  const rowGap = 16;
+  const rowH = 138;
+  const cellW = (PAGE_W - MARGIN * 2 - gap * (COLS - 1)) / COLS;
+  const contentTop = PAGE_H - 100;
+  const bottom = 60;
+  const subH = 24;
+  const subGap = 6;
+
+  const perSection: number[] = [];
+  let absPage = opts.startAbs;
+
+  for (const section of sections) {
+    let page: PDFPage | null = null;
+    let y = 0;
+    let used = 0;
+    const newPage = () => {
+      if (opts.draw) {
+        page = ctx.doc.addPage([PAGE_W, PAGE_H]);
+        drawSectionHeader(ctx, page, section);
+        footer(page, ctx, absPage);
+      }
+      used++;
+      absPage++;
+      y = contentTop;
+    };
+    newPage();
+
+    for (const sub of section.subgroups) {
+      if (!sub.products.length) continue;
+      if (sub.label) {
+        if (y - subH - rowH < bottom) newPage();
+        if (opts.draw && page) drawSubdivider(ctx, page, sub.label, y);
+        y -= subH;
+      }
+      for (let i = 0; i < sub.products.length; i += COLS) {
+        if (y - rowH < bottom) newPage();
+        if (opts.draw && page) {
+          const rowProds = sub.products.slice(i, i + COLS);
+          for (let col = 0; col < rowProds.length; col++) {
+            await drawCard(ctx, page, rowProds[col], MARGIN + col * (cellW + gap), y, cellW, rowH);
+          }
+        }
+        y -= rowH + rowGap;
+      }
+      y -= subGap;
+    }
+    perSection.push(used);
+  }
+  return perSection;
+}
+
+function drawOrderPages(ctx: Ctx, sections: PdfSection[], input: CatalogPdfInput, startPage: number) {
+  const all = sections.flatMap((s) => s.subgroups.flatMap((g) => g.products));
   const rowH = 22;
   const top = PAGE_H - 130;
   const bottom = 80;
@@ -322,38 +359,44 @@ export async function buildCatalogPdf(input: CatalogPdfInput): Promise<Uint8Arra
     }
   }
 
-  const cats: PdfCategory[] = input.categories
-    .filter((c) => c.products.length > 0)
-    .map((c) => ({
-      name: ascii(c.name),
-      products: c.products.map((p) => ({
-        ...p,
-        name: ascii(p.name),
-        sku: ascii(p.sku),
-        size: ascii(p.size),
-        meta: ascii(p.meta),
-        origin: p.origin,
-      })),
-    }));
+  const sections: PdfSection[] = input.sections
+    .map((s) => ({
+      name: ascii(s.name),
+      subgroups: s.subgroups
+        .filter((g) => g.products.length > 0)
+        .map((g) => ({
+          label: ascii(g.label),
+          products: g.products.map((p) => ({
+            ...p,
+            name: ascii(p.name),
+            sku: ascii(p.sku),
+            size: ascii(p.size),
+            meta: ascii(p.meta),
+            origin: p.origin,
+          })),
+        })),
+    }))
+    .filter((s) => s.subgroups.length > 0);
   const coverInput = { ...input, scopeLabel: ascii(input.scopeLabel), dateLabel: ascii(input.dateLabel) };
 
-  // Page math: cover(1) + toc(tocPages) + products + order.
-  const tocPages = Math.max(1, Math.ceil(cats.length / 34));
-  let cursor = 1 + tocPages + 1; // first product page (1-indexed)
+  // Page math: cover(1) + toc(tocPages) + sections(measured) + order.
+  const tocPages = Math.max(1, Math.ceil((sections.length + 1) / 34));
+  const firstSectionPage = 1 + tocPages + 1;
+  const perSection = await renderSections(ctx, sections, { draw: false, startAbs: firstSectionPage });
+
+  let cursor = firstSectionPage;
   const tocEntries: { name: string; page: number }[] = [];
-  const catStart: number[] = [];
-  for (const c of cats) {
-    catStart.push(cursor);
-    tocEntries.push({ name: c.name, page: cursor });
-    cursor += Math.max(1, Math.ceil(c.products.length / PER_PAGE));
-  }
+  sections.forEach((s, i) => {
+    tocEntries.push({ name: s.name, page: cursor });
+    cursor += perSection[i];
+  });
   const orderStart = cursor;
   tocEntries.push({ name: "Order form", page: orderStart });
 
   await drawCover(ctx, coverInput);
   drawTOC(ctx, tocEntries.map((e) => ({ name: ascii(e.name), page: e.page })), tocPages);
-  for (let i = 0; i < cats.length; i++) await drawCategory(ctx, cats[i], catStart[i]);
-  drawOrderPages(ctx, cats, input, orderStart);
+  await renderSections(ctx, sections, { draw: true, startAbs: firstSectionPage });
+  drawOrderPages(ctx, sections, input, orderStart);
 
   return doc.save();
 }

@@ -1,4 +1,4 @@
-import { buildCatalogPdf, type PdfCategory, type PdfProduct } from "@/lib/catalog-pdf";
+import { buildCatalogPdf, type PdfProduct, type PdfSection } from "@/lib/catalog-pdf";
 import { countryFilters } from "@/lib/catalog/data";
 import { isoFor } from "@/lib/countries";
 import type { getPrisma } from "@/lib/db";
@@ -80,23 +80,32 @@ export async function generateCatalog(
     };
   });
 
-  let sections: PdfCategory[];
+  const catName = new Map(allCategories.map((c) => [c.slug, c.name]));
+  const catOrder = allCategories.map((c) => c.slug);
+
+  let sections: PdfSection[];
   if (sortMode === "country") {
+    // country → category → products (category sub-dividers inside each country)
+    const byCountry = new Map<string, Map<string, PdfProduct[]>>();
+    for (const it of items) {
+      const ck = it.origin || "__none";
+      let cats = byCountry.get(ck);
+      if (!cats) byCountry.set(ck, (cats = new Map()));
+      (cats.get(it.categorySlug) ?? cats.set(it.categorySlug, []).get(it.categorySlug)!).push(it.prod);
+    }
+    const subs = (cats: Map<string, PdfProduct[]>) =>
+      catOrder.filter((s) => cats.has(s)).map((s) => ({ label: catName.get(s) ?? s, products: cats.get(s)! }));
+    sections = allCountries.filter((c) => byCountry.has(c.name)).map((c) => ({ name: c.name, subgroups: subs(byCountry.get(c.name)!) }));
+    if (byCountry.has("__none")) sections.push({ name: "Other origins", subgroups: subs(byCountry.get("__none")!) });
+  } else {
+    // category → products (no sub-dividers)
     const groups = new Map<string, PdfProduct[]>();
     for (const it of items) {
-      const key = it.origin || "__none";
-      (groups.get(key) ?? groups.set(key, []).get(key)!).push(it.prod);
+      (groups.get(it.categorySlug) ?? groups.set(it.categorySlug, []).get(it.categorySlug)!).push(it.prod);
     }
-    sections = allCountries.filter((c) => groups.has(c.name)).map((c) => ({ name: c.name, products: groups.get(c.name)! }));
-    if (groups.has("__none")) sections.push({ name: "Other origins", products: groups.get("__none")! });
-  } else {
-    const groups = new Map<string, PdfCategory>();
-    for (const it of items) {
-      const g = groups.get(it.categorySlug) ?? { name: it.categoryName, products: [] };
-      g.products.push(it.prod);
-      groups.set(it.categorySlug, g);
-    }
-    sections = allCategories.map((c) => groups.get(c.slug)).filter((c): c is PdfCategory => Boolean(c));
+    sections = allCategories
+      .filter((c) => groups.has(c.slug))
+      .map((c) => ({ name: c.name, subgroups: [{ label: "", products: groups.get(c.slug)! }] }));
   }
 
   const flags: Record<string, { bytes: Uint8Array; type: "png" | "jpg" }> = {};
@@ -128,7 +137,7 @@ export async function generateCatalog(
     shopUrl: (process.env.NEXT_PUBLIC_SITE_URL || "https://lavagueimports.com") + "/shop",
     phone: site.phone,
     email: site.email,
-    categories: sections,
+    sections,
     flags,
   });
 
