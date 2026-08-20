@@ -39,11 +39,14 @@ async function loadRaw(url: string, prisma: Prisma): Promise<Uint8Array | null> 
 async function makeThumb(bytes: Uint8Array): Promise<Uint8Array | null> {
   const type = detectType(bytes);
   if (!type) return null;
-  if (type === "jpg" && bytes.length < 24_000) return bytes; // already tiny
+  if (type === "jpg" && bytes.length < 24_000) return bytes; // already tiny, no alpha
   try {
     const img = await Jimp.read(Buffer.from(bytes));
     if (img.width > 240) img.resize({ w: 240 });
-    const out = await img.getBuffer("image/jpeg", { quality: 58 });
+    // Flatten onto white — otherwise transparent PNGs render on black in JPEG.
+    const canvas = new Jimp({ width: img.width, height: img.height, color: 0xffffffff });
+    canvas.composite(img, 0, 0);
+    const out = await canvas.getBuffer("image/jpeg", { quality: 58 });
     return new Uint8Array(out);
   } catch {
     return null;

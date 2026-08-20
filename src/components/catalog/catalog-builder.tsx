@@ -84,6 +84,20 @@ export function CatalogBuilder({ countries, categories }: { countries: Country[]
         </div>
       </section>
 
+      <section>
+        <h2 className="text-xl text-olive-900">Organize by</h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <label className={boxLabel}>
+            <input type="radio" name="sort" value="country" defaultChecked className="h-4 w-4 accent-olive-800" />
+            Country
+          </label>
+          <label className={boxLabel}>
+            <input type="radio" name="sort" value="category" className="h-4 w-4 accent-olive-800" />
+            Category
+          </label>
+        </div>
+      </section>
+
       <div className="flex flex-col items-start gap-3 border-t border-olive-100 pt-8 sm:flex-row sm:items-center">
         <button
           type="submit"

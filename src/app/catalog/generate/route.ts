@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { buildCatalogPdf, type PdfCategory, type PdfProduct } from "@/lib/catalog-pdf";
 import { getCategories, getCountryFilters } from "@/lib/catalog";
+import { isoFor } from "@/lib/countries";
 import { getPrisma } from "@/lib/db";
 import { site } from "@/lib/site";
 import { getThumb } from "@/lib/thumbs";
@@ -58,29 +59,72 @@ export async function GET(request: Request) {
   // Load thumbnails (DB-cached; only cache misses hit jimp).
   const images = await pool(rows, 12, (p) => getThumb(p.imageUrl, prisma));
 
-  // Group into categories in catalog order.
-  const byCat = new Map<string, PdfCategory>();
-  rows.forEach((p, idx) => {
-    const key = p.category.slug;
-    const g = byCat.get(key) ?? { name: p.category.name, products: [] };
+  const sortMode = sp.get("sort") === "category" ? "category" : "country";
+
+  // Build product entries, with the secondary line showing the OTHER dimension.
+  const items = rows.map((p, idx) => {
     const v = p.variants[0];
-    const prod: PdfProduct = {
-      name: p.name,
-      sku: v?.sku ?? "",
-      size: v?.name && !/^each$/i.test(v.name) ? v.name : "",
+    const size = v?.name && !/^each$/i.test(v.name) ? v.name : "";
+    const secondary = sortMode === "country" ? p.category.name : p.origin;
+    return {
       origin: p.origin,
-      image: images[idx],
+      categorySlug: p.category.slug,
+      categoryName: p.category.name,
+      prod: {
+        name: p.name,
+        sku: v?.sku ?? "",
+        size,
+        meta: [size, secondary].filter(Boolean).join("  ·  "),
+        origin: p.origin,
+        image: images[idx],
+      } as PdfProduct,
     };
-    g.products.push(prod);
-    byCat.set(key, g);
   });
-  const orderedCats = allCategories
-    .map((c) => byCat.get(c.slug))
-    .filter((c): c is PdfCategory => Boolean(c));
+
+  // Group into sections by country (default) or category.
+  let sections: PdfCategory[];
+  if (sortMode === "country") {
+    const groups = new Map<string, PdfProduct[]>();
+    for (const it of items) {
+      const key = it.origin || "__none";
+      (groups.get(key) ?? groups.set(key, []).get(key)!).push(it.prod);
+    }
+    sections = allCountries
+      .filter((c) => groups.has(c.name))
+      .map((c) => ({ name: c.name, products: groups.get(c.name)! }));
+    if (groups.has("__none")) sections.push({ name: "Other origins", products: groups.get("__none")! });
+  } else {
+    const groups = new Map<string, PdfCategory>();
+    for (const it of items) {
+      const g = groups.get(it.categorySlug) ?? { name: it.categoryName, products: [] };
+      g.products.push(it.prod);
+      groups.set(it.categorySlug, g);
+    }
+    sections = allCategories.map((c) => groups.get(c.slug)).filter((c): c is PdfCategory => Boolean(c));
+  }
+
+  // Fetch a flag image per distinct origin (small PNGs from flagcdn).
+  const flags: Record<string, { bytes: Uint8Array; type: "png" | "jpg" }> = {};
+  const origins = [...new Set(items.map((i) => i.origin).filter((o): o is string => Boolean(o)))];
+  await Promise.all(
+    origins.map(async (name) => {
+      const iso = isoFor(name);
+      if (!iso) return;
+      try {
+        const res = await fetch(`https://flagcdn.com/w40/${iso}.png`, { signal: AbortSignal.timeout(6000) });
+        if (!res.ok) return;
+        const b = new Uint8Array(await res.arrayBuffer());
+        if (b[0] === 0x89 && b[1] === 0x50) flags[name] = { bytes: b, type: "png" };
+      } catch {
+        /* skip */
+      }
+    }),
+  );
 
   const scopeLabel = [
     countryNames.length ? countryNames.join(", ") : "All countries",
     categorySlugs.length ? categorySlugs.map((s) => allCategories.find((c) => c.slug === s)?.name ?? s).join(", ") : "All categories",
+    sortMode === "country" ? "by country" : "by category",
   ].join("  ·  ");
 
   const dateLabel = new Date(Number(sp.get("t")) || Date.now()).toLocaleDateString("en-US", {
@@ -94,7 +138,8 @@ export async function GET(request: Request) {
     shopUrl: (process.env.NEXT_PUBLIC_SITE_URL || "https://lavagueimports.com") + "/shop",
     phone: site.phone,
     email: site.email,
-    categories: orderedCats,
+    categories: sections,
+    flags,
   });
 
   return new NextResponse(pdf as BodyInit, {

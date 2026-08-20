@@ -21,6 +21,9 @@ export interface PdfProduct {
   name: string;
   sku: string;
   size: string;
+  /** Secondary line under the name, e.g. "70 g · Spices & Herbs". */
+  meta: string;
+  /** Country of origin (drives the flag icon); null if unknown. */
   origin: string | null;
   image?: { bytes: Uint8Array; type: "png" | "jpg" } | null;
 }
@@ -35,6 +38,8 @@ export interface CatalogPdfInput {
   phone: string;
   email: string;
   categories: PdfCategory[];
+  /** Country name → flag image bytes (embedded once, reused per product). */
+  flags: Record<string, { bytes: Uint8Array; type: "png" | "jpg" }>;
 }
 
 /** Transliterate to WinAnsi-safe ASCII — the standard PDF fonts can't encode
@@ -82,6 +87,7 @@ interface Ctx {
   serifBold: PDFFont;
   sans: PDFFont;
   sansBold: PDFFont;
+  flags: Map<string, import("pdf-lib").PDFImage>;
 }
 
 function footer(page: PDFPage, ctx: Ctx, pageNo: number) {
@@ -209,11 +215,20 @@ async function drawCategory(ctx: Ctx, cat: PdfCategory, startPage: number): Prom
         page.drawText(ln, { x, y: ty, size: 8.5, font: ctx.sansBold, color: OLIVE });
         ty -= 10;
       }
-      const meta = [prod.size, prod.origin].filter(Boolean).join(" · ");
-      if (meta) {
-        page.drawText(wrap(meta, ctx.sans, 7.5, cellW, 1)[0] ?? "", { x, y: ty - 1, size: 7.5, font: ctx.sans, color: GRAY });
-        ty -= 10;
+      // flag + meta line
+      let mx = x;
+      const flag = prod.origin ? ctx.flags.get(prod.origin) : undefined;
+      if (flag) {
+        const fw = 12;
+        const fh = (flag.height / flag.width) * fw;
+        page.drawImage(flag, { x, y: ty - fh + 1, width: fw, height: fh });
+        page.drawRectangle({ x, y: ty - fh + 1, width: fw, height: fh, borderColor: LINE, borderWidth: 0.4 });
+        mx = x + fw + 4;
       }
+      if (prod.meta) {
+        page.drawText(wrap(prod.meta, ctx.sans, 7.5, cellW - (mx - x), 1)[0] ?? "", { x: mx, y: ty - 1, size: 7.5, font: ctx.sans, color: GRAY });
+      }
+      ty -= 10;
       if (prod.sku) page.drawText(`SKU ${prod.sku}`, { x, y: ty - 1, size: 7, font: ctx.sans, color: OLIVE_MID });
     }
     footer(page, ctx, pageNo);
@@ -274,7 +289,15 @@ export async function buildCatalogPdf(input: CatalogPdfInput): Promise<Uint8Arra
     serifBold: await doc.embedFont(StandardFonts.TimesRomanBold),
     sans: await doc.embedFont(StandardFonts.Helvetica),
     sansBold: await doc.embedFont(StandardFonts.HelveticaBold),
+    flags: new Map(),
   };
+  for (const [country, f] of Object.entries(input.flags)) {
+    try {
+      ctx.flags.set(country, f.type === "png" ? await doc.embedPng(f.bytes) : await doc.embedJpg(f.bytes));
+    } catch {
+      /* skip a bad flag */
+    }
+  }
 
   const cats: PdfCategory[] = input.categories
     .filter((c) => c.products.length > 0)
@@ -285,7 +308,8 @@ export async function buildCatalogPdf(input: CatalogPdfInput): Promise<Uint8Arra
         name: ascii(p.name),
         sku: ascii(p.sku),
         size: ascii(p.size),
-        origin: p.origin ? ascii(p.origin) : null,
+        meta: ascii(p.meta),
+        origin: p.origin,
       })),
     }));
   const coverInput = { ...input, scopeLabel: ascii(input.scopeLabel), dateLabel: ascii(input.dateLabel) };
