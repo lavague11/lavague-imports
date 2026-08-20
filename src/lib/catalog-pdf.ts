@@ -37,6 +37,20 @@ export interface CatalogPdfInput {
   categories: PdfCategory[];
 }
 
+/** Transliterate to WinAnsi-safe ASCII — the standard PDF fonts can't encode
+ *  Turkish/Arabic/extended letters (ı, ş, ğ, İ, …) that appear in brand names. */
+function ascii(s: string | null | undefined): string {
+  return (s ?? "")
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "") // strip combining diacritics (é→e, ç→c, ş→s)
+    .replace(/ı/g, "i").replace(/İ/g, "I")
+    .replace(/ł/g, "l").replace(/Ł/g, "L").replace(/ø/g, "o").replace(/Ø/g, "O")
+    .replace(/æ/g, "ae").replace(/Æ/g, "AE").replace(/œ/g, "oe").replace(/Œ/g, "OE").replace(/ß/g, "ss")
+    .replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
+    .replace(/[–—]/g, "-").replace(/…/g, "...")
+    .replace(/[^\x20-\x7e]/g, ""); // drop anything still non-ASCII
+}
+
 /** Greedy word-wrap into at most `maxLines` lines, ellipsising overflow. */
 function wrap(text: string, font: PDFFont, size: number, maxWidth: number, maxLines: number): string[] {
   const words = text.split(/\s+/);
@@ -208,8 +222,8 @@ async function drawCategory(ctx: Ctx, cat: PdfCategory, startPage: number): Prom
   return pageNo;
 }
 
-function drawOrderPages(ctx: Ctx, input: CatalogPdfInput, startPage: number) {
-  const all = input.categories.flatMap((c) => c.products);
+function drawOrderPages(ctx: Ctx, cats: PdfCategory[], input: CatalogPdfInput, startPage: number) {
+  const all = cats.flatMap((c) => c.products);
   const rowH = 22;
   const top = PAGE_H - 130;
   const bottom = 80;
@@ -262,7 +276,19 @@ export async function buildCatalogPdf(input: CatalogPdfInput): Promise<Uint8Arra
     sansBold: await doc.embedFont(StandardFonts.HelveticaBold),
   };
 
-  const cats = input.categories.filter((c) => c.products.length > 0);
+  const cats: PdfCategory[] = input.categories
+    .filter((c) => c.products.length > 0)
+    .map((c) => ({
+      name: ascii(c.name),
+      products: c.products.map((p) => ({
+        ...p,
+        name: ascii(p.name),
+        sku: ascii(p.sku),
+        size: ascii(p.size),
+        origin: p.origin ? ascii(p.origin) : null,
+      })),
+    }));
+  const coverInput = { ...input, scopeLabel: ascii(input.scopeLabel), dateLabel: ascii(input.dateLabel) };
 
   // Page math: cover(1) + toc(tocPages) + products + order.
   const tocPages = Math.max(1, Math.ceil(cats.length / 34));
@@ -277,10 +303,10 @@ export async function buildCatalogPdf(input: CatalogPdfInput): Promise<Uint8Arra
   const orderStart = cursor;
   tocEntries.push({ name: "Order form", page: orderStart });
 
-  await drawCover(ctx, input);
-  drawTOC(ctx, tocEntries, tocPages);
+  await drawCover(ctx, coverInput);
+  drawTOC(ctx, tocEntries.map((e) => ({ name: ascii(e.name), page: e.page })), tocPages);
   for (let i = 0; i < cats.length; i++) await drawCategory(ctx, cats[i], catStart[i]);
-  drawOrderPages(ctx, input, orderStart);
+  drawOrderPages(ctx, cats, input, orderStart);
 
   return doc.save();
 }
