@@ -22,6 +22,7 @@ export const site = {
 export const navigation = [
   { href: "/", label: "Home" },
   { href: "/shop", label: "Shop" },
+  { href: "/catalog", label: "Catalog" },
   { href: "/wholesale", label: "Wholesale" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },

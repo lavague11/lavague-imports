@@ -1,8 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // nodemailer is a server-only dependency; keep it out of the bundle.
-  serverExternalPackages: ["nodemailer"],
+  // Server-only dependencies; keep them out of the bundle.
+  serverExternalPackages: ["nodemailer", "pdf-lib", "qrcode", "jimp"],
+  // Present so dev (Turbopack) doesn't error on the webpack config below.
+  turbopack: {},
+  // Avoid webpack's wasm xxhash path, which crashes on large modules under this
+  // Node version ("WasmHash._updateWithBuffer … reading 'length'"). Applies to
+  // the production `next build --webpack` only.
+  webpack: (config: { output?: { hashFunction?: string } }) => {
+    config.output = config.output ?? {};
+    config.output.hashFunction = "sha256";
+    return config;
+  },
   images: {
     remotePatterns: [
       // Product photography imported from the source catalogs. Replace with your
