@@ -1,56 +1,12 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
-import { Jimp } from "jimp";
 import { NextResponse } from "next/server";
 
 import { buildCatalogPdf, type PdfCategory, type PdfProduct } from "@/lib/catalog-pdf";
 import { getCategories, getCountryFilters } from "@/lib/catalog";
 import { getPrisma } from "@/lib/db";
 import { site } from "@/lib/site";
+import { getThumb } from "@/lib/thumbs";
 
 const MAX_PRODUCTS = 500;
-
-function detectType(bytes: Uint8Array): "png" | "jpg" | null {
-  if (bytes.length < 4) return null;
-  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
-  return null; // webp/gif/other — pdf-lib can't embed these
-}
-
-/** Load image bytes for a product image url: DB media, local public file, or remote. */
-async function loadImage(
-  url: string | null,
-  prisma: NonNullable<ReturnType<typeof getPrisma>>,
-): Promise<{ bytes: Uint8Array; type: "png" | "jpg" } | null> {
-  if (!url) return null;
-  try {
-    let bytes: Uint8Array | null = null;
-    if (url.startsWith("/media/")) {
-      const id = url.slice("/media/".length);
-      const asset = await prisma.mediaAsset.findUnique({ where: { id }, select: { data: true } });
-      if (asset) bytes = new Uint8Array(asset.data);
-    } else if (url.startsWith("/")) {
-      const buf = await readFile(path.join(process.cwd(), "public", url.replace(/^\//, "")));
-      bytes = new Uint8Array(buf);
-    } else if (/^https?:\/\//i.test(url)) {
-      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) });
-      if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
-    }
-    if (!bytes) return null;
-    const type = detectType(bytes);
-    if (!type) return null; // webp/gif etc. — jimp can't read these reliably
-    // Already a small thumbnail — embed as-is (skip the costly re-encode).
-    if (type === "jpg" && bytes.length < 45_000) return { bytes, type: "jpg" };
-    // Otherwise downscale to a small JPEG so the PDF stays lightweight.
-    const img = await Jimp.read(Buffer.from(bytes));
-    if (img.width > 260) img.resize({ w: 260 });
-    const out = await img.getBuffer("image/jpeg", { quality: 62 });
-    return { bytes: new Uint8Array(out), type: "jpg" };
-  } catch {
-    return null;
-  }
-}
 
 /** Run async tasks with a small concurrency cap. */
 async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -99,8 +55,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/catalog?empty=1", request.url), 303);
   }
 
-  // Load images with a concurrency cap.
-  const images = await pool(rows, 8, (p) => loadImage(p.imageUrl, prisma));
+  // Load thumbnails (DB-cached; only cache misses hit jimp).
+  const images = await pool(rows, 12, (p) => getThumb(p.imageUrl, prisma));
 
   // Group into categories in catalog order.
   const byCat = new Map<string, PdfCategory>();

@@ -345,6 +345,14 @@ model MediaAsset {
   createdAt   DateTime @default(now())
 }
 
+/// Cached JPEG thumbnail for a product image, keyed by its source URL/path.
+/// Lets the PDF catalog reuse resized images instead of re-encoding every time.
+model ImageThumb {
+  key       String   @id
+  data      Bytes
+  createdAt DateTime @default(now())
+}
+
 /// A researched competitor price for a product, powering the price-comparison
 /// portal (Amazon / Walmart / eBay / specialty).
 model PriceComparison {

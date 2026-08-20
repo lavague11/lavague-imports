@@ -44,6 +44,11 @@ const statements = [
      "checkedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
    );`,
   `CREATE INDEX IF NOT EXISTS "PriceComparison_productSlug_idx" ON "PriceComparison" ("productSlug");`,
+  `CREATE TABLE IF NOT EXISTS "ImageThumb" (
+     "key" TEXT PRIMARY KEY,
+     "data" BYTEA NOT NULL,
+     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+   );`,
 ];
 
 const client = new pg.Client({ connectionString });
