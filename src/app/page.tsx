@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Leaf, PackageCheck, Ship, Store } from "lucide-react";
 
-import { OliveMark } from "@/components/brand/logo";
 import { ProductCard } from "@/components/catalog/product-card";
 import { buttonClasses } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
@@ -43,59 +42,18 @@ export default async function HomePage() {
     <>
       {/* Hero */}
       <section className="border-b border-olive-100 bg-gradient-to-b from-olive-50 to-white">
-        <Container className="grid gap-12 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
-          <div>
-            <p className="eyebrow">{site.tagline}</p>
-            <h1 className="mt-4 text-4xl leading-[1.1] text-olive-900 sm:text-5xl lg:text-6xl">
-              The pantry of the Mediterranean, delivered to your shelf.
-            </h1>
-            <p className="mt-6 max-w-lg text-base leading-relaxed text-olive-700">
-              Moroccan olive oil pressed at the source, Egyptian sodas that taste
-              the way they should, and the North African specialties your
-              customers keep asking for. Stocked in Little Ferry, moving across
-              New York and New Jersey.
-            </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Link href="/shop" className={buttonClasses({ size: "lg" })}>
-                Shop the range
-              </Link>
-              <Link
-                href="/wholesale"
-                className={buttonClasses({ variant: "secondary", size: "lg" })}
-              >
-                Open a wholesale account
-              </Link>
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="rounded-card border border-olive-100 bg-white p-10 shadow-xl shadow-olive-900/5">
-              <OliveMark className="h-14 w-auto text-olive-900" />
-              <p className="mt-8 font-display text-2xl leading-snug text-olive-900">
-                “We import what we&apos;d put on our own table — and we can tell
-                you which grove it came from.”
-              </p>
-              <dl className="mt-8 grid grid-cols-3 gap-4 border-t border-olive-100 pt-6">
-                <div>
-                  <dt className="text-xs text-olive-600">Based in</dt>
-                  <dd className="mt-1 text-sm font-semibold text-olive-900">
-                    Little Ferry, NJ
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-olive-600">Serving</dt>
-                  <dd className="mt-1 text-sm font-semibold text-olive-900">
-                    NY &amp; NJ
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-olive-600">Range</dt>
-                  <dd className="mt-1 text-sm font-semibold text-olive-900">
-                    600+ lines
-                  </dd>
-                </div>
-              </dl>
-            </div>
+        <Container className="py-20 text-center lg:py-28">
+          <p className="eyebrow">{site.tagline}</p>
+          <h1 className="mx-auto mt-4 max-w-3xl text-4xl leading-[1.1] text-olive-900 sm:text-5xl lg:text-6xl">
+            Bringing international tastes to the States.
+          </h1>
+          <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-olive-600">
+            Specialty foods, imported direct — from {countries.length} countries to your shelf.
+          </p>
+          <div className="mt-8 flex justify-center">
+            <Link href="/shop" className={buttonClasses({ size: "lg" })}>
+              Shop all
+            </Link>
           </div>
         </Container>
       </section>
