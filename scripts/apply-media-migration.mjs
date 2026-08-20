@@ -35,6 +35,15 @@ const statements = [
   `CREATE INDEX IF NOT EXISTS "StockNotification_notified_idx" ON "StockNotification" ("notified");`,
   `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "costCents" INTEGER;`,
   `ALTER TABLE "ProductOverride" ADD COLUMN IF NOT EXISTS "costCents" INTEGER;`,
+  `CREATE TABLE IF NOT EXISTS "PriceComparison" (
+     "id" TEXT PRIMARY KEY,
+     "productSlug" TEXT NOT NULL,
+     "source" TEXT NOT NULL,
+     "priceCents" INTEGER NOT NULL,
+     "url" TEXT,
+     "checkedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+   );`,
+  `CREATE INDEX IF NOT EXISTS "PriceComparison_productSlug_idx" ON "PriceComparison" ("productSlug");`,
 ];
 
 const client = new pg.Client({ connectionString });

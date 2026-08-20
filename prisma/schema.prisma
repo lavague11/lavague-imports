@@ -345,6 +345,19 @@ model MediaAsset {
   createdAt   DateTime @default(now())
 }
 
+/// A researched competitor price for a product, powering the price-comparison
+/// portal (Amazon / Walmart / eBay / specialty).
+model PriceComparison {
+  id          String   @id @default(cuid())
+  productSlug String
+  source      String
+  priceCents  Int
+  url         String?
+  checkedAt   DateTime @default(now())
+
+  @@index([productSlug])
+}
+
 /// A customer's request to be emailed when an out-of-stock product returns.
 model StockNotification {
   id          String   @id @default(cuid())
