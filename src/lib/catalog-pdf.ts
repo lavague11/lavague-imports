@@ -1,5 +1,3 @@
-import "server-only";
-
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import QRCode from "qrcode";
 

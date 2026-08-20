@@ -345,6 +345,16 @@ model MediaAsset {
   createdAt   DateTime @default(now())
 }
 
+/// Pre-built full catalog PDFs, keyed by sort mode ("full-country" /
+/// "full-category"). Served instantly for the unfiltered download; filtered
+/// selections are still generated on demand.
+model CatalogCache {
+  key     String   @id
+  data    Bytes
+  count   Int      @default(0)
+  builtAt DateTime @default(now())
+}
+
 /// Cached JPEG thumbnail for a product image, keyed by its source URL/path.
 /// Lets the PDF catalog reuse resized images instead of re-encoding every time.
 model ImageThumb {

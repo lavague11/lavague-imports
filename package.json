@@ -13,6 +13,7 @@
     "db:seed": "prisma db seed",
     "db:migrate:media": "node scripts/apply-media-migration.mjs",
     "warm:thumbs": "tsx scripts/warm-thumbs.mjs",
+    "build:catalog": "tsx scripts/build-full-catalog.mjs",
     "db:studio": "prisma studio",
     "admin:create": "tsx scripts/create-admin.mjs",
     "images:suggest": "tsx scripts/suggest-images.mjs",

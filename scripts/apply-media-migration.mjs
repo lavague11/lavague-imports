@@ -49,6 +49,12 @@ const statements = [
      "data" BYTEA NOT NULL,
      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
    );`,
+  `CREATE TABLE IF NOT EXISTS "CatalogCache" (
+     "key" TEXT PRIMARY KEY,
+     "data" BYTEA NOT NULL,
+     "count" INTEGER NOT NULL DEFAULT 0,
+     "builtAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+   );`,
 ];
 
 const client = new pg.Client({ connectionString });
