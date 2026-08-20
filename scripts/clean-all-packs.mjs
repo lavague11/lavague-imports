@@ -57,14 +57,14 @@ function parsePack(name) {
   else if ((m = reTrail.exec(s))) { itemSize = normSize(m[1]); caseQty = parseInt(m[2], 10); s = s.replace(m[0], " "); }
   else return null; // no unit-bearing code → leave this product alone
 
-  s = s.replace(/\(\s*\)/g, " ").replace(/\s*[.,]\s*$/, "").replace(/\s{2,}/g, " ").trim();
+  s = s.replace(/\(\s*\)/g, " ").replace(/\s*[-–—.,]\s*$/, "").replace(/\s{2,}/g, " ").trim();
   s = smartTitle(s);
   return { cleanName: s, caseQty: Number.isFinite(caseQty) ? caseQty : null, itemSize };
 }
 
 const c = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await c.connect();
-const rows = await c.query(`SELECT id, slug, name FROM "Product" WHERE name ~ '[0-9] ?[*/xX] ?[0-9]' ORDER BY name`);
+const rows = await c.query(`SELECT id, slug, name FROM "Product" WHERE name ~ '[0-9] ?[*/xX] ?[0-9]' OR name LIKE '%×%' ORDER BY name`);
 
 let changed = 0, skipped = 0;
 const samples = [];
