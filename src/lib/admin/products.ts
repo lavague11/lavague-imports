@@ -173,6 +173,38 @@ export async function saveProductEdits(
   }
 }
 
+/** Saves cost + selling price for a product from the pricing tool. Updates the
+ *  primary variant's price, recomputes minPriceCents, sets the cost, and writes
+ *  a durable override so both survive a re-import. */
+export async function setProductPricing(
+  slug: string,
+  sku: string,
+  priceCents: number | null,
+  costCents: number | null,
+  updatedById?: string,
+): Promise<void> {
+  const prisma = requirePrisma();
+  const product = await prisma.product.findUnique({ where: { slug }, include: { variants: true } });
+  if (!product) return;
+
+  if (sku) {
+    await prisma.productVariant.updateMany({ where: { sku, productId: product.id }, data: { retailPriceCents: priceCents } });
+  }
+  // Recompute the denormalized lowest price from the fresh variant set.
+  const prices = product.variants.map((v) => (v.sku === sku ? priceCents : v.retailPriceCents)).filter((c): c is number => c != null);
+  const minPriceCents = prices.length ? Math.min(...prices) : null;
+
+  await prisma.product.update({ where: { id: product.id }, data: { costCents, minPriceCents } });
+
+  const existing = await prisma.productOverride.findUnique({ where: { slug } });
+  const variantPrices = { ...((existing?.variantPrices as Record<string, number | null>) ?? {}), ...(sku ? { [sku]: priceCents } : {}) };
+  await prisma.productOverride.upsert({
+    where: { slug },
+    update: { costCents, variantPrices: variantPrices as Prisma.InputJsonValue, updatedById },
+    create: { slug, costCents, variantPrices: variantPrices as Prisma.InputJsonValue, updatedById },
+  });
+}
+
 export async function setActive(slugs: string[], isActive: boolean, updatedById?: string): Promise<void> {
   const prisma = requirePrisma();
   await prisma.product.updateMany({ where: { slug: { in: slugs } }, data: { isActive } });

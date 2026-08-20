@@ -12,6 +12,7 @@ import {
   collectImagesFromForm,
   saveProductEdits,
   setActive,
+  setProductPricing,
   type VariantPack,
 } from "@/lib/admin/products";
 import { requirePrisma } from "@/lib/db";
@@ -152,6 +153,27 @@ export async function toggleActive(fd: FormData): Promise<void> {
   const active = fd.get("active") === "true";
   if (slug) await setActive([slug], active, user.id);
   revalidatePath("/admin/products");
+  revalidatePath("/shop");
+}
+
+function dollarsToCents(v: string): number | null {
+  const t = v.trim();
+  if (t === "") return null;
+  const n = parseFloat(t);
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
+}
+
+/** Save cost + price for one product from the pricing tool. */
+export async function setPricing(fd: FormData): Promise<void> {
+  const user = await requireUser();
+  const slug = str(fd, "slug");
+  const sku = str(fd, "sku");
+  if (!slug) return;
+  const priceCents = dollarsToCents(str(fd, "price"));
+  const costCents = dollarsToCents(str(fd, "cost"));
+  await setProductPricing(slug, sku, priceCents, costCents, user.id);
+  revalidatePath("/admin/pricing");
+  revalidatePath(`/shop/${slug}`);
   revalidatePath("/shop");
 }
 

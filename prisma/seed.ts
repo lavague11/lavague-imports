@@ -101,6 +101,7 @@ async function main() {
     if (o.isFeatured != null) data.isFeatured = o.isFeatured;
     if (o.isActive != null) data.isActive = o.isActive;
     if (o.isFragile != null) data.isFragile = o.isFragile;
+    if (o.costCents != null) data.costCents = o.costCents;
     if (o.categorySlug != null) data.categoryId = `cat_${o.categorySlug}`;
     if (Object.keys(data).length) {
       await prisma.product.update({ where: { id: product.id }, data });

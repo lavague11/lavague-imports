@@ -57,6 +57,9 @@ model Product {
   /// True for breakable items (glass bottles/jars) so the storefront can flag
   /// them and wholesale packing can handle them with care.
   isFragile   Boolean @default(false)
+  /// Admin-only landed cost (what we buy it for), in cents. Drives the pricing
+  /// tool's profit/margin. Never shown on the storefront.
+  costCents   Int?
   /// True for products created in the admin portal (not from an imported
   /// source). The seed reset spares these so they survive a re-import.
   isCustom    Boolean @default(false)
@@ -378,6 +381,7 @@ model ProductOverride {
   isFeatured  Boolean?
   isActive    Boolean?
   isFragile   Boolean?
+  costCents   Int?
   /// Per-variant retail price overrides, keyed by SKU: { "<sku>": <cents> }.
   variantPrices Json?
   /// Per-variant pack overrides, keyed by SKU:

@@ -33,6 +33,8 @@ const statements = [
    );`,
   `CREATE INDEX IF NOT EXISTS "StockNotification_productSlug_idx" ON "StockNotification" ("productSlug");`,
   `CREATE INDEX IF NOT EXISTS "StockNotification_notified_idx" ON "StockNotification" ("notified");`,
+  `ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "costCents" INTEGER;`,
+  `ALTER TABLE "ProductOverride" ADD COLUMN IF NOT EXISTS "costCents" INTEGER;`,
 ];
 
 const client = new pg.Client({ connectionString });
