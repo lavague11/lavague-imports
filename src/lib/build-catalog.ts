@@ -82,30 +82,49 @@ export async function generateCatalog(
 
   const catName = new Map(allCategories.map((c) => [c.slug, c.name]));
   const catOrder = allCategories.map((c) => c.slug);
+  // Big single-brand variation lines get a compact list instead of image cards.
+  const isMarrakesh = (name: string) => /^marrakesh\b/i.test(name);
+  const mkLabel = (n: number) => `Marrakesh Spices (${n} varieties)`;
 
   let sections: PdfSection[];
   if (sortMode === "country") {
-    // country → category → products (category sub-dividers inside each country)
-    const byCountry = new Map<string, Map<string, PdfProduct[]>>();
+    // country → category → products, with Marrakesh spices as a compact list.
+    const byCountry = new Map<string, { cats: Map<string, PdfProduct[]>; mk: PdfProduct[] }>();
     for (const it of items) {
       const ck = it.origin || "__none";
-      let cats = byCountry.get(ck);
-      if (!cats) byCountry.set(ck, (cats = new Map()));
-      (cats.get(it.categorySlug) ?? cats.set(it.categorySlug, []).get(it.categorySlug)!).push(it.prod);
+      let g = byCountry.get(ck);
+      if (!g) byCountry.set(ck, (g = { cats: new Map(), mk: [] }));
+      if (isMarrakesh(it.prod.name)) g.mk.push(it.prod);
+      else (g.cats.get(it.categorySlug) ?? g.cats.set(it.categorySlug, []).get(it.categorySlug)!).push(it.prod);
     }
-    const subs = (cats: Map<string, PdfProduct[]>) =>
-      catOrder.filter((s) => cats.has(s)).map((s) => ({ label: catName.get(s) ?? s, products: cats.get(s)! }));
+    const subs = (g: { cats: Map<string, PdfProduct[]>; mk: PdfProduct[] }) => {
+      const out: PdfSection["subgroups"] = [];
+      for (const s of catOrder) {
+        if (g.cats.has(s)) out.push({ label: catName.get(s) ?? s, products: g.cats.get(s)! });
+        if (s === "spices-herbs" && g.mk.length) out.push({ label: mkLabel(g.mk.length), products: g.mk, list: true });
+      }
+      return out;
+    };
     sections = allCountries.filter((c) => byCountry.has(c.name)).map((c) => ({ name: c.name, subgroups: subs(byCountry.get(c.name)!) }));
     if (byCountry.has("__none")) sections.push({ name: "Other origins", subgroups: subs(byCountry.get("__none")!) });
   } else {
-    // category → products (no sub-dividers)
+    // category → products; Marrakesh spices become a compact list in Spices.
     const groups = new Map<string, PdfProduct[]>();
     for (const it of items) {
       (groups.get(it.categorySlug) ?? groups.set(it.categorySlug, []).get(it.categorySlug)!).push(it.prod);
     }
     sections = allCategories
       .filter((c) => groups.has(c.slug))
-      .map((c) => ({ name: c.name, subgroups: [{ label: "", products: groups.get(c.slug)! }] }));
+      .map((c) => {
+        const prods = groups.get(c.slug)!;
+        if (c.slug !== "spices-herbs") return { name: c.name, subgroups: [{ label: "", products: prods }] };
+        const mk = prods.filter((p) => isMarrakesh(p.name));
+        const rest = prods.filter((p) => !isMarrakesh(p.name));
+        const sg: PdfSection["subgroups"] = [];
+        if (rest.length) sg.push({ label: "", products: rest });
+        if (mk.length) sg.push({ label: mkLabel(mk.length), products: mk, list: true });
+        return { name: c.name, subgroups: sg };
+      });
   }
 
   const flags: Record<string, { bytes: Uint8Array; type: "png" | "jpg" }> = {};

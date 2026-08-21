@@ -28,6 +28,9 @@ export interface PdfProduct {
 export interface PdfSubgroup {
   label: string;
   products: PdfProduct[];
+  /** Render as a compact multi-column list (name · size · SKU) instead of image
+   *  cards — for large single-brand variation groups. */
+  list?: boolean;
 }
 export interface PdfSection {
   name: string;
@@ -231,6 +234,18 @@ function drawSectionHeader(ctx: Ctx, page: PDFPage, section: PdfSection) {
   page.drawLine({ start: { x: MARGIN + 54, y: PAGE_H - 87 }, end: { x: PAGE_W - MARGIN, y: PAGE_H - 87 }, thickness: 0.75, color: LINE });
 }
 
+/** One compact list row (name · size · SKU) for a variation-list subgroup. */
+function drawListItem(ctx: Ctx, page: PDFPage, prod: PdfProduct, x: number, yTop: number, colW: number) {
+  const y = yTop - 9;
+  const nm = prod.name.replace(/^marrakesh\s+/i, "");
+  const right = [prod.size, prod.sku].filter(Boolean).join("  ·  ");
+  const rW = right ? ctx.sans.widthOfTextAtSize(right, 6.5) : 0;
+  if (right) page.drawText(right, { x: x + colW - rW, y, size: 6.5, font: ctx.sans, color: GRAY });
+  const nmMax = colW - (rW ? rW + 8 : 0);
+  page.drawText(wrap(nm, ctx.sansBold, 7.5, nmMax, 1)[0] ?? nm, { x, y, size: 7.5, font: ctx.sansBold, color: OLIVE });
+  page.drawLine({ start: { x, y: yTop - 13 }, end: { x: x + colW, y: yTop - 13 }, thickness: 0.3, color: LINE });
+}
+
 /** A category sub-divider inside a section: label + rule. */
 function drawSubdivider(ctx: Ctx, page: PDFPage, label: string, yTop: number) {
   const up = label.toUpperCase();
@@ -248,7 +263,6 @@ async function renderSections(ctx: Ctx, sections: PdfSection[], opts: { draw: bo
   const gap = 16;
   const rowGap = 16;
   const rowH = 138;
-  const cellW = (PAGE_W - MARGIN * 2 - gap * (COLS - 1)) / COLS;
   const contentTop = PAGE_H - 100;
   const bottom = 60;
   const subH = 24;
@@ -280,15 +294,23 @@ async function renderSections(ctx: Ctx, sections: PdfSection[], opts: { draw: bo
         if (opts.draw && page) drawSubdivider(ctx, page, sub.label, y);
         y -= subH;
       }
-      for (let i = 0; i < sub.products.length; i += COLS) {
-        if (y - rowH < bottom) newPage();
+      const isList = !!sub.list;
+      const cols = isList ? 2 : COLS;
+      const colGap = isList ? 26 : gap;
+      const rH = isList ? 14 : rowH;
+      const rGap = isList ? 3 : rowGap;
+      const cW = (PAGE_W - MARGIN * 2 - colGap * (cols - 1)) / cols;
+      for (let i = 0; i < sub.products.length; i += cols) {
+        if (y - rH < bottom) newPage();
         if (opts.draw && page) {
-          const rowProds = sub.products.slice(i, i + COLS);
+          const rowProds = sub.products.slice(i, i + cols);
           for (let col = 0; col < rowProds.length; col++) {
-            await drawCard(ctx, page, rowProds[col], MARGIN + col * (cellW + gap), y, cellW, rowH);
+            const px = MARGIN + col * (cW + colGap);
+            if (isList) drawListItem(ctx, page, rowProds[col], px, y, cW);
+            else await drawCard(ctx, page, rowProds[col], px, y, cW, rH);
           }
         }
-        y -= rowH + rowGap;
+        y -= rH + rGap;
       }
       y -= subGap;
     }

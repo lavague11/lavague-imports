@@ -1,0 +1,10 @@
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { writeFileSync } from "node:fs";
+import { PrismaClient } from "../src/generated/prisma/client.js";
+import { generateCatalog } from "../src/lib/build-catalog.ts";
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+const r = await generateCatalog(prisma, { countrySlugs: ["morocco"], sortMode: "country", max: 3000 });
+writeFileSync("C:/Users/LAVAGU~1/AppData/Local/Temp/claude/C--Users-La-Vague-Desktop-La-Vague-Imports/f44646aa-96cc-4c86-ab98-a05e3e2edd9b/scratchpad/catalog-mk.pdf", r.pdf);
+console.log("morocco pages via", r.count, "products");
+await prisma.$disconnect();
