@@ -11,12 +11,14 @@ import { Jimp } from "jimp";
 const DRY = process.env.DRY === "1";
 const TH = 50; // a pixel is "background black" if r,g,b all below this
 
-// The confirmed black-background images (source url keys).
+// The confirmed black-background PRODUCT photos worth whitening. The scan also
+// flagged the Coco Noura Charcoal 72 image, but that one is a marketing banner
+// where black is intentional (white promo text + charcoal graphic) — whitening
+// ruined it, so it is deliberately excluded and left on its original image.
 const TARGETS = [
   "https://static.wixstatic.com/media/68c626_b5a7f4c18b7b4a7bafcf097e96a16e5b~mv2.jpg",
   "https://cdn.shopify.com/s/files/1/0417/1546/6391/files/macewhole_100g.png?v=1755443554",
   "https://cdn.shopify.com/s/files/1/0417/1546/6391/files/Currypowderhot200g.png?v=1755445505",
-  "https://static.wixstatic.com/media/68c626_43548a95c9564812809286227f02ea53~mv2.jpg",
   "https://cdn.shopify.com/s/files/1/0417/1546/6391/files/Currypowdermild200g.png?v=1755445332",
   "https://cdn.shopify.com/s/files/1/0417/1546/6391/files/Tumeric_whole_100g.png?v=1755446176",
 ];
