@@ -25,9 +25,11 @@ function Flag({ name }: { name: string }) {
 export function CountrySelect({
   selected,
   countries,
+  className,
 }: {
   selected: string | null;
   countries: Country[];
+  className?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,13 +60,13 @@ export function CountrySelect({
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={cn("relative", className)}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-11 w-full min-w-[11rem] items-center gap-2 rounded-full border border-olive-200 px-4 text-sm text-olive-900 hover:border-olive-400 focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none"
+        className="flex h-11 w-full items-center gap-2 rounded-full border border-olive-200 px-3 text-sm text-olive-900 hover:border-olive-400 focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none sm:min-w-[11rem] sm:px-4"
       >
         {selected ? <Flag name={selected} /> : <span aria-hidden="true">🌍</span>}
         <span className="truncate">{selected ?? "All countries"}</span>

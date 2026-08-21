@@ -104,18 +104,23 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
     return qs ? `/shop?${qs}` : "/shop";
   };
 
-  // The three filter controls, shared by the desktop row and the mobile
-  // "Filters" disclosure.
+  // Country · collection · sort — one row on every screen. Width classes let
+  // them sit three-across on phones and size to content on desktop.
   const filterControls = () => (
     <>
-      <CountrySelect selected={countryName ?? null} countries={countryFilters} />
+      <CountrySelect
+        selected={countryName ?? null}
+        countries={countryFilters}
+        className="w-full min-w-0 sm:w-auto"
+      />
       <ParamSelect
         param="collection"
         value={activeCollectionSlug ?? ""}
         placeholder="All collections"
         options={collectionFilters.map((c) => ({ value: c.slug, label: `${c.name} (${c.count})` }))}
+        className="w-full min-w-0 px-3 sm:w-auto sm:px-4"
       />
-      <SortSelect value={sort} />
+      <SortSelect value={sort} className="w-full min-w-0 px-3 sm:w-auto sm:px-4" />
     </>
   );
 
@@ -192,18 +197,10 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
           {/* Search with live product/country suggestions */}
           <SearchBox initialQuery={search} />
 
-          {/* Country · collection · sort — instant on change. Inline on desktop,
-              tucked behind a "Filters" disclosure on phones to stay minimal. */}
-          <div className="mt-3 hidden flex-wrap items-center gap-2 sm:flex">
+          {/* Country · collection · sort — one row on all sizes, instant on change. */}
+          <div className="mt-3 grid grid-cols-3 items-center gap-2 sm:flex sm:flex-wrap">
             {filterControls()}
           </div>
-          <details className="group mt-3 sm:hidden">
-            <summary className="flex h-11 cursor-pointer list-none items-center justify-between rounded-full border border-olive-200 px-4 text-sm font-medium text-olive-700 [&::-webkit-details-marker]:hidden">
-              Filters &amp; sort
-              <span className="text-olive-400 transition-transform group-open:rotate-180">▾</span>
-            </summary>
-            <div className="mt-2 flex flex-col gap-2">{filterControls()}</div>
-          </details>
 
           {/* Active filter chips */}
           {countryName || collectionName ? (
