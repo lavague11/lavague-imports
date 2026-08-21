@@ -11,12 +11,14 @@ import { Jimp } from "jimp";
 const DRY = process.env.DRY === "1";
 const TH = 50; // a pixel is "background black" if r,g,b all below this
 
-// The confirmed black-background PRODUCT photos worth whitening. The scan also
-// flagged the Coco Noura Charcoal 72 image, but that one is a marketing banner
-// where black is intentional (white promo text + charcoal graphic) — whitening
-// ruined it, so it is deliberately excluded and left on its original image.
+// The black-background PRODUCT photos worth whitening by flood-fill. Two of the
+// six scan hits are handled differently and excluded here:
+//   - Coco Noura Charcoal 72: a marketing banner (black is intentional) — left
+//     on its original image.
+//   - El Ouazzania 5L olive oil: flood-fill left a dark patch trapped in the
+//     jug handle, so it was replaced with a clean sourced white-bg photo of the
+//     same jug (stored in MediaAsset) rather than flood-filled.
 const TARGETS = [
-  "https://static.wixstatic.com/media/68c626_b5a7f4c18b7b4a7bafcf097e96a16e5b~mv2.jpg",
   "https://cdn.shopify.com/s/files/1/0417/1546/6391/files/macewhole_100g.png?v=1755443554",
   "https://cdn.shopify.com/s/files/1/0417/1546/6391/files/Currypowderhot200g.png?v=1755445505",
   "https://cdn.shopify.com/s/files/1/0417/1546/6391/files/Currypowdermild200g.png?v=1755445332",
