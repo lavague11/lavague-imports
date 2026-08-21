@@ -66,11 +66,11 @@ export function CountrySelect({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-11 w-full items-center gap-2 rounded-full border border-olive-200 px-3 text-sm text-olive-900 hover:border-olive-400 focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none sm:min-w-[11rem] sm:px-4"
+        className="flex h-11 w-full items-center gap-1.5 rounded-full border border-olive-200 px-2 text-xs text-olive-900 hover:border-olive-400 focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none sm:min-w-[11rem] sm:gap-2 sm:px-4 sm:text-sm"
       >
         {selected ? <Flag name={selected} /> : <span aria-hidden="true">🌍</span>}
-        <span className="truncate">{selected ?? "All countries"}</span>
-        <span className="ml-auto text-olive-400">▾</span>
+        <span className="truncate">{selected ?? "Countries"}</span>
+        <span className="ml-auto hidden text-olive-400 sm:block">▾</span>
       </button>
       {open ? (
         <div

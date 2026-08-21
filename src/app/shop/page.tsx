@@ -116,11 +116,11 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
       <ParamSelect
         param="collection"
         value={activeCollectionSlug ?? ""}
-        placeholder="All collections"
+        placeholder="Category"
         options={collectionFilters.map((c) => ({ value: c.slug, label: `${c.name} (${c.count})` }))}
-        className="w-full min-w-0 px-3 sm:w-auto sm:px-4"
+        className="w-full min-w-0 px-2.5 text-xs sm:w-auto sm:px-4 sm:text-sm"
       />
-      <SortSelect value={sort} className="w-full min-w-0 px-3 sm:w-auto sm:px-4" />
+      <SortSelect value={sort} className="w-full min-w-0 px-2.5 text-xs sm:w-auto sm:px-4 sm:text-sm" />
     </>
   );
 
