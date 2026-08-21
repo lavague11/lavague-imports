@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getPrisma } from "@/lib/db";
+import { flagFor } from "@/lib/countries";
 import {
   categories as seedCategories,
   collectionFilters as seedCollectionFilters,
@@ -121,13 +122,47 @@ export function collectionNameForSlug(slug: string): string | undefined {
   return seedCollectionFilters.find((c) => c.slug === slug)?.name;
 }
 
-/** The countries products are stocked from, with flags and counts. */
-export function getCountryFilters(): CountryFilter[] {
+const countrySlug = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+/**
+ * The countries products are stocked from, with flags and counts. Derived from
+ * the live catalog when the DB is reachable so custom-product origins (e.g.
+ * Italy) appear; falls back to the generated seed list otherwise.
+ */
+export async function getCountryFilters(): Promise<CountryFilter[]> {
+  const prisma = getPrisma();
+  if (prisma) {
+    try {
+      const rows = await prisma.product.groupBy({
+        by: ["origin"],
+        where: { isActive: true, origin: { not: null } },
+        _count: { _all: true },
+      });
+      const seedBySlug = new Map(seedCountryFilters.map((c) => [c.name, c]));
+      const list = rows
+        .map((r) => {
+          const name = r.origin as string;
+          const seed = seedBySlug.get(name);
+          return {
+            name,
+            slug: seed?.slug ?? countrySlug(name),
+            flag: seed?.flag ?? flagFor(name),
+            count: r._count._all,
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+      if (list.length) return list;
+    } catch (error) {
+      onDbError("getCountryFilters", error);
+    }
+  }
   return seedCountryFilters;
 }
 
-export function countryNameForSlug(slug: string): string | undefined {
-  return seedCountryFilters.find((c) => c.slug === slug)?.name;
+export async function countryNameForSlug(slug: string): Promise<string | undefined> {
+  const country = (await getCountryFilters()).find((c) => c.slug === slug);
+  return country?.name;
 }
 
 export interface ProductQuery {

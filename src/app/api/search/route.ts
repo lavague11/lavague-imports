@@ -60,7 +60,7 @@ export async function GET(request: Request) {
   }
 
   const needle = q.toLowerCase();
-  const countries = getCountryFilters()
+  const countries = (await getCountryFilters())
     .filter((c) => c.name.toLowerCase().includes(needle))
     .slice(0, 4)
     .map((c) => ({ name: c.name, slug: c.slug, count: c.count }));

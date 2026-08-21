@@ -53,7 +53,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
     ? collectionNameForSlug(activeCollectionSlug)
     : undefined;
   const countryName = activeCountrySlug
-    ? countryNameForSlug(activeCountrySlug)
+    ? await countryNameForSlug(activeCountrySlug)
     : undefined;
 
   const query = {

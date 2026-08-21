@@ -39,10 +39,22 @@ export async function generateCatalog(
   const categorySlugs = opts.categorySlugs ?? [];
   const { sortMode, max } = opts;
 
-  const [allCategories, allCountries] = await Promise.all([
+  const [allCategories, originRows] = await Promise.all([
     prisma.category.findMany({ orderBy: { position: "asc" }, select: { slug: true, name: true } }),
-    Promise.resolve(countryFilters),
+    prisma.product.groupBy({
+      by: ["origin"],
+      where: { isActive: true, origin: { not: null } },
+      _count: { _all: true },
+    }),
   ]);
+  // Country list derived from the live catalog so custom-product origins (e.g.
+  // Italy) get a section; seed countries keep their curated order, extras trail.
+  const seedOrder = new Map(countryFilters.map((c, i) => [c.name, i] as const));
+  const seedSlug = new Map(countryFilters.map((c) => [c.name, c.slug] as const));
+  const toSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const allCountries = originRows
+    .map((r) => ({ name: r.origin as string, slug: seedSlug.get(r.origin as string) ?? toSlug(r.origin as string), count: r._count._all }))
+    .sort((a, b) => (seedOrder.get(a.name) ?? 999) - (seedOrder.get(b.name) ?? 999) || b.count - a.count);
   const countryNames = countrySlugs
     .map((slug) => allCountries.find((c) => c.slug === slug)?.name)
     .filter((n): n is string => Boolean(n));
