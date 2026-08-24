@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { getVariantsByIds } from "@/lib/catalog";
 import { requirePrisma } from "@/lib/db";
+import { quoteNotificationEmail, salesInbox, sendEmail } from "@/lib/mail";
 import {
   optionalString,
   requiredString,
@@ -103,6 +104,7 @@ export async function submitQuoteRequest(
     0,
   );
 
+  let savedToDb = false;
   try {
     const prisma = requirePrisma();
     await prisma.quoteRequest.create({
@@ -131,17 +133,45 @@ export async function submitQuoteRequest(
         },
       },
     });
+    savedToDb = true;
   } catch (error) {
     console.error("[quote] failed to save request", { reference, items, error });
+  }
+
+  // Notify the sales inbox. Best-effort — but when the DB save failed this email
+  // is the only surviving record of the lead, so whether it sent decides what we
+  // can honestly tell the customer.
+  const notified = await sendEmail({
+    to: salesInbox(),
+    replyTo: data.email,
+    ...quoteNotificationEmail({
+      reference,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      company: data.company,
+      customerType: data.customerType,
+      deliveryCity: data.deliveryCity,
+      deliveryState: data.deliveryState,
+      deliveryPostalCode: data.deliveryPostalCode,
+      message: data.message,
+      items,
+      estimatedTotalCents,
+      savedToDb,
+    }),
+  });
+
+  if (!savedToDb && !notified.ok) {
+    console.error("[quote] lost lead — neither DB nor email captured it", {
+      reference,
+      reason: notified.reason,
+    });
     return {
       status: "error",
       message:
         "We couldn't save your request. Please call 646-396-0775 or email Sales@lavagueimports.com and we'll take it down directly.",
     };
   }
-
-  // TODO: notify Sales@lavagueimports.com — wire up an email provider (Resend,
-  // Postmark, SES) here once credentials are available.
 
   return {
     status: "success",

@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 import { requirePrisma } from "@/lib/db";
+import { salesInbox, sendEmail, wholesaleNotificationEmail } from "@/lib/mail";
 import {
   optionalString,
   requiredString,
@@ -75,15 +76,32 @@ export async function submitWholesaleApplication(
 
   const reference = makeReference("LVW");
 
+  let savedToDb = false;
   try {
     const prisma = requirePrisma();
     await prisma.wholesaleApplication.create({
       data: { reference, ...parsed.data },
     });
+    savedToDb = true;
   } catch (error) {
     console.error("[wholesale] failed to save application", {
       reference,
       error,
+    });
+  }
+
+  // Notify the sales inbox — and when the DB is down, this email is the only
+  // record of the application, so its success decides the customer's outcome.
+  const notified = await sendEmail({
+    to: salesInbox(),
+    replyTo: parsed.data.email,
+    ...wholesaleNotificationEmail({ reference, ...parsed.data, savedToDb }),
+  });
+
+  if (!savedToDb && !notified.ok) {
+    console.error("[wholesale] lost lead — neither DB nor email captured it", {
+      reference,
+      reason: notified.reason,
     });
     return {
       status: "error",
@@ -91,8 +109,6 @@ export async function submitWholesaleApplication(
         "We couldn't save your application. Please email Sales@lavagueimports.com or call 646-396-0775 and we'll set you up directly.",
     };
   }
-
-  // TODO: notify Sales@lavagueimports.com once an email provider is configured.
 
   return {
     status: "success",

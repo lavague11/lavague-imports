@@ -9,6 +9,7 @@ import {
   toFieldErrors,
   type FormState,
 } from "@/lib/form";
+import { contactNotificationEmail, salesInbox, sendEmail } from "@/lib/mail";
 import { makeReference } from "@/lib/utils";
 
 const contactSchema = z.object({
@@ -41,21 +42,36 @@ export async function submitContactMessage(
 
   const reference = makeReference("LVM");
 
+  let savedToDb = false;
   try {
     const prisma = requirePrisma();
     await prisma.contactMessage.create({
       data: { reference, ...parsed.data },
     });
+    savedToDb = true;
   } catch (error) {
     console.error("[contact] failed to save message", { reference, error });
+  }
+
+  // Notify the sales inbox — and when the DB is down, this email is the only
+  // record of the message, so its success decides the customer's outcome.
+  const notified = await sendEmail({
+    to: salesInbox(),
+    replyTo: parsed.data.email,
+    ...contactNotificationEmail({ reference, ...parsed.data, savedToDb }),
+  });
+
+  if (!savedToDb && !notified.ok) {
+    console.error("[contact] lost message — neither DB nor email captured it", {
+      reference,
+      reason: notified.reason,
+    });
     return {
       status: "error",
       message:
         "We couldn't send that. Please call 646-396-0775 or email Sales@lavagueimports.com directly.",
     };
   }
-
-  // TODO: notify Sales@lavagueimports.com once an email provider is configured.
 
   return {
     status: "success",
