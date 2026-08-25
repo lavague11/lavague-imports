@@ -63,6 +63,28 @@ function tidyName(name) {
     .replace(/\s+/g, " ").trim();
 }
 
+// Some MPS listings have lazy names that omit the product itself (e.g. the
+// anise line is literally "Ground 12x8 oz"). When a name carries no identifying
+// word, rebuild it from the slug, which always does (marrakech-anis-ground-8-oz).
+const ARTICLE = new Set(["al", "el", "la", "le", "de", "du", "the", "and", "of"]);
+const UNIT = /^(oz|lb|lbs|kg|g|gr|ml|cl|l|fl|ct|pcs|pc|pieces|pack|liter|liters|litre|litres)$/;
+const SIZE0 = /\b\d+([.,]\d+)?\s*(x|\*)?\s*(l|cl|ml|kg|g|gr|oz|lb|lbs|ct|pcs?|pieces?|pack|liters?|litres?|gallons?|fl)\b|\b(x|\*)\s*\d+\b|\bpack of \d+\b|\b\d+\s*(x|\*)\s*\d+\b|\b\d+([.,]\d+)?\b/gi;
+// Identifying words: alphabetic, non-article, size stripped (oil/spice/etc. count — they carry identity here).
+const wordCount = (s) => decode(s).toLowerCase().replace(SIZE0, " ").replace(/[^a-z]+/g, " ")
+  .split(/\s+/).filter((w) => w.length > 1 && !ARTICLE.has(w) && !UNIT.test(w)).length;
+const nameFromSlug = (slug) => {
+  const words = (slug || "").split("-");
+  while (words.length && (/\d/.test(words[words.length - 1]) || UNIT.test(words[words.length - 1]))) words.pop();
+  return words.map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w)).join(" ").trim();
+};
+function bestName(rawName, slug) {
+  if (wordCount(rawName) >= 2 || !slug) return tidyName(rawName);
+  const base = nameFromSlug(slug);
+  if (wordCount(base) <= wordCount(rawName)) return tidyName(rawName);
+  const sizePart = (rawName.match(/\d[\S ]*$/) || [""])[0].trim();
+  return tidyName(base + (sizePart ? " " + sizePart : ""));
+}
+
 // ---- dedup helpers (mirror the review analysis) ----
 const isBulk = (s) => {
   const t = s.toLowerCase();
@@ -75,7 +97,8 @@ const isBulk = (s) => {
 const isFoodservice = (s) => /\b\d+\s*(cl|l)\s*\*\s*\d+\b|\b\d+\s*\*\s*\d+\s*(l|cl)\b/i.test(s);
 const SIZE = /\b\d+([.,]\d+)?\s*(x|\*)?\s*(l|cl|ml|kg|g|gr|oz|lb|lbs|ct|pcs?|pieces?|pack|liters?|litres?|gallons?|fl)\b|\b(x|\*)\s*\d+\b|\bpack of \d+\b|\b\d+\s*(x|\*)\s*\d+\b|\b\d+([.,]\d+)?\b/gi;
 const STOP = new Set(["the", "a", "of", "by", "and", "in", "with", "from", "style", "moroccan", "morocco", "case", "pcs", "pc"]);
-const norm = (s) => decode(s).toLowerCase().replace(SIZE, " ").replace(/[^a-z]+/g, " ")
+const BARE_UNIT = /\b(oz|lbs?|kg|gr?|ml|cl|fl|ct|pcs?|pc)\b/g;
+const norm = (s) => decode(s).toLowerCase().replace(/marrakech/g, "marrakesh").replace(SIZE, " ").replace(BARE_UNIT, " ").replace(/[^a-z]+/g, " ")
   .split(/\s+/).filter((w) => w && !STOP.has(w) && w.length > 1);
 const overlap = (a, b) => { if (!a.size || !b.size) return 0; let i = 0; for (const t of a) if (b.has(t)) i++; return Math.max(i / (a.size + b.size - i), (i / Math.min(a.size, b.size)) * 0.9); };
 
@@ -84,12 +107,12 @@ const CAT_RULES = [
   [/olive oil|extra virgin|\bevo\b|argan oil|sunflower oil|corn oil|vegetable oil|canola|\bghee\b|edible oil|portofina|yudum/i, "Oil"],
   [/honey|molasses|\bjam\b|marmalade|date paste|spread|tahini|tahina/i, "Honey"],
   [/sardine|tuna|anchov|mackerel|\bfish\b|seafood|shrimp|calamari|pecheur/i, "Canned Seafood"],
-  [/preserved lemon|\bolives?\b|caper|torshi|makdous|kalamata|picholine|gaeta|infornate|mediterranean mix|greenworld|pickle|mekhalel|pitted (green|black|kalam)|(green|black|whole) olive|\bcracked\b/i, "Olives & Pickles"],
+  [/preserved lemon|\bolives?\b|caper|torshi|makdous|kalamata|picholine|gaeta|infornate|mediterran|\bmed mix\b|greenworld|pickle|mekhalel|pitted (green|black|kalam)|(green|black|whole) olive|\bcracked\b/i, "Olives & Pickles"],
   [/coffee|cappuccino|nescafe|latte|\btea\b|green tea|gunpowder|\bchai\b|matcha|maghribya tea|\batlas\b|\bsoda\b|\bcola\b|\bjuice\b|nectar|\bdrink|sparkling|\bsyrup\b|hawaii|poms|tropical|dry lemon/i, "Drinks"],
   [/noodle|vermicelli|macaroni|\bpasta\b|couscous|spaghetti|angel hair|bird tongue|petit plomb|langue|shariya/i, "Pasta"],
   [/kunafa|baklava|samousa|samosa|filo|phyllo|malsouka|warka|\bbrick\b|pastry|qatayef|crepe|\bkahk\b/i, "Fillo & Doughs"],
   [/harissa|tomato paste|tomato sauce|\bsauce\b|\bpuree\b|\bfoul\b|fava|hummus|canned food|jarred|\bsoup\b|harira|bissara|falafel/i, "Canned Foods"],
-  [/spice|pepper|cumin|coriander|turmeric|tumeric|paprika|oregano|basil|thyme|za.?atar|sumac|cinnamon|clove|cardamom|cardamon|ginger|fennel|fenugreek|anis|anise|caraway|saffron|masala|seasoning|\bherb|celery seed|tarragon|taragon|chives|chamomille|chamomile|rosemary|nutmeg|methi|nigella|black seed|sesame|adobo|cajun|mansaf|kafta|shish|iraqi|iraqui|pickling|steak|onion (powder|chopped|granulated)|garlic|\bsalt\b|isot|alepo|aleppo|semolina blend|\bcurry\b|\bsage\b|\bchill?i\b|parsley|mustard|\bbay\b|\bdill\b|marjoram|savory|allspice|poppy|\bmint\b/i, "Herbs & Spices"],
+  [/spice|pepper|cumin|coriander|turmeric|tumeric|paprika|oregano|basil|thyme|za.?atar|sumac|cinnamon|clove|cardamom|cardamon|ginger|fennel|fenugreek|anis|anise|caraway|saffron|masala|seasoning|\bherb|celery seed|tarragon|taragon|chives|chamomille|chamomile|camomille|camomile|rosemary|nutmeg|methi|nigella|black seed|sesame|adobo|cajun|mansaf|kafta|shish|iraqi|iraqui|pickling|steak|onion (powder|chopped|granulated)|garlic|\bsalt\b|isot|alepo|aleppo|semolina blend|\bcurry\b|\bsage\b|\bchill?i\b|parsley|mustard|\bbay\b|\bdill\b|marjoram|savory|allspice|poppy|\bmint\b/i, "Herbs & Spices"],
   [/biscuit|petit four|cookie|wafer|\bcake\b|\bcone\b|\brusk\b|\btoast\b|cracker|croissant|bimo|merendina|tonik|tagger|\bsnack|chocolate|candy|halva|halawa|turkish delight|nougat|\bsweet\b|dessert|sprinkles/i, "Snacks"],
   [/almond|walnut|pistachio|cashew|\bdates?\b|deglet|raisin|prune|apricot|\bfigs?\b|dried fruit|sundried|\bseeds?\b|\bnuts?\b|hazelnut|filbert|coconut/i, "Nuts"],
   [/milk|cheese|yogurt|labne|labneh|butter|dairy/i, "Cheese"],
@@ -136,14 +159,16 @@ const run = async () => {
     const rawName = decode(p.name || "").replace(/\s+/g, " ").trim();
     if (!rawName || CATEGORY_NAMES.test(rawName) || NONPRODUCT.test(rawName)) { excluded++; continue; }
 
-    const bulk = isBulk(rawName), fs2 = isFoodservice(rawName);
-    const toks = new Set(norm(rawName));
+    // Repair lazy names from the slug before matching, so dedup sees the real
+    // product (e.g. "Ground 12x8 oz" -> "Marrakech Anis Ground 12x8 oz").
+    const name = bestName(rawName, p.slug);
+    const bulk = isBulk(name), fs2 = isFoodservice(name);
+    const toks = new Set(norm(name));
     let best = 0, bestBulk = false;
     for (const e of existing) { const s = overlap(toks, e.toks); if (s > best) { best = s; bestBulk = e.bulk; } }
     // Skip only same-format retail duplicates we already carry.
     if (!bulk && !fs2 && best >= 0.8 && !bestBulk) { skipped++; continue; }
 
-    const name = tidyName(rawName);
     const minorUnit = p.prices?.currency_minor_unit ?? 2;
     const rawPrice = parseInt(p.prices?.price ?? "0", 10);
     const priceCents = rawPrice > 0 ? (minorUnit === 2 ? rawPrice : Math.round((rawPrice / 10 ** minorUnit) * 100)) : null;

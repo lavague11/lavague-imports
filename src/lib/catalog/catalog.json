@@ -119,7 +119,7 @@
     {
       "name": "Herbs & Spices",
       "slug": "herbs-and-spices",
-      "count": 106
+      "count": 104
     },
     {
       "name": "Retail Spices, Marrakesh Spices",
@@ -307,6 +307,11 @@
       "count": 20
     },
     {
+      "name": "Oil",
+      "slug": "oil",
+      "count": 19
+    },
+    {
       "name": "Sardines & Tuna",
       "slug": "sardines-and-tuna",
       "count": 19
@@ -320,11 +325,6 @@
       "name": "Bulgar & Semolina",
       "slug": "bulgar-and-semolina",
       "count": 19
-    },
-    {
-      "name": "Oil",
-      "slug": "oil",
-      "count": 18
     },
     {
       "name": "Yogurt Drinks",
@@ -2656,9 +2656,9 @@
       ]
     },
     {
-      "id": "mps_al-maghribya-5l-4",
-      "slug": "al-maghribya-5l-4",
-      "name": "Al Maghribya 5L*4",
+      "id": "mps_al-maghribya-extra-virgin-oil-5l-4",
+      "slug": "al-maghribya-extra-virgin-oil-5l-4",
+      "name": "Al Maghribya Extra Virgin Oil 5L*4",
       "tagline": null,
       "description": "Al Maghribya 5L*4",
       "origin": "Morocco",
@@ -2668,12 +2668,14 @@
       "isFeatured": false,
       "source": "mps",
       "minPriceCents": 7000,
-      "categorySlug": "pantry",
-      "categoryName": "Pantry & Grocery",
-      "collections": [],
+      "categorySlug": "oils-ghee",
+      "categoryName": "Oils & Ghee",
+      "collections": [
+        "Oil"
+      ],
       "variants": [
         {
-          "id": "mps_var_al-maghribya-5l-4",
+          "id": "mps_var_al-maghribya-extra-virgin-oil-5l-4",
           "sku": "wlmp000415",
           "name": "Each",
           "retailPriceCents": 7000,
@@ -64127,9 +64129,9 @@
       ]
     },
     {
-      "id": "mps_hawaii-45cl-12",
-      "slug": "hawaii-45cl-12",
-      "name": "Hawaii 45cl*12",
+      "id": "mps_hawaii-soda-45cl-12",
+      "slug": "hawaii-soda-45cl-12",
+      "name": "Hawaii Soda 45cl*12",
       "tagline": null,
       "description": "HAWAII 45cl*12",
       "origin": null,
@@ -64146,7 +64148,7 @@
       ],
       "variants": [
         {
-          "id": "mps_var_hawaii-45cl-12",
+          "id": "mps_var_hawaii-soda-45cl-12",
           "sku": "wlmp000473",
           "name": "Each",
           "retailPriceCents": 1400,
@@ -64786,38 +64788,6 @@
           "minOrderCases": null,
           "inStock": true,
           "position": 1
-        }
-      ]
-    },
-    {
-      "id": "mps_marrakech-spice-shelf",
-      "slug": "marrakech-spice-shelf",
-      "name": "Marrakech spice shelf",
-      "tagline": null,
-      "description": "Property of DMO Venture Corp.On consignment. To be used strictly for Marrakech spices. Any other usage will result in the withdrawal of the shelf",
-      "origin": null,
-      "brand": null,
-      "imageUrl": null,
-      "ribbon": null,
-      "isFeatured": false,
-      "source": "mps",
-      "minPriceCents": null,
-      "categorySlug": "spices-herbs",
-      "categoryName": "Spices & Herbs",
-      "collections": [
-        "Herbs & Spices"
-      ],
-      "variants": [
-        {
-          "id": "mps_var_marrakech-spice-shelf",
-          "sku": "7528125000000800718",
-          "name": "Each",
-          "retailPriceCents": null,
-          "compareAtPriceCents": null,
-          "unitsPerCase": null,
-          "minOrderCases": null,
-          "inStock": true,
-          "position": 0
         }
       ]
     },
@@ -67761,9 +67731,9 @@
       ]
     },
     {
-      "id": "mps_chives-12-1oz",
-      "slug": "chives-12-1oz",
-      "name": "Chives 12×1oz",
+      "id": "mps_marrakech-chives-12-1oz",
+      "slug": "marrakech-chives-12-1oz",
+      "name": "Marrakech Chives 12×1oz",
       "tagline": null,
       "description": "Chives 12/1 oz",
       "origin": null,
@@ -67780,7 +67750,7 @@
       ],
       "variants": [
         {
-          "id": "mps_var_chives-12-1oz",
+          "id": "mps_var_marrakech-chives-12-1oz",
           "sku": "wlmp000053",
           "name": "Each",
           "retailPriceCents": 300,
@@ -68275,36 +68245,6 @@
       ]
     },
     {
-      "id": "mps_ground-12x8oz",
-      "slug": "ground-12x8oz",
-      "name": "Ground 12x8oz",
-      "tagline": null,
-      "description": "Ground 12x8oz — imported by La Vague Imports.",
-      "origin": null,
-      "brand": null,
-      "imageUrl": "https://moroccanpantryshop.com/wp-content/uploads/2025/11/marrakech-anis-ground-8-oz.webp-scaled.webp",
-      "ribbon": null,
-      "isFeatured": false,
-      "source": "mps",
-      "minPriceCents": 400,
-      "categorySlug": "pantry",
-      "categoryName": "Pantry & Grocery",
-      "collections": [],
-      "variants": [
-        {
-          "id": "mps_var_ground-12x8oz",
-          "sku": "MPS-GROUND-12X8OZ",
-          "name": "Each",
-          "retailPriceCents": 400,
-          "compareAtPriceCents": null,
-          "unitsPerCase": 12,
-          "minOrderCases": null,
-          "inStock": true,
-          "position": 0
-        }
-      ]
-    },
-    {
       "id": "mps_all-spice-ground-12x8oz",
       "slug": "all-spice-ground-12x8oz",
       "name": "All Spice ground 12x8oz",
@@ -68369,9 +68309,9 @@
       ]
     },
     {
-      "id": "mps_7-spices-12x8oz",
-      "slug": "7-spices-12x8oz",
-      "name": "7 spices 12x8oz",
+      "id": "mps_marrakech-7-spices-7-spices-12x8oz",
+      "slug": "marrakech-7-spices-7-spices-12x8oz",
+      "name": "Marrakech 7 Spices 7 spices 12x8oz",
       "tagline": null,
       "description": "7 spices 8 oz",
       "origin": null,
@@ -68388,7 +68328,7 @@
       ],
       "variants": [
         {
-          "id": "mps_var_7-spices-12x8oz",
+          "id": "mps_var_marrakech-7-spices-7-spices-12x8oz",
           "sku": "wlmp000101",
           "name": "Each",
           "retailPriceCents": 400,
@@ -68508,9 +68448,9 @@
       ]
     },
     {
-      "id": "mps_chamomille-2oz",
-      "slug": "chamomille-2oz",
-      "name": "Chamomille 2oz",
+      "id": "mps_marrakech-camomille-2oz",
+      "slug": "marrakech-camomille-2oz",
+      "name": "Marrakech Camomille 2oz",
       "tagline": null,
       "description": "Chamomille 2 oz",
       "origin": null,
@@ -68527,7 +68467,7 @@
       ],
       "variants": [
         {
-          "id": "mps_var_chamomille-2oz",
+          "id": "mps_var_marrakech-camomille-2oz",
           "sku": "wlmp000055",
           "name": "Each",
           "retailPriceCents": 400,
@@ -69139,38 +69079,6 @@
       ]
     },
     {
-      "id": "mps_marrakech-onion-powder-12x7oz",
-      "slug": "marrakech-onion-powder-12x7oz",
-      "name": "Marrakech Onion Powder 12x7oz",
-      "tagline": null,
-      "description": "Marrakech Onion Powder 12x7oz — imported by La Vague Imports.",
-      "origin": null,
-      "brand": null,
-      "imageUrl": "https://moroccanpantryshop.com/wp-content/uploads/2025/11/marrakech-onion-powder-7-oz.webp-scaled.webp",
-      "ribbon": null,
-      "isFeatured": false,
-      "source": "mps",
-      "minPriceCents": 350,
-      "categorySlug": "spices-herbs",
-      "categoryName": "Spices & Herbs",
-      "collections": [
-        "Herbs & Spices"
-      ],
-      "variants": [
-        {
-          "id": "mps_var_marrakech-onion-powder-12x7oz",
-          "sku": "MPS-MARRAKECH-ONION-POWDER-12X7OZ",
-          "name": "Each",
-          "retailPriceCents": 350,
-          "compareAtPriceCents": null,
-          "unitsPerCase": 12,
-          "minOrderCases": null,
-          "inStock": true,
-          "position": 0
-        }
-      ]
-    },
-    {
       "id": "mps_onion-chopped-8oz",
       "slug": "onion-chopped-8oz",
       "name": "Onion Chopped 8oz",
@@ -69235,9 +69143,9 @@
       ]
     },
     {
-      "id": "mps_paprika-12x8oz",
-      "slug": "paprika-12x8oz",
-      "name": "Paprika 12x8oz",
+      "id": "mps_marrakech-paprika-12x8oz",
+      "slug": "marrakech-paprika-12x8oz",
+      "name": "Marrakech Paprika 12x8oz",
       "tagline": null,
       "description": "Paprika 12/8 oz",
       "origin": null,
@@ -69254,7 +69162,7 @@
       ],
       "variants": [
         {
-          "id": "mps_var_paprika-12x8oz",
+          "id": "mps_var_marrakech-paprika-12x8oz",
           "sku": "wlmp000190",
           "name": "Each",
           "retailPriceCents": 400,
@@ -69577,9 +69485,9 @@
       ]
     },
     {
-      "id": "mps_chamomille-12-5kg-27-55lbs-15kg-33lbs-26-25lbs-22-05lbs",
-      "slug": "chamomille-12-5kg-27-55lbs-15kg-33lbs-26-25lbs-22-05lbs",
-      "name": "Chamomille 12,5kg(27,55lbs) 15kg(33lbs),26,25lbs,22.05lbs",
+      "id": "mps_chamomille-flower-12-5kg-27-55lbs-15kg-33lbs-26-25lbs-22-05lbs",
+      "slug": "chamomille-flower-12-5kg-27-55lbs-15kg-33lbs-26-25lbs-22-05lbs",
+      "name": "Chamomille Flower 12,5kg(27,55lbs) 15kg(33lbs),26,25lbs,22.05lbs",
       "tagline": null,
       "description": "Chamomille 12,5kg(27,55lbs) 15kg(33lbs),26,25lbs,22.05LBS",
       "origin": null,
@@ -69596,7 +69504,7 @@
       ],
       "variants": [
         {
-          "id": "mps_var_chamomille-12-5kg-27-55lbs-15kg-33lbs-26-25lbs-22-05lbs",
+          "id": "mps_var_chamomille-flower-12-5kg-27-55lbs-15kg-33lbs-26-25lbs-22-05lbs",
           "sku": "WLMP000345",
           "name": "Each",
           "retailPriceCents": 13100,
@@ -69673,9 +69581,9 @@
       ]
     },
     {
-      "id": "mps_7-spices-50-55lbs",
-      "slug": "7-spices-50-55lbs",
-      "name": "7 Spices 50/55lbs",
+      "id": "mps_7-spices-50lbs-or-7-spices-50-55lbs",
+      "slug": "7-spices-50lbs-or-7-spices-50-55lbs",
+      "name": "7 Spices 50lbs Or 7 Spices 50/55lbs",
       "tagline": null,
       "description": "7 Spices 50/55lbs",
       "origin": null,
@@ -69692,7 +69600,7 @@
       ],
       "variants": [
         {
-          "id": "mps_var_7-spices-50-55lbs",
+          "id": "mps_var_7-spices-50lbs-or-7-spices-50-55lbs",
           "sku": "wlmp000215",
           "name": "Each",
           "retailPriceCents": 28750,
@@ -71199,9 +71107,9 @@
       ]
     },
     {
-      "id": "mps_harissa-68cl-6-24-7oz",
-      "slug": "harissa-68cl-6-24-7oz",
-      "name": "Harissa 68cl*6 (24.7oz)",
+      "id": "mps_mog-harissa-68cl-6-24-7oz",
+      "slug": "mog-harissa-68cl-6-24-7oz",
+      "name": "Mog Harissa 68cl*6 (24.7oz)",
       "tagline": null,
       "description": "Harissa 68cl*6 (24.7oz)",
       "origin": null,
@@ -71218,7 +71126,7 @@
       ],
       "variants": [
         {
-          "id": "mps_var_harissa-68cl-6-24-7oz",
+          "id": "mps_var_mog-harissa-68cl-6-24-7oz",
           "sku": "wlmp000116",
           "name": "Each",
           "retailPriceCents": 499,
