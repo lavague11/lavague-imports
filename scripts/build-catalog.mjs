@@ -288,6 +288,20 @@ for (const file of SOURCES) {
   loaded.push({ file, count: data.products.length, products: data.products });
 }
 
+// Explicit duplicate drop-list: (source, name) records to exclude because they
+// duplicate another listing the exact-name merge can't catch — word-order
+// variants, typos, and the same product arriving from two source feeds (e.g. a
+// Ziyad item in both the halalco and ziyad catalogs). The kept copy is the
+// priced/retail one. Size variants and bulk SKUs are intentionally NOT listed.
+const DROP_FILE = `${DIR}/dedupe-drop.json`;
+const dropSet = new Set(
+  (fs.existsSync(DROP_FILE) ? JSON.parse(fs.readFileSync(DROP_FILE, "utf8")) : []).map(
+    (d) => `${d.source} ${normName(d.name)}`,
+  ),
+);
+let dropped = 0;
+const isDropped = (p) => dropSet.has(`${p.source} ${normName(p.name)}`);
+
 const merged = new Map();
 const order = [];
 function add(product) {
@@ -309,7 +323,10 @@ function add(product) {
   if ((drop.description || "").length > (keep.description || "").length) keep.description = drop.description;
   merged.set(key, keep);
 }
-for (const src of loaded) src.products.forEach(add);
+for (const src of loaded) src.products.forEach((p) => {
+  if (isDropped(p)) { dropped += 1; return; }
+  add(p);
+});
 
 // Categorize the merged records (keep source for grouping).
 const records = [];
@@ -612,7 +629,7 @@ const inputTotal = loaded.reduce((s, x) => s + x.count, 0);
 const multiVariant = products.filter((p) => p.variants.length > 1);
 console.log("Wrote", OUT);
 console.log("  sources:", loaded.map((x) => `${x.file.replace("catalog.", "").replace(".json", "")}(${x.count})`).join(" + "));
-console.log("  input rows:", inputTotal, "→ listings:", products.length, "| priced:", priced);
+console.log("  input rows:", inputTotal, "→ listings:", products.length, "| priced:", priced, "| dropped as dupes:", dropped);
 console.log("  grouped listings (multi-variant):", multiVariant.length, "| variants folded in:", multiVariant.reduce((s, p) => s + p.variants.length, 0));
 console.log("  largest groups:");
 multiVariant.sort((a, b) => b.variants.length - a.variants.length).slice(0, 12)

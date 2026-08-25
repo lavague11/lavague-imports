@@ -134,6 +134,14 @@ Dedup is intentionally exact-name only: the merge keeps one record and drops the
 other, so collapsing near-matches (e.g. different sizes of one product) would lose
 data. Same-product-different-size is the job of variation grouping, not dedup.
 
+The exception is `catalog/dedupe-drop.json`, a hand-verified list of
+`{ source, name }` records the exact-name merge can't catch — word-order variants
+(`Chocolate Custard Ideal` = `Ideal Chocolate Custard`), typos, and the same
+product arriving from two feeds (a Ziyad item in both the halalco and ziyad
+catalogs). `build-catalog` skips these at load, keeping the priced/retail copy.
+Bulk sacks and genuine size/pack variants are deliberately **not** listed. Add a
+line here if a re-import surfaces a new true duplicate.
+
 ### Notable decisions
 
 - **Prices are integer cents, and nullable.** `null` means "price on request" —
