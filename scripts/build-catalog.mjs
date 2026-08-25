@@ -14,6 +14,7 @@ const SOURCES = [
   "catalog.halalco.json",
   "catalog.fattals.json",
   "catalog.mog.json",
+  "catalog.mps.json",
   "catalog.ziyad.json",
   "catalog.yemen.json",
   "catalog.wix.json",
