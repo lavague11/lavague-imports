@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   if (prisma) {
     try {
       const rows = await prisma.product.findMany({
-        where: { isActive: true, name: { contains: q, mode: "insensitive" } },
+        where: { isActive: true, imageUrl: { not: null }, name: { contains: q, mode: "insensitive" } },
         select: {
           name: true,
           slug: true,

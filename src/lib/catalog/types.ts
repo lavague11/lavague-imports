@@ -30,6 +30,9 @@ export interface Product {
   images?: string[];
   /** Internal: which import source this product came from (admin-only). */
   source?: string | null;
+  /** Hidden from listings/search/filters/sitemap (e.g. no photo yet); still
+   *  reachable by direct URL. Set by the catalog build. */
+  hidden?: boolean;
   /** Lowest priced variant in cents (null if quote-only), for price sorting. */
   minPriceCents?: number | null;
   /** Freeform source ribbon, e.g. "Best Seller", "HOT ITEM", "Only 2 Left". */

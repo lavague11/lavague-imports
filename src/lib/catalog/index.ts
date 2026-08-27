@@ -136,7 +136,7 @@ export async function getCountryFilters(): Promise<CountryFilter[]> {
     try {
       const rows = await prisma.product.groupBy({
         by: ["origin"],
-        where: { isActive: true, origin: { not: null } },
+        where: { isActive: true, origin: { not: null }, imageUrl: { not: null } },
         _count: { _all: true },
       });
       const seedBySlug = new Map(seedCountryFilters.map((c) => [c.name, c]));
@@ -213,6 +213,8 @@ function prismaOrderBy(sort: ProductSort | undefined) {
 function prismaWhere(query: ProductQuery) {
   return {
     isActive: true,
+    // Mirror the build-time hide: only list products that have a photo.
+    imageUrl: { not: null },
     ...(query.categorySlug ? { category: { slug: query.categorySlug } } : {}),
     ...(query.collectionName ? { collections: { has: query.collectionName } } : {}),
     ...(query.country ? { origin: query.country } : {}),
@@ -359,7 +361,7 @@ export async function getProductSlugs(): Promise<string[]> {
   if (prisma) {
     try {
       const rows = await prisma.product.findMany({
-        where: { isActive: true },
+        where: { isActive: true, imageUrl: { not: null } },
         select: { slug: true },
       });
       return rows.map((row) => row.slug);
@@ -367,13 +369,14 @@ export async function getProductSlugs(): Promise<string[]> {
       onDbError("getProductSlugs", error);
     }
   }
-  return seedProducts.map((product) => product.slug);
+  return seedProducts.filter((product) => !product.hidden).map((product) => product.slug);
 }
 
 function filterSeedProducts(query: ProductQuery): Product[] {
   const needle = query.search?.trim().toLowerCase();
 
   return seedProducts.filter((product) => {
+    if (product.hidden) return false;
     if (query.categorySlug && product.categorySlug !== query.categorySlug) {
       return false;
     }

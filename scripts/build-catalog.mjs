@@ -584,6 +584,17 @@ for (const p of products) {
   }
 }
 
+// Hide products that still have no photo (after the cross-source backfill).
+// They stay in the data and remain reachable by direct URL, but drop out of
+// listings, search, filters, counts, and the sitemap so the storefront only
+// shows items with imagery. Flip HIDE_MISSING_PHOTOS to false to show them again.
+const HIDE_MISSING_PHOTOS = true;
+let hiddenCount = 0;
+if (HIDE_MISSING_PHOTOS) {
+  for (const p of products) if (!p.imageUrl) { p.hidden = true; hiddenCount += 1; }
+}
+const isVisible = (p) => !p.hidden;
+
 // Display order: best sellers first, then Morocco → Algeria → Egypt → the rest.
 // A stable sort preserves the existing order within each tier. The DB seed
 // writes `position` from this order and the no-DB fallback serves it as-is.
@@ -592,19 +603,32 @@ const priorityRank = (p) =>
   p.isFeatured ? 0 : (ORIGIN_RANK[p.origin] ?? 100);
 products.sort((a, b) => priorityRank(a) - priorityRank(b));
 
-// Categories that ended up with products, in priority order.
-const catPriority = [...CATEGORIES, FALLBACK].map((c) => c.slug);
+// Department nav order. Categorization (which product lands where) still follows
+// the CATEGORIES keyword order above; this only controls the order departments
+// appear in the shop. Spices & Herbs is by far the largest and most bulk-heavy
+// category, so it sits at the end of the food aisles rather than up top.
+const DEPARTMENT_ORDER = [
+  "meat", "seafood", "dairy-cheese", "oils-ghee", "olives-pickles", "rice-grains",
+  "flour-baking", "pasta-couscous", "canned-jarred", "bakery-bread", "frozen",
+  "sweets-snacks", "nuts-dates", "beverages", "honey-jams", "spices-herbs",
+  "body-home", "kitchen", "pantry",
+];
+const deptRank = (slug) => {
+  const i = DEPARTMENT_ORDER.indexOf(slug);
+  return i === -1 ? DEPARTMENT_ORDER.length : i;
+};
+// Categories that ended up with visible products, in department order.
 const categories = [...usedCats.values(), FALLBACK]
   .filter((c, i, arr) => arr.findIndex((x) => x.slug === c.slug) === i)
-  .filter((c) => products.some((p) => p.categorySlug === c.slug))
-  .sort((a, b) => catPriority.indexOf(a.slug) - catPriority.indexOf(b.slug))
+  .filter((c) => products.some((p) => p.categorySlug === c.slug && isVisible(p)))
+  .sort((a, b) => deptRank(a.slug) - deptRank(b.slug))
   .map((c) => ({ id: "cat_" + c.slug, slug: c.slug, name: c.name, description: c.description }));
 
 // Collection filters from all non-generic collections actually used. Names that
 // slugify to the same value (e.g. "Olive Oil" / "Olive oil") are merged so the
 // filter list has unique slugs.
 const colCounts = new Map();
-for (const p of products) for (const c of p.collections) colCounts.set(c, (colCounts.get(c) || 0) + 1);
+for (const p of products) if (isVisible(p)) for (const c of p.collections) colCounts.set(c, (colCounts.get(c) || 0) + 1);
 const colBySlug = new Map();
 for (const [name, count] of colCounts) {
   if (count < 2) continue;
@@ -617,7 +641,7 @@ const collections = [...colBySlug.values()].sort((a, b) => b.count - a.count);
 
 // Country-of-origin filters, with flags, most stocked first.
 const countryCounts = new Map();
-for (const p of products) if (p.origin) countryCounts.set(p.origin, (countryCounts.get(p.origin) || 0) + 1);
+for (const p of products) if (isVisible(p) && p.origin) countryCounts.set(p.origin, (countryCounts.get(p.origin) || 0) + 1);
 const countries = [...countryCounts.entries()]
   .sort((a, b) => b[1] - a[1])
   .map(([name, count]) => ({ name, slug: slugify(name), flag: COUNTRY_FLAGS[name] ?? "🌍", count }));
@@ -629,7 +653,7 @@ const inputTotal = loaded.reduce((s, x) => s + x.count, 0);
 const multiVariant = products.filter((p) => p.variants.length > 1);
 console.log("Wrote", OUT);
 console.log("  sources:", loaded.map((x) => `${x.file.replace("catalog.", "").replace(".json", "")}(${x.count})`).join(" + "));
-console.log("  input rows:", inputTotal, "→ listings:", products.length, "| priced:", priced, "| dropped as dupes:", dropped);
+console.log("  input rows:", inputTotal, "→ listings:", products.length, "| priced:", priced, "| dropped as dupes:", dropped, "| hidden (no photo):", hiddenCount);
 console.log("  grouped listings (multi-variant):", multiVariant.length, "| variants folded in:", multiVariant.reduce((s, p) => s + p.variants.length, 0));
 console.log("  largest groups:");
 multiVariant.sort((a, b) => b.variants.length - a.variants.length).slice(0, 12)
