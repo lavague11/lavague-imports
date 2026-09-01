@@ -184,6 +184,30 @@ launch:
    `scripts/import-wix-catalog.mjs` (`CURATED`); ~71 products landed in
    "Specialty & Other" because their collections didn't map elsewhere.
 
+## Developer portal (`/developers`)
+
+A hub for integrations and the public API. It reads `src/lib/integrations.ts`
+and shows, per integration, whether it's configured (which env vars are set —
+never their values), the Google Cloud setup steps, and the exact
+origin/redirect URI to register (derived from `NEXT_PUBLIC_SITE_URL`).
+
+- **Google Maps** — `WarehouseMap` embeds a map on the contact page when
+  `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set; otherwise the static "Open in Maps"
+  link stands in.
+- **Sign in with Google** — `/api/auth/google/{start,callback,logout}` run a
+  minimal OAuth 2.0 code flow (no SDK) and set a **signed, DB-free session
+  cookie** (`lib/google-session.ts`, HMAC over `AUTH_SECRET`), so login works
+  even while Postgres is down. Needs `GOOGLE_OAUTH_CLIENT_ID`,
+  `GOOGLE_OAUTH_CLIENT_SECRET`, `AUTH_SECRET`.
+- **Google Calendar** — the OAuth start route can request the calendar scope
+  with offline access; persisting the refresh token and writing events is the
+  next step (needs a durable store).
+
+**Catalog API** (`/api/v1`, read-only, CORS-enabled): `products` (filter/sort/
+paginate), `products/{slug}`, `categories`, `countries`, `collections`. Served
+from the live DB or the seed fallback, and it respects hidden (no-photo)
+products. The portal has a live console to try requests.
+
 ## Admin portal (`/admin`)
 
 A password-protected portal to manage the catalog on top of the generated data:

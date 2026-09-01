@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AtSign, Clock, Mail, MapPin, Phone } from "lucide-react";
 
 import { ContactForm } from "@/components/forms/contact-form";
+import { WarehouseMap } from "@/components/integrations/warehouse-map";
 import { Container } from "@/components/ui/container";
 import { fullAddress, site } from "@/lib/site";
 
@@ -65,6 +66,7 @@ export default function ContactPage() {
             >
               Open in Maps
             </a>
+            <WarehouseMap className="mt-4" />
           </ContactRow>
 
           <ContactRow icon={Clock} label="Hours">
