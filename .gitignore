@@ -51,3 +51,6 @@ skills-lock.json
 
 # Admin runtime image uploads (not source)
 /public/products/custom/
+
+# Server-side API key vault (secrets — never commit)
+/.data/

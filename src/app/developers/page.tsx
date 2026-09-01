@@ -3,6 +3,7 @@ import { CalendarDays, KeyRound, LogOut, MapPin } from "lucide-react";
 
 import { ApiConsole } from "@/components/dev/api-console";
 import { CopyField } from "@/components/dev/copy-field";
+import { VaultManager } from "@/components/dev/vault-manager";
 import { Container } from "@/components/ui/container";
 import { getGoogleUser } from "@/lib/google-session";
 import {
@@ -52,6 +53,18 @@ export default async function DevelopersPage() {
           shown here.
         </p>
       </header>
+
+      {/* API key vault */}
+      <section className="mt-10">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-olive-950">API Keys</h2>
+          <p className="mt-1 text-sm text-olive-600">
+            Central vault for every integration key. Add or replace keys here and the app picks
+            them up immediately — no redeploy, no editing environment variables by hand.
+          </p>
+        </div>
+        <VaultManager />
+      </section>
 
       {/* Sign in with Google */}
       <section className="mt-10 rounded-2xl border border-olive-100 bg-white p-6">

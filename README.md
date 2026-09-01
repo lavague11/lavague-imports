@@ -191,6 +191,17 @@ and shows, per integration, whether it's configured (which env vars are set —
 never their values), the Google Cloud setup steps, and the exact
 origin/redirect URI to register (derived from `NEXT_PUBLIC_SITE_URL`).
 
+**API key vault.** The portal's "API Keys" section is a central vault
+(`src/lib/vault.ts`) that stores integration keys as a gitignored JSON file
+under `.data/` on the server disk. `getKey(name)` reads the vault **first**,
+then falls back to `process.env`, so keys added in the UI take effect with no
+redeploy (even browser keys like Maps, because they're read server-side).
+Values are shown masked. Managing keys is gated by a passphrase:
+`DEV_PORTAL_PASSWORD` unlocks it and the unlock is remembered in a cookie
+signed with `AUTH_SECRET` — both stay **env-only** so they protect the vault
+itself and can't be locked inside it. The mailer, Google OAuth, and the Maps
+embed all resolve their credentials through `getKey`.
+
 - **Google Maps** — `WarehouseMap` embeds a map on the contact page when
   `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is set; otherwise the static "Open in Maps"
   link stands in.

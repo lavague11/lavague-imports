@@ -1,4 +1,5 @@
 import { fullAddress } from "@/lib/site";
+import { getKey } from "@/lib/vault";
 
 /**
  * Interactive map of the warehouse via the Google Maps Embed API. Renders only
@@ -6,7 +7,9 @@ import { fullAddress } from "@/lib/site";
  * keep their existing static "Open in Maps" link as the fallback.
  */
 export function WarehouseMap({ className }: { className?: string }) {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // Read from the vault (server-rendered), so a key added in the portal works
+  // without a rebuild — unlike a build-time NEXT_PUBLIC_* inlined into the client.
+  const key = getKey("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
   if (!key) return null;
 
   const src = `https://www.google.com/maps/embed/v1/place?key=${key}&q=${encodeURIComponent(fullAddress)}&zoom=15`;

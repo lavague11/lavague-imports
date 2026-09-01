@@ -1,6 +1,7 @@
 import "server-only";
 
 import { googleRedirectUri } from "@/lib/integrations";
+import { getKey } from "@/lib/vault";
 
 /**
  * Minimal Google OAuth 2.0 (authorization-code) helpers — no external SDK.
@@ -17,13 +18,13 @@ export const BASE_SCOPES = ["openid", "email", "profile"];
 export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 export function clientId(): string {
-  const id = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const id = getKey("GOOGLE_OAUTH_CLIENT_ID");
   if (!id) throw new Error("GOOGLE_OAUTH_CLIENT_ID is not set");
   return id;
 }
 
 function clientSecret(): string {
-  const s = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const s = getKey("GOOGLE_OAUTH_CLIENT_SECRET");
   if (!s) throw new Error("GOOGLE_OAUTH_CLIENT_SECRET is not set");
   return s;
 }

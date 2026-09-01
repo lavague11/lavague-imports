@@ -4,6 +4,10 @@ import nodemailer from "nodemailer";
 
 import { site } from "@/lib/site";
 import { formatPriceOrRequest } from "@/lib/utils";
+import { getKey } from "@/lib/vault";
+
+// Integration credentials come from the vault first, then the environment.
+const cfg = (name: string): string | undefined => getKey(name);
 
 /**
  * Sends transactional email. Picks a provider from env at call time:
@@ -21,13 +25,13 @@ export interface SendResult {
 }
 
 function from(): string {
-  return process.env.MAIL_FROM || "La Vague Imports <onboarding@resend.dev>";
+  return cfg("MAIL_FROM") || "La Vague Imports <onboarding@resend.dev>";
 }
 
 export function mailConfigured(): boolean {
   return Boolean(
-    process.env.RESEND_API_KEY ||
-      (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+    cfg("RESEND_API_KEY") ||
+      (cfg("SMTP_HOST") && cfg("SMTP_USER") && cfg("SMTP_PASS")),
   );
 }
 
@@ -41,7 +45,7 @@ async function sendViaResend(
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      Authorization: `Bearer ${cfg("RESEND_API_KEY")}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -65,12 +69,12 @@ async function sendViaSmtp(
   text: string,
   replyTo?: string,
 ): Promise<SendResult> {
-  const port = Number(process.env.SMTP_PORT || 465);
+  const port = Number(cfg("SMTP_PORT") || 465);
   const transport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: cfg("SMTP_HOST"),
     port,
     secure: port === 465, // 465 = implicit TLS; 587 = STARTTLS
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    auth: { user: cfg("SMTP_USER"), pass: cfg("SMTP_PASS") },
   });
   try {
     await transport.sendMail({ from: from(), to, subject, html, text, replyTo });
@@ -90,8 +94,8 @@ export async function sendEmail(opts: {
 }): Promise<SendResult> {
   const { to, subject, html, text, replyTo } = opts;
   try {
-    if (process.env.RESEND_API_KEY) return await sendViaResend(to, subject, html, text, replyTo);
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    if (cfg("RESEND_API_KEY")) return await sendViaResend(to, subject, html, text, replyTo);
+    if (cfg("SMTP_HOST") && cfg("SMTP_USER") && cfg("SMTP_PASS")) {
       return await sendViaSmtp(to, subject, html, text, replyTo);
     }
     return { ok: false, reason: "not-configured" };
@@ -122,7 +126,7 @@ export function backInStockEmail(productName: string, url: string): { subject: s
 
 /** Where staff notifications go. Overridable with SALES_EMAIL, else the site inbox. */
 export function salesInbox(): string {
-  return process.env.SALES_EMAIL || site.email;
+  return cfg("SALES_EMAIL") || site.email;
 }
 
 const esc = (value: string): string =>

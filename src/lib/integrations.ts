@@ -1,5 +1,7 @@
 import "server-only";
 
+import { hasKey } from "@/lib/vault";
+
 /**
  * Registry of third-party integrations, surfaced in the /developers portal.
  *
@@ -43,10 +45,12 @@ export function googleRedirectUri(): string {
   return `${siteUrl()}/api/auth/google/callback`;
 }
 
-const has = (...names: string[]) => names.every((n) => Boolean(process.env[n]));
+// Vault-aware: a key counts as set if it's in the vault or the environment.
+// AUTH_SECRET stays env-only (it protects the vault), so check it directly.
+const has = (...names: string[]) => names.every((n) => hasKey(n));
 
 export function googleOAuthConfigured(): boolean {
-  return has("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "AUTH_SECRET");
+  return has("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET") && Boolean(process.env.AUTH_SECRET);
 }
 
 export function mapsConfigured(): boolean {
