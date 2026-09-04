@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -9,6 +10,10 @@ import { dirname, join } from "node:path";
  * redeploy. `getKey()` reads the vault first, then falls back to environment
  * variables — so anything already in .env keeps working, and the vault
  * overrides it when set.
+ *
+ * Values are encrypted at rest with AES-256-GCM under a key derived from
+ * AUTH_SECRET, so the on-disk file holds no readable secrets. Rotating or losing
+ * AUTH_SECRET makes stored values undecryptable (they fall back to env).
  *
  * Values are secrets. The file lives outside version control; the portal only
  * ever shows masked previews. AUTH_SECRET and DEV_PORTAL_PASSWORD are
@@ -117,10 +122,62 @@ function write(data: VaultFile): void {
   writeFileSync(path, JSON.stringify(data, null, 2), { mode: 0o600 });
 }
 
+/* ---- encryption at rest (AES-256-GCM, key derived from AUTH_SECRET) ---- */
+
+const ENC_PREFIX = "enc:v1:";
+let cachedKey: Buffer | null = null;
+let cachedFor: string | undefined;
+
+// 32-byte key derived from AUTH_SECRET. Cached because scrypt is deliberately
+// slow and getKey() is called often. Null when AUTH_SECRET is unset.
+function vaultKey(): Buffer | null {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) return null;
+  if (cachedKey && cachedFor === secret) return cachedKey;
+  cachedFor = secret;
+  cachedKey = scryptSync(secret, "lavague-api-vault", 32);
+  return cachedKey;
+}
+
+function encrypt(plain: string): string {
+  const key = vaultKey();
+  if (!key) return plain; // no secret to encrypt with — store as-is (shouldn't happen: managing keys requires AUTH_SECRET)
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const ct = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return ENC_PREFIX + [iv.toString("base64"), tag.toString("base64"), ct.toString("base64")].join(":");
+}
+
+// Decrypts a stored value. Legacy plaintext (no prefix) is returned as-is so an
+// older vault keeps working (and gets encrypted on its next write). Returns null
+// if an encrypted value can't be decrypted (missing/rotated AUTH_SECRET, tamper).
+function decrypt(stored: string | undefined): string | null {
+  if (stored == null) return null;
+  if (!stored.startsWith(ENC_PREFIX)) return stored;
+  const key = vaultKey();
+  if (!key) return null;
+  try {
+    const [ivB, tagB, ctB] = stored.slice(ENC_PREFIX.length).split(":");
+    const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(ivB, "base64"));
+    decipher.setAuthTag(Buffer.from(tagB, "base64"));
+    const pt = Buffer.concat([decipher.update(Buffer.from(ctB, "base64")), decipher.final()]);
+    return pt.toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** The decrypted vault value for a key, or null if not stored/undecryptable. */
+function vaultValue(name: string): string | null {
+  const dec = decrypt(read().keys[name]?.value);
+  return dec && dec.trim() !== "" ? dec : null;
+}
+
 /** The effective value for a key: vault first, then environment. */
 export function getKey(name: string): string | undefined {
-  const stored = read().keys[name]?.value;
-  if (stored && stored.trim() !== "") return stored;
+  const stored = vaultValue(name);
+  if (stored) return stored;
   const env = process.env[name];
   return env && env.trim() !== "" ? env : undefined;
 }
@@ -132,8 +189,7 @@ export function hasKey(name: string): boolean {
 /** Where a key's current value comes from, for the UI. */
 export type KeySource = "vault" | "env" | "unset";
 export function keySource(name: string): KeySource {
-  const stored = read().keys[name]?.value;
-  if (stored && stored.trim() !== "") return "vault";
+  if (vaultValue(name)) return "vault";
   const env = process.env[name];
   return env && env.trim() !== "" ? "env" : "unset";
 }
@@ -166,7 +222,8 @@ export function listKeys(): VaultView[] {
     const known = KNOWN_BY_NAME.get(name);
     const entry = file.keys[name];
     const src = keySource(name);
-    const value = src === "vault" ? entry?.value : src === "env" ? process.env[name] : undefined;
+    // Decrypt the vault value for the masked preview; never expose full values.
+    const value = src === "vault" ? vaultValue(name) : src === "env" ? process.env[name] : undefined;
     views.push({
       name,
       label: known?.label ?? name,
@@ -196,7 +253,7 @@ export function upsertKey(name: string, value: string, description?: string): vo
   if (!clean) throw new Error("key name required");
   const data = read();
   data.keys[clean] = {
-    value,
+    value: encrypt(value),
     description: description?.trim() || data.keys[clean]?.description,
     updatedAt: new Date().toISOString(),
   };

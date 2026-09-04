@@ -230,7 +230,9 @@ origin/redirect URI to register (derived from `NEXT_PUBLIC_SITE_URL`).
 under `.data/` on the server disk. `getKey(name)` reads the vault **first**,
 then falls back to `process.env`, so keys added in the UI take effect with no
 redeploy (even browser keys like Maps, because they're read server-side).
-Values are shown masked. Managing keys is gated by a passphrase:
+Values are **encrypted at rest** with AES-256-GCM under a key derived from
+`AUTH_SECRET`, so the on-disk file holds no readable secrets, and shown masked in
+the UI. Managing keys is gated by a passphrase:
 `DEV_PORTAL_PASSWORD` unlocks it and the unlock is remembered in a cookie
 signed with `AUTH_SECRET` — both stay **env-only** so they protect the vault
 itself and can't be locked inside it. The mailer, Google OAuth, and the Maps
