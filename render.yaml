@@ -1,22 +1,74 @@
-# Render blueprint — one-click deploy of the Next.js app with auto-deploy on
-# every push. In Render: New → Blueprint → pick this repo. Then set the two
-# secret env vars (DATABASE_URL, NEXT_PUBLIC_SITE_URL) in the dashboard.
+# Render blueprint — deploy the Next.js storefront with auto-deploy on push.
 #
-# Alternative: Vercel is zero-config for Next.js — just "Import Project" from
-# the GitHub repo and add the same env vars; no file needed.
+# Why Render: the app is a standard Next.js server (SSR + prerendered pages).
+# Render serves /_next assets and HTML with correct cache semantics out of the
+# box, which avoids the stale-HTML CDN problem seen on the Hostinger host.
+#
+# Setup: Render dashboard → New → Blueprint → connect this repo → Apply. Render
+# reads this file, then prompts for the env vars marked `sync: false`. After the
+# first deploy, set NEXT_PUBLIC_SITE_URL to the assigned URL and redeploy.
+#
+# Alternative: Vercel is zero-config for Next.js — Import Project from GitHub and
+# add the same env vars; no blueprint needed.
 services:
   - type: web
     name: lavague-imports
     runtime: node
     plan: free
-    autoDeploy: true # redeploy on every push to the connected branch
+    region: ohio # US-East, closest to the NY/NJ customer base
+    branch: main
+    autoDeploy: true # redeploy on every push to main
     buildCommand: npm install && npm run build
-    startCommand: npm run start
+    startCommand: npm run start # next start; binds to Render's $PORT automatically
+    healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # Set these in the Render dashboard (kept out of the repo):
-      - key: DATABASE_URL # your Neon/Supabase Postgres connection string
+      # Signs the /developers vault-unlock cookie and the Google-login session
+      # cookie. Auto-generated once by Render; never needs to be human-known.
+      - key: AUTH_SECRET
+        generateValue: true
+
+      # --- set in the Render dashboard (sync: false = not stored in the repo) ---
+
+      # The site's own URL. Fill after the first deploy (e.g.
+      # https://lavague-imports.onrender.com), then trigger a redeploy so it is
+      # baked into the client bundle and used for OAuth redirect URIs.
+      - key: NEXT_PUBLIC_SITE_URL
         sync: false
-      - key: NEXT_PUBLIC_SITE_URL # e.g. https://lavague-imports.onrender.com
+
+      # Postgres (Neon/Supabase). OMIT to run on the built-in seed catalog — the
+      # storefront works read-only without a DB; only quotes/wholesale/contact
+      # writes and the admin portal need it.
+      - key: DATABASE_URL
         sync: false
+
+      # Passphrase that unlocks the /developers → API Keys vault. Pick something
+      # memorable; you enter it in the portal to manage keys.
+      - key: DEV_PORTAL_PASSWORD
+        sync: false
+
+      # Integration keys — all optional. On a paid instance with the disk below,
+      # you can instead add these from the /developers vault UI. On the FREE plan
+      # the filesystem is ephemeral (the vault file resets on each deploy), so set
+      # any key you depend on here as an env var — the app reads env as a fallback.
+      - key: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALENDAR_ID
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+
+    # Persist the API-key vault across deploys. Requires a paid instance (the free
+    # plan has no persistent disk). To enable: upgrade the plan, uncomment this
+    # block, and add an env var VAULT_PATH=/var/lib/vault/api-vault.json.
+    # disk:
+    #   name: vault
+    #   mountPath: /var/lib/vault
+    #   sizeGB: 1

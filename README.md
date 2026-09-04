@@ -53,6 +53,31 @@ the fallback never drift. It is idempotent — safe to re-run.
 Useful: `npm run db:studio` opens Prisma Studio to read incoming quote requests
 and wholesale applications.
 
+## Deploying to Render
+
+`render.yaml` is a blueprint for [Render](https://render.com). Render runs the
+app as a normal Next.js server and serves `/_next` assets and HTML with correct
+cache semantics, avoiding the stale-HTML CDN issue seen on the Hostinger host.
+
+1. Render dashboard → **New → Blueprint** → connect this GitHub repo → **Apply**.
+   It reads `render.yaml`, provisions the web service, and auto-generates
+   `AUTH_SECRET`.
+2. Fill the `sync: false` env vars when prompted (all optional except a URL):
+   `NEXT_PUBLIC_SITE_URL`, and any of `DATABASE_URL`, `DEV_PORTAL_PASSWORD`, the
+   Google/Maps/mail keys. Anything left unset falls back to defaults (no DB → seed
+   catalog; no keys → that integration is simply off).
+3. After the first deploy, set **`NEXT_PUBLIC_SITE_URL`** to the assigned URL
+   (e.g. `https://lavague-imports.onrender.com`) and redeploy so it's baked into
+   the client bundle.
+4. If using Google sign-in, add that URL and its `/api/auth/google/callback` to
+   the OAuth client's **Authorized origins / redirect URIs** (the exact strings
+   are shown on `/developers`).
+
+Every push to `main` auto-deploys. Note: the free plan's filesystem is
+ephemeral, so the `/developers` key vault (a disk file) resets on each deploy —
+set the keys you rely on as env vars instead, or enable the persistent `disk:`
+block in `render.yaml` on a paid instance (set `VAULT_PATH` to the mount).
+
 ## Project layout
 
 ```
