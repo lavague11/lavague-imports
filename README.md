@@ -134,6 +134,15 @@ Dedup is intentionally exact-name only: the merge keeps one record and drops the
 other, so collapsing near-matches (e.g. different sizes of one product) would lose
 data. Same-product-different-size is the job of variation grouping, not dedup.
 
+**Black-background fixes.** `scripts/whiten-black-bg.mjs` flood-fills solid
+black backgrounds on a fixed list of product photos, writes the cleaned images
+to `public/products/whitened/` (committed, ~30–100 KB each), and records the
+swap in `catalog/image-overrides.json` (original URL → new URL). `build-catalog`
+applies those overrides on every rebuild, so the fix is durable and DB-free
+(unlike the older `fix-black-bg.mjs`, which needed Postgres). Photographic dark
+backgrounds (gradients, not flat black) can't be flood-filled and are left for a
+replacement photo.
+
 The exception is `catalog/dedupe-drop.json`, a hand-verified list of
 `{ source, name }` records the exact-name merge can't catch — word-order variants
 (`Chocolate Custard Ideal` = `Ideal Chocolate Custard`), typos, and the same

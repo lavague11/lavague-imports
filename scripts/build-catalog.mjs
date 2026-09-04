@@ -565,6 +565,19 @@ for (const p of grouped) {
   });
 }
 
+// Apply committed image fixes (whitened black backgrounds / clean replacements
+// recorded by scripts/whiten-black-bg.mjs), keyed by the original source URL.
+const IMG_OVERRIDES = fs.existsSync(`${DIR}/image-overrides.json`)
+  ? JSON.parse(fs.readFileSync(`${DIR}/image-overrides.json`, "utf8"))
+  : {};
+let imgFixed = 0;
+for (const p of products) {
+  if (p.imageUrl && IMG_OVERRIDES[p.imageUrl]) {
+    p.imageUrl = IMG_OVERRIDES[p.imageUrl];
+    imgFixed += 1;
+  }
+}
+
 // Cross-source image backfill: a product missing a photo borrows one from
 // another source's listing of the same product (identical name once size/pack
 // is stripped). The length guard avoids borrowing on over-generic base names.
@@ -653,7 +666,7 @@ const inputTotal = loaded.reduce((s, x) => s + x.count, 0);
 const multiVariant = products.filter((p) => p.variants.length > 1);
 console.log("Wrote", OUT);
 console.log("  sources:", loaded.map((x) => `${x.file.replace("catalog.", "").replace(".json", "")}(${x.count})`).join(" + "));
-console.log("  input rows:", inputTotal, "→ listings:", products.length, "| priced:", priced, "| dropped as dupes:", dropped, "| hidden (no photo):", hiddenCount);
+console.log("  input rows:", inputTotal, "→ listings:", products.length, "| priced:", priced, "| dropped as dupes:", dropped, "| hidden (no photo):", hiddenCount, "| image fixes:", imgFixed);
 console.log("  grouped listings (multi-variant):", multiVariant.length, "| variants folded in:", multiVariant.reduce((s, p) => s + p.variants.length, 0));
 console.log("  largest groups:");
 multiVariant.sort((a, b) => b.variants.length - a.variants.length).slice(0, 12)
