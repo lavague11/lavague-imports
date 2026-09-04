@@ -24,6 +24,29 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "moroccanpantryshop.com" },
     ],
   },
+  // Stop a shared CDN (Hostinger's `hcdn`) from caching HTML documents long-term.
+  // Next serves static pages with `s-maxage=31536000`, so the CDN was pinning a
+  // stale HTML page for days; after a redeploy rotated the hashed asset names,
+  // that old HTML pointed at `/_next/static` files that no longer existed → 404
+  // CSS/JS → unstyled site. Forcing revalidation on documents means the CDN
+  // always re-checks the origin, so a deploy's HTML and its assets stay in sync.
+  //
+  // Scope: exclude `/_next/*` (framework assets are content-hashed and immutable —
+  // Next won't let this override them anyway — and the image optimizer manages its
+  // own caching) and `/api/*` (route handlers set their own Cache-Control).
+  async headers() {
+    return [
+      {
+        source: "/((?!api/|_next/).*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=0, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
