@@ -184,7 +184,7 @@ export function VaultManager() {
                     {KIND_BADGE[k.kind].label}
                   </span>
                 </div>
-                <code className="mt-1.5 inline-block rounded bg-olive-50 px-1.5 py-0.5 text-xs text-olive-700">{k.name}</code>
+                <code className="mt-1.5 inline-block break-all rounded bg-olive-50 px-1.5 py-0.5 text-xs text-olive-700">{k.name}</code>
                 <p className="mt-1.5 text-sm text-olive-600">{k.description}</p>
                 <p className="mt-1 font-mono text-xs text-olive-500">
                   {k.masked ? k.masked : "— not set —"}

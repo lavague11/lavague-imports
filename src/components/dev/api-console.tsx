@@ -60,7 +60,7 @@ export function ApiConsole() {
           value={path}
           onChange={(e) => setPath(e.target.value)}
           spellCheck={false}
-          className="flex-1 rounded-lg border border-olive-200 px-3 py-2 font-mono text-xs text-olive-900 focus:border-olive-400 focus:outline-none"
+          className="min-w-0 flex-1 rounded-lg border border-olive-200 px-3 py-2 font-mono text-xs text-olive-900 focus:border-olive-400 focus:outline-none"
         />
         <button
           type="button"
