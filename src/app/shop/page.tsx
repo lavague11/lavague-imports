@@ -135,7 +135,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
         {/* Long intro is desktop-only — kept minimal on phones. */}
         <p className="mt-4 hidden leading-relaxed text-olive-700 sm:block">
           Most of our range is sold wholesale and quoted to order. Add what you
-          need to your quote list and we&apos;ll come back with pricing, case
+          need to your cart and we&apos;ll come back with pricing, case
           packs, and freight — usually the same business day.
         </p>
       </header>

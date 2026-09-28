@@ -24,7 +24,7 @@ export interface CartLine {
 /* -------------------------------------------------------------------------
  * localStorage-backed store
  *
- * The quote list lives in localStorage, which makes it an external store
+ * The cart lives in localStorage, which makes it an external store
  * rather than React state. Reading it through useSyncExternalStore keeps the
  * server render (always empty) and the hydrated client render consistent,
  * and gives cross-tab syncing for free.

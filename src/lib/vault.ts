@@ -68,6 +68,13 @@ export const KNOWN_KEYS: KnownKey[] = [
     group: "Google",
   },
   {
+    name: "ADMIN_EMAILS",
+    label: "Admin emails (Google login)",
+    description: "Comma-separated Google account emails allowed into /admin via “Sign in with Google”.",
+    kind: "config",
+    group: "Admin",
+  },
+  {
     name: "RESEND_API_KEY",
     label: "Resend (email)",
     description: "Transactional email via Resend — quote/wholesale/contact notifications.",

@@ -27,7 +27,7 @@ const steps = [
   {
     icon: Truck,
     title: "3. Order and receive",
-    body: "Place orders by phone, email, or your quote list. Delivery across NY and NJ, or collect in Little Ferry.",
+    body: "Place orders by phone, email, or your cart. Delivery across NY and NJ, or collect in Little Ferry.",
   },
 ];
 

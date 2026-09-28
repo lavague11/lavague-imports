@@ -61,7 +61,7 @@ export function AddToQuote({
           </>
         ) : (
           <>
-            <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Add to quote
+            <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> Add to cart
           </>
         )}
       </Button>
@@ -150,10 +150,10 @@ export function AddToQuote({
         >
           {justAdded ? (
             <>
-              <Check className="h-4 w-4" aria-hidden="true" /> Added to quote list
+              <Check className="h-4 w-4" aria-hidden="true" /> Added to cart
             </>
           ) : (
-            "Add to quote list"
+            "Add to cart"
           )}
         </Button>
       </div>
@@ -161,7 +161,7 @@ export function AddToQuote({
       <p className="text-xs text-olive-600" aria-live="polite">
         {selected.inStock
           ? "No payment is taken online. We reply with a firm quote, freight, and lead time — usually the same business day."
-          : "Currently out of stock. Add it to your quote list and we'll tell you the next arrival date."}
+          : "Currently out of stock. Add it to your cart and we'll tell you the next arrival date."}
       </p>
     </div>
   );

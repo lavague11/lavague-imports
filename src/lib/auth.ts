@@ -4,6 +4,8 @@ import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
 import { requirePrisma } from "@/lib/db";
+import { getGoogleUser } from "@/lib/google-session";
+import { getKey } from "@/lib/vault";
 
 const COOKIE = "lv_admin_session";
 const SESSION_DAYS = 14;
@@ -71,27 +73,50 @@ export async function destroySession(): Promise<void> {
   store.delete(COOKIE);
 }
 
-/** The signed-in admin, or null. Never throws. */
+/** Emails allowed to sign into admin via Google (ADMIN_EMAILS, comma-separated). */
+function adminEmails(): Set<string> {
+  return new Set(
+    (getKey("ADMIN_EMAILS") || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+/**
+ * The signed-in admin, or null. Never throws. Two ways in:
+ *  1. A database-backed password session (AdminSession) — the original path.
+ *  2. A "Sign in with Google" session whose email is in ADMIN_EMAILS. This works
+ *     without the database, so admin stays reachable while Postgres is down.
+ */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const store = await cookies();
   const token = store.get(COOKIE)?.value;
-  if (!token) return null;
-  try {
-    const prisma = requirePrisma();
-    const session = await prisma.adminSession.findUnique({
-      where: { token },
-      include: { user: true },
-    });
-    if (!session || session.expiresAt < new Date()) return null;
-    return {
-      id: session.user.id,
-      email: session.user.email,
-      name: session.user.name,
-      role: session.user.role as Role,
-    };
-  } catch {
-    return null;
+  if (token) {
+    try {
+      const prisma = requirePrisma();
+      const session = await prisma.adminSession.findUnique({
+        where: { token },
+        include: { user: true },
+      });
+      if (session && session.expiresAt >= new Date()) {
+        return {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+          role: session.user.role as Role,
+        };
+      }
+    } catch {
+      /* DB unavailable — fall through to the Google path */
+    }
   }
+
+  const google = await getGoogleUser();
+  if (google && adminEmails().has(google.email.toLowerCase())) {
+    return { id: `google:${google.sub}`, email: google.email, name: google.name, role: "ADMIN" };
+  }
+  return null;
 }
 
 export async function requireUser(): Promise<SessionUser> {

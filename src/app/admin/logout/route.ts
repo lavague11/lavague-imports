@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { destroySession } from "@/lib/auth";
+import { clearGoogleSession } from "@/lib/google-session";
 
 // Logout as a full-page POST → HTTP redirect (not a client-side RSC navigation).
 // This avoids stale cached navigation payloads and always lands on fresh HTML.
@@ -11,6 +12,7 @@ import { destroySession } from "@/lib/auth";
 // is resolved by the browser against the public URL in the address bar.
 export async function POST() {
   await destroySession();
+  await clearGoogleSession(); // also end a Google-based admin session
   return new NextResponse(null, {
     status: 303,
     headers: { Location: "/admin/login" },

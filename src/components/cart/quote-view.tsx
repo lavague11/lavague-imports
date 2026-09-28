@@ -54,7 +54,7 @@ export function QuoteView() {
   if (lines.length === 0) {
     return (
       <div className="py-16 text-center">
-        <h2 className="text-2xl text-olive-900">Your quote list is empty</h2>
+        <h2 className="text-2xl text-olive-900">Your cart is empty</h2>
         <p className="mx-auto mt-3 max-w-md leading-relaxed text-olive-600">
           Add the products you&apos;re interested in and send them over as one
           request. We&apos;ll come back with pricing, freight, and lead time.

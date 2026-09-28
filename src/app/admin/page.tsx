@@ -2,43 +2,54 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
+import { products as seedProducts } from "@/lib/catalog/data";
 import { getPrisma } from "@/lib/db";
+import { getGoogleUser } from "@/lib/google-session";
 
-async function stats() {
+interface Stats {
+  source: "db" | "fallback";
+  products: number;
+  missingImage: number;
+  hidden: number;
+  custom: number;
+  edits: number;
+}
+
+async function stats(): Promise<Stats> {
   const prisma = getPrisma();
-  if (!prisma) return null;
-  try {
-    const [products, missingImage, hidden, custom, edits] = await Promise.all([
-      prisma.product.count(),
-      prisma.product.count({ where: { imageUrl: null } }),
-      prisma.product.count({ where: { isActive: false } }),
-      prisma.product.count({ where: { isCustom: true } }),
-      prisma.productOverride.count(),
-    ]);
-    return { products, missingImage, hidden, custom, edits };
-  } catch {
-    return null;
+  if (prisma) {
+    try {
+      const [products, missingImage, hidden, custom, edits] = await Promise.all([
+        prisma.product.count(),
+        prisma.product.count({ where: { imageUrl: null } }),
+        prisma.product.count({ where: { isActive: false } }),
+        prisma.product.count({ where: { isCustom: true } }),
+        prisma.productOverride.count(),
+      ]);
+      return { source: "db", products, missingImage, hidden, custom, edits };
+    } catch {
+      /* DB unreachable — fall back to the generated seed catalog */
+    }
   }
+  return {
+    source: "fallback",
+    products: seedProducts.length,
+    missingImage: seedProducts.filter((p) => !p.imageUrl).length,
+    hidden: seedProducts.filter((p) => p.hidden).length,
+    custom: 0,
+    edits: 0,
+  };
 }
 
 export default async function AdminDashboard() {
   const user = await getCurrentUser();
-  if (!user) redirect("/admin/login");
-  const s = await stats();
-
-  if (!s) {
-    return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
-        <h1 className="text-lg font-semibold">Database not connected</h1>
-        <p className="mt-2 text-sm">
-          The admin portal needs a database. Set <code>DATABASE_URL</code> in
-          <code> .env</code>, then run <code>npm run db:migrate</code> and{" "}
-          <code>npm run db:seed</code>.
-        </p>
-      </div>
-    );
+  if (!user) {
+    // A signed-in Google account that isn't on the admin list gets a reason.
+    const google = await getGoogleUser();
+    redirect(google ? "/admin/login?error=not-allowed" : "/admin/login");
   }
 
+  const s = await stats();
   const cards = [
     { label: "Products", value: s.products, href: "/admin/products" },
     { label: "Missing an image", value: s.missingImage, href: "/admin/products?filter=missing-image", accent: s.missingImage > 0 },
@@ -51,6 +62,14 @@ export default async function AdminDashboard() {
     <div>
       <h1 className="font-display text-2xl text-olive-900">Dashboard</h1>
       <p className="mt-1 text-sm text-olive-600">Welcome back, {user.name ?? user.email}.</p>
+
+      {s.source === "fallback" ? (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <strong>Database offline</strong> — showing the built-in catalog. Browsing works, but
+          editing products, custom items, and manual edits need <code>DATABASE_URL</code> connected.
+        </div>
+      ) : null}
+
       <div className="mt-6 grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
           <Link

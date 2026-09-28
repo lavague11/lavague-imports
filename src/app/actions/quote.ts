@@ -28,7 +28,7 @@ const quoteSchema = z.object({
   deliveryState: z.string().optional(),
   deliveryPostalCode: z.string().optional(),
   message: z.string().max(2000).optional(),
-  lines: z.array(lineSchema).min(1, "Your quote list is empty."),
+  lines: z.array(lineSchema).min(1, "Your cart is empty."),
 });
 
 export async function submitQuoteRequest(
@@ -41,7 +41,7 @@ export async function submitQuoteRequest(
   } catch {
     return {
       status: "error",
-      message: "We couldn't read your quote list. Please refresh and try again.",
+      message: "We couldn't read your cart. Please refresh and try again.",
     };
   }
 
@@ -94,7 +94,7 @@ export async function submitQuoteRequest(
     return {
       status: "error",
       message:
-        "None of those products are available any more. Please rebuild your quote list.",
+        "None of those products are available any more. Please rebuild your cart.",
     };
   }
 
