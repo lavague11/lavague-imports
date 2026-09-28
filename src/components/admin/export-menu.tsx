@@ -26,17 +26,18 @@ export function ExportMenu() {
   const checkedSlugs = () =>
     [...document.querySelectorAll<HTMLInputElement>('input[name="slug"]:checked')].map((el) => el.value);
 
-  const exportCurrent = () => {
+  const exportCurrent = (format: "csv" | "xlsx") => {
     const p = new URLSearchParams(sp.toString());
     p.delete("page");
     p.delete("pageSize");
-    // Full navigation (not router.push) so the CSV attachment downloads.
+    if (format === "xlsx") p.set("format", "xlsx");
+    // Full navigation (not router.push) so the file attachment downloads.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `/admin/products/export?${p.toString()}`;
     setOpen(false);
   };
 
-  const exportSelected = () => {
+  const exportSelected = (format: "csv" | "xlsx") => {
     const slugs = checkedSlugs();
     if (!slugs.length) {
       setCount(-1);
@@ -44,6 +45,7 @@ export function ExportMenu() {
     }
     const p = new URLSearchParams();
     p.set("slugs", slugs.join(","));
+    if (format === "xlsx") p.set("format", "xlsx");
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `/admin/products/export?${p.toString()}`;
     setOpen(false);
@@ -64,19 +66,23 @@ export function ExportMenu() {
       </button>
       {open ? (
         <div className="absolute right-0 z-50 mt-1 w-56 rounded-lg border border-olive-100 bg-white py-1 shadow-lg">
-          <button type="button" onClick={exportCurrent} className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50">
-            Current view (CSV)
+          <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-olive-400 uppercase">Current view</p>
+          <button type="button" onClick={() => exportCurrent("csv")} className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50">
+            CSV
           </button>
-          <button
-            type="button"
-            onClick={exportSelected}
-            className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50"
-          >
-            Selected {count > 0 ? `(${count}) ` : ""}(CSV)
+          <button type="button" onClick={() => exportCurrent("xlsx")} className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50">
+            Excel (XLSX)
           </button>
-          {count === -1 ? (
-            <p className="px-3 py-1.5 text-xs text-amber-700">Tick some rows first.</p>
-          ) : null}
+          <p className="border-t border-olive-100 px-3 pt-1.5 pb-0.5 text-[10px] font-semibold tracking-wide text-olive-400 uppercase">
+            Selected{count > 0 ? ` (${count})` : ""}
+          </p>
+          <button type="button" onClick={() => exportSelected("csv")} className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50">
+            CSV
+          </button>
+          <button type="button" onClick={() => exportSelected("xlsx")} className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50">
+            Excel (XLSX)
+          </button>
+          {count === -1 ? <p className="px-3 py-1.5 text-xs text-amber-700">Tick some rows first.</p> : null}
         </div>
       ) : null}
     </div>
