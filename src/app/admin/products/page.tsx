@@ -128,8 +128,16 @@ export default async function AdminProducts({
 
   return (
     <div>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="font-display text-2xl text-olive-900">Products</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-2xl text-olive-900">Products</h1>
+          <Link
+            href="/admin/products/new"
+            className="rounded-lg bg-olive-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-olive-800"
+          >
+            + New Product
+          </Link>
+        </div>
         <form action="/admin/products" className="flex gap-2">
           {filter ? <input type="hidden" name="filter" value={filter} /> : null}
           <input
