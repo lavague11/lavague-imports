@@ -47,6 +47,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // The cart lives at /cart; keep the old /quote URL working for existing links.
+  async redirects() {
+    return [{ source: "/quote", destination: "/cart", permanent: true }];
+  },
 };
 
 export default nextConfig;

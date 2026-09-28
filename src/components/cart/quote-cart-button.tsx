@@ -10,7 +10,7 @@ export function QuoteCartButton({ className }: { className?: string }) {
 
   return (
     <Link
-      href="/quote"
+      href="/cart"
       className={`relative inline-flex items-center gap-2 rounded-full border border-olive-200 px-4 py-2 text-sm font-medium text-olive-900 transition-colors hover:border-olive-400 hover:bg-olive-50 ${className ?? ""}`}
     >
       <ShoppingCart className="h-4 w-4" aria-hidden="true" />

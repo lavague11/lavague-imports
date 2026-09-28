@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/quote", "/wholesale/line-sheet"],
+      disallow: ["/cart", "/wholesale/line-sheet"],
     },
     sitemap: `${baseUrl}/sitemap.xml`,
   };

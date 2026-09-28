@@ -27,8 +27,8 @@ export function Footer() {
               </li>
             ))}
             <li>
-              <Link href="/quote" className="hover:text-olive-900 hover:underline">
-                Request a quote
+              <Link href="/cart" className="hover:text-olive-900 hover:underline">
+                Cart &amp; quote request
               </Link>
             </li>
           </ul>
@@ -69,7 +69,12 @@ export function Footer() {
           <p>
             © {new Date().getFullYear()} {site.name}. All rights reserved.
           </p>
-          <p>Importer &amp; wholesale distributor · New York &amp; New Jersey</p>
+          <div className="flex items-center gap-4">
+            <p>Importer &amp; wholesale distributor · New York &amp; New Jersey</p>
+            <Link href="/admin/login" className="hover:text-olive-900 hover:underline">
+              Sign in
+            </Link>
+          </div>
         </Container>
       </div>
     </footer>
