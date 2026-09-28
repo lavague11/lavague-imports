@@ -3,35 +3,26 @@ import { redirect } from "next/navigation";
 
 import { bulkSetActive } from "@/app/admin/actions";
 import { ColumnFilter, type FilterOption } from "@/components/admin/column-filter";
+import { ExportMenu } from "@/components/admin/export-menu";
+import { FilterDrawer } from "@/components/admin/filter-drawer";
 import { VisibilityToggle } from "@/components/admin/visibility-toggle";
-import { Prisma } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/auth";
+import {
+  CUSTOM,
+  MISSING,
+  PAGE_SIZES,
+  buildOrderBy,
+  buildProductWhere,
+  parseProductParams,
+  type SortKey,
+} from "@/lib/admin/product-query";
 import { getCategories, sourceLabel } from "@/lib/catalog";
 import { getPrisma } from "@/lib/db";
 import { formatPriceOrRequest } from "@/lib/utils";
 
-const PAGE_SIZES = [50, 100, 250];
-const DEFAULT_PAGE_SIZE = 100;
-type SortKey = "name" | "source" | "category" | "origin" | "price" | "status";
-const SORT_KEYS: SortKey[] = ["name", "source", "category", "origin", "price", "status"];
-const MISSING = "__missing__";
-const CUSTOM = "__custom__";
-
 const firstValue = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const asList = (v: string | string[] | undefined) =>
   (firstValue(v) || "").split(",").map((s) => s.trim()).filter(Boolean);
-
-function orderByFor(sortKey: SortKey | "", dir: "asc" | "desc"): Prisma.ProductOrderByWithRelationInput[] {
-  switch (sortKey) {
-    case "name": return [{ name: dir }];
-    case "source": return [{ source: dir }, { name: "asc" }];
-    case "category": return [{ category: { name: dir } }, { name: "asc" }];
-    case "origin": return [{ origin: { sort: dir, nulls: "last" } }, { name: "asc" }];
-    case "price": return [{ minPriceCents: { sort: dir, nulls: "last" } }, { name: "asc" }];
-    case "status": return [{ isActive: dir }, { name: "asc" }];
-    default: return [{ isActive: "desc" }, { name: "asc" }];
-  }
-}
 
 export default async function AdminProducts({
   searchParams,
@@ -53,73 +44,9 @@ export default async function AdminProducts({
     if (s) cur[k] = s;
   }
 
-  const search = firstValue(params.q)?.trim() ?? "";
-  const filter = firstValue(params.filter) ?? "";
-  const sources = asList(params.source);
-  const cats = asList(params.category);
-  const origins = asList(params.origin);
-  const statuses = asList(params.status);
-  const price = firstValue(params.price) ?? "";
-  const priceMin = Number(firstValue(params.priceMin));
-  const priceMax = Number(firstValue(params.priceMax));
-  const rawSort = firstValue(params.sort) ?? "";
-  const sortKey: SortKey | "" = SORT_KEYS.includes(rawSort as SortKey) ? (rawSort as SortKey) : "";
-  const dir: "asc" | "desc" = firstValue(params.dir) === "desc" ? "desc" : "asc";
-  const page = Math.max(1, Number(firstValue(params.page)) || 1);
-  const pageSize = PAGE_SIZES.includes(Number(firstValue(params.pageSize)))
-    ? Number(firstValue(params.pageSize))
-    : DEFAULT_PAGE_SIZE;
-
-  // ---- assemble the single server-side query ----
-  const and: Prisma.ProductWhereInput[] = [];
-  if (search) and.push({ name: { contains: search, mode: "insensitive" } });
-
-  if (sources.length) {
-    const named = sources.filter((s) => s !== CUSTOM);
-    const or: Prisma.ProductWhereInput[] = [];
-    if (named.length) or.push({ source: { in: named } });
-    if (sources.includes(CUSTOM)) or.push({ isCustom: true });
-    and.push({ OR: or });
-  }
-  if (cats.length) and.push({ category: { slug: { in: cats } } });
-  if (origins.length) {
-    const named = origins.filter((o) => o !== MISSING);
-    const or: Prisma.ProductWhereInput[] = [];
-    if (named.length) or.push({ origin: { in: named } });
-    if (origins.includes(MISSING)) or.push({ origin: null });
-    and.push({ OR: or });
-  }
-  if (price === "has") and.push({ minPriceCents: { not: null } });
-  else if (price === "request") and.push({ minPriceCents: null });
-  else if (price === "range") {
-    and.push({
-      minPriceCents: {
-        not: null,
-        ...(priceMin ? { gte: Math.round(priceMin * 100) } : {}),
-        ...(priceMax ? { lte: Math.round(priceMax * 100) } : {}),
-      },
-    });
-  }
-  const st = new Set(statuses);
-  if (st.has("visible") && !st.has("hidden")) and.push({ isActive: true });
-  else if (st.has("hidden") && !st.has("visible")) and.push({ isActive: false });
-  if (st.has("retail")) and.push({ retailEnabled: true });
-  if (st.has("wholesale")) and.push({ wholesaleEnabled: true });
-
-  // Quick content chips (kept) compose with the column filters.
-  if (filter === "missing-image") and.push({ imageUrl: null });
-  if (filter === "hidden") and.push({ isActive: false });
-  if (filter === "custom") and.push({ isCustom: true });
-  if (filter === "no-description") {
-    const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(
-      `SELECT id FROM "Product"
-       WHERE btrim(description) = ''
-          OR length(btrim(description)) < 45
-          OR btrim(description) ~* '^[0-9]+([.,][0-9]+)?[[:space:]]*[a-z]{0,10}[[:space:]]*[x×*][[:space:]]*[0-9]+$'`,
-    );
-    and.push({ id: { in: rows.map((r) => r.id) } });
-  }
-  const where: Prisma.ProductWhereInput = and.length ? { AND: and } : {};
+  const parsed = parseProductParams(params);
+  const { q: search, filter, sources, cats, origins, statuses, price, priceMin, priceMax, sortKey, dir, page, pageSize } = parsed;
+  const where = await buildProductWhere(prisma, parsed);
 
   const [categories, sourceGroups, originGroups, customCount, missingOriginCount, total, rows] = await Promise.all([
     getCategories(),
@@ -131,7 +58,7 @@ export default async function AdminProducts({
     prisma.product.findMany({
       where,
       include: { category: true, variants: { orderBy: { position: "asc" }, take: 1 } },
-      orderBy: orderByFor(sortKey, dir),
+      orderBy: buildOrderBy(sortKey, dir),
       take: pageSize,
       skip: (page - 1) * pageSize,
     }),
@@ -241,16 +168,25 @@ export default async function AdminProducts({
             + New Product
           </Link>
         </div>
-        {/* Search preserves all active filters/sort via hidden inputs. */}
-        <form action="/admin/products" className="flex gap-2">
-          {Object.entries(cur)
-            .filter(([k]) => k !== "q" && k !== "page")
-            .map(([k, v]) => (
-              <input key={k} type="hidden" name={k} value={v} />
-            ))}
-          <input name="q" defaultValue={search} placeholder="Search products…" className="h-10 w-56 rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none" />
-          <button className="h-10 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white">Search</button>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search preserves all active filters/sort via hidden inputs. */}
+          <form action="/admin/products" className="flex gap-2">
+            {Object.entries(cur)
+              .filter(([k]) => k !== "q" && k !== "page")
+              .map(([k, v]) => (
+                <input key={k} type="hidden" name={k} value={v} />
+              ))}
+            <input name="q" defaultValue={search} placeholder="Search products…" className="h-10 w-44 rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none sm:w-56" />
+            <button className="h-10 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white">Search</button>
+          </form>
+          <FilterDrawer
+            sourceOptions={sourceOptions}
+            categoryOptions={categoryOptions}
+            originOptions={originOptions}
+            statusOptions={statusOptions}
+          />
+          <ExportMenu />
+        </div>
       </div>
 
       {/* Quick content chips */}
