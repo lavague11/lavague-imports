@@ -69,12 +69,7 @@ export function Footer() {
           <p>
             © {new Date().getFullYear()} {site.name}. All rights reserved.
           </p>
-          <div className="flex items-center gap-4">
-            <p>Importer &amp; wholesale distributor · New York &amp; New Jersey</p>
-            <Link href="/admin/login" className="hover:text-olive-900 hover:underline">
-              Sign in
-            </Link>
-          </div>
+          <p>Importer &amp; wholesale distributor · New York &amp; New Jersey</p>
         </Container>
       </div>
     </footer>

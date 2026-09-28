@@ -62,6 +62,12 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/admin/login"
+              className="hidden rounded-full px-3 py-2 text-sm font-medium text-olive-700 transition-colors hover:bg-olive-50 hover:text-olive-900 sm:inline-flex"
+            >
+              Sign in
+            </Link>
             <QuoteCartButton />
             <button
               type="button"
@@ -100,6 +106,13 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+            <Link
+              href="/admin/login"
+              onClick={() => setIsMenuOpen(false)}
+              className="mt-1 border-t border-olive-100 px-2 pt-3 pb-3 text-sm font-medium text-olive-700 hover:bg-olive-50"
+            >
+              Sign in
+            </Link>
           </Container>
         </nav>
       ) : null}
