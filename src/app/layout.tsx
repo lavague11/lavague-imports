@@ -4,6 +4,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
+import { StorefrontChrome } from "@/components/layout/storefront-chrome";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -58,17 +59,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-white">
         <CartProvider>
-          <a
-            href="#main"
-            className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-olive-900 focus:px-4 focus:py-2 focus:text-sm focus:text-white"
-          >
-            Skip to content
-          </a>
-          <Header />
-          <main id="main" className="flex-1">
+          <StorefrontChrome header={<Header />} footer={<Footer />}>
             {children}
-          </main>
-          <Footer />
+          </StorefrontChrome>
         </CartProvider>
       </body>
     </html>

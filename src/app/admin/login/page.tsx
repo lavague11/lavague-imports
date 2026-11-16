@@ -5,7 +5,7 @@ import { googleOAuthConfigured } from "@/lib/integrations";
 
 const ERRORS: Record<string, string> = {
   invalid: "Incorrect email or password.",
-  db: "Sign-in is unavailable — is the database connected?",
+  db: "We couldn't reach the account database just now. This is on our side — wait a moment and try again. If it keeps happening, sign in with Google above (that path doesn't need the database).",
   "not-allowed": "That Google account isn't on the admin list.",
 };
 
