@@ -30,3 +30,18 @@ Branch: `accounts-fixes`. Mobile-first (390 / 430 / 1440).
 
 - **No production deploy from this run.** Changes are committed to `accounts-fixes` only.
   A production deploy waits until the verifier checklist in the spec passes end to end.
+
+- **Durable database → Supabase (resolved the `temp-database` blocker).** Created a free
+  Supabase project `lavague-imports` (org `lavague11`, ref `exkthnolisxqnnmyahbx`, us-east-1).
+  Applied the full Prisma schema (all 39 models, including the previously-unmigrated CRM
+  tables) and migrated all 9,106 rows from Neon (Products, variants, categories, admin users
+  + sessions, overrides, thumbs, etc.) with row counts verified equal on both sides.
+  - The Supabase management role isn't a superuser (can't set the `postgres` password), so
+    the app connects as a dedicated role **`lavague_app`** created with a known password,
+    owning the `public` schema. Connection string lives only in the gitignored `.env`.
+  - Node doesn't bundle Supabase's SSL chain, so `db.ts` honors `DATABASE_SSL_NO_VERIFY=true`
+    (TLS stays on; chain verification is skipped). Set both `DATABASE_URL` and that flag.
+  - **Prod deploy step:** set `DATABASE_URL` (Supabase) + `DATABASE_SSL_NO_VERIFY=true` in
+    the Hostinger environment. The old Neon URL is kept commented in `.env` as a fallback.
+  - Helper scripts committed: `supabase-run-sql.mjs`, `supabase-copy-data.mjs`,
+    `table-counts.mjs` (all read secrets from env, none hardcoded).

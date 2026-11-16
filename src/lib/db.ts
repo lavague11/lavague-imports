@@ -15,8 +15,13 @@ export function getPrisma(): PrismaClient | null {
   if (!isDatabaseConfigured) return null;
 
   if (!globalForPrisma.prisma) {
+    // Supabase (and some managed Postgres) present a cert chain Node doesn't
+    // bundle. Set DATABASE_SSL_NO_VERIFY=true to keep TLS encryption but skip
+    // chain verification. The connection is still encrypted.
+    const noVerify = process.env.DATABASE_SSL_NO_VERIFY === "true";
     const adapter = new PrismaPg({
       connectionString: process.env.DATABASE_URL!,
+      ...(noVerify ? { ssl: { rejectUnauthorized: false } } : {}),
     });
     globalForPrisma.prisma = new PrismaClient({ adapter });
   }

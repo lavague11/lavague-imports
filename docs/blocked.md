@@ -22,11 +22,10 @@ needed to unblock. Nothing here is faked or stubbed as "done".
 
 ## Infrastructure
 
-- [ ] **Durable Postgres.** Memory note (`temp-database`) flags anonymous create-db
-  instances failing; a Supabase MCP + Prisma Postgres MCP are now attached to this session.
-  Decision needed: keep Neon (current `DATABASE_URL`) or migrate to a managed Supabase/
-  Prisma Postgres project. Logged for a deliberate call before the invoicing module (M)
-  lands, since it adds the heaviest write load.
+- [x] **Durable Postgres — RESOLVED (2026-11-16).** Migrated to a durable Supabase project
+  `lavague-imports` (ref `exkthnolisxqnnmyahbx`). Full schema applied, all 9,106 rows copied
+  from Neon, counts verified. App runs on it locally. See `docs/decisions.md`. Remaining
+  action is deploy-time only: set `DATABASE_URL` + `DATABASE_SSL_NO_VERIFY=true` on Hostinger.
 
 - [ ] **Hostinger CDN purge** (carried over). One-time purge needed so the CDN stops
   serving year-cached HTML pointing at rotated `/_next` assets. Revalidate headers are in
