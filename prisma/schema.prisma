@@ -1146,3 +1146,53 @@ model AccountActivity {
   @@index([accountId])
   @@index([createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Customer accounts (storefront sign-in). Distinct from AdminUser (staff).
+// A customer is CUSTOMER until their wholesale application is approved, then
+// WHOLESALE. Admins sign in with their AdminUser; the unified /login routes
+// each identity to the right place.
+// ---------------------------------------------------------------------------
+
+enum CustomerRole {
+  CUSTOMER
+  WHOLESALE
+}
+
+model Customer {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  /// Null for Google-only accounts (no password set yet).
+  passwordHash  String?
+  name          String?
+  role          CustomerRole @default(CUSTOMER)
+  /// Google "sub" claim, set when the account is linked to Google sign-in.
+  googleSub     String?      @unique
+  emailVerified DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  sessions    CustomerSession[]
+  resetTokens PasswordResetToken[]
+}
+
+model CustomerSession {
+  token      String   @id
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model PasswordResetToken {
+  token      String    @id
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId])
+}

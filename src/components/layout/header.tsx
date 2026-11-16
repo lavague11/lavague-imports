@@ -63,7 +63,7 @@ export function Header() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/admin/login"
+              href="/login"
               className="hidden rounded-full px-3 py-2 text-sm font-medium text-olive-700 transition-colors hover:bg-olive-50 hover:text-olive-900 sm:inline-flex"
             >
               Sign in
@@ -107,7 +107,7 @@ export function Header() {
               </Link>
             ))}
             <Link
-              href="/admin/login"
+              href="/login"
               onClick={() => setIsMenuOpen(false)}
               className="mt-1 border-t border-olive-100 px-2 pt-3 pb-3 text-sm font-medium text-olive-700 hover:bg-olive-50"
             >

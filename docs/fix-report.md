@@ -12,9 +12,10 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 | Sec | Title | Status |
 |-----|-------|--------|
 | A | DB connection / `?error=db` | ✅ Done (cause fixed; clearer message shipped) |
-| B | One `/login` for everyone (Google + email/pw + create + forgot) | ⛔ Not started — keystone, see below |
-| C | Password reset via sales@ SMTP, 30-min links | 🔒 Blocked (SMTP creds) |
-| D | Server-enforced roles Customer/Wholesale/Admin | 🟡 Partial (admin roles enforced; customer roles need B) |
+| — | Durable DB → Supabase | ✅ Done & verified (9,106 rows migrated) |
+| B | One `/login` for everyone (email/pw + create + forgot) | ✅ Done & verified (Google pending OAuth creds) |
+| C | Password reset, 30-min one-time links | 🟡 Built & verified; email send 🔒 blocked (SMTP) |
+| D | Server-enforced roles Customer/Wholesale/Admin | 🟡 Partial (admin + customer roles + gates in; wholesale promotion needs E) |
 | E | Wholesale application flow | 🟡 Partial (public form exists; account creation needs B/D) |
 | F | Google Places business autocomplete | 🔒 Blocked (Places API key) |
 | G | $500 wholesale minimum as order request | ⛔ Not started (needs L) |
@@ -50,23 +51,37 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 - **Q — products list.** Inline Status dropdown (replaces the toggle), "Showing X of Y"
   removed (total moved quietly to the footer), header normalized to one 40px toolbar row.
 
-## The keystone: Section B (one `/login` + customer accounts)
+## Section B — customer accounts (DONE & verified this run)
 
-Almost everything not-yet-started depends on a **customer account system that does not exist
-yet** — today the app has only admin auth (DB sessions + a Google-session cookie). B unblocks
-D (customer roles), E (application → account), I (customers page), L (ordering), O (portal).
+The keystone is in. Built on the new Supabase DB:
 
-Recommended next run, in order:
-1. **Customer model + migration** — `Customer` (email, passwordHash, role
-   CUSTOMER|WHOLESALE, name, verified) + `CustomerSession`. Additive migration via a pg
-   script (the pattern that worked for A/K).
-2. **`/login`** — one page for everyone: email/password, create account, Google button,
-   "forgot password" link. Reuse the admin login's POST-redirect pattern (works on Hostinger).
-3. **Role gate** — `getCustomer()` + middleware; wholesale pages require role WHOLESALE.
-4. Point the header "Sign in" at `/login`; admins get an "Admin" link in the account menu.
+- **Model + migration.** `Customer` (email, nullable passwordHash, name, role
+  CUSTOMER|WHOLESALE, googleSub, emailVerified) + `CustomerSession` +
+  `PasswordResetToken`. Additive, idempotent migration (`scripts/migrations/001_…sql`),
+  Prisma client regenerated.
+- **Auth lib** `src/lib/customer-auth.ts` — scrypt-hashed passwords (reused from admin
+  auth), 30-day httpOnly sessions, `getCustomer()` / `requireCustomer()` /
+  `requireWholesale()` role gates.
+- **Unified `/login`** — one page for everyone: email/password sign-in, create-account
+  mode, forgot-password link, Google button (renders only when OAuth is configured).
+  `/login/submit` routes an admin email to `/admin` and a customer to their `next`.
+  Full-page POST → 303 (the Hostinger-safe pattern), never a Server Action.
+- **`/signup/submit`**, **`/account`** (role-aware landing), **`/logout`**.
+- **Password reset** (`/forgot` + `/reset`) — single-use, 30-minute tokens, no account
+  enumeration. Email send uses the existing mail lib; **until sales@ SMTP creds land it
+  logs the reset link server-side** instead of sending (see `docs/blocked.md`).
+- Header "Sign in" now points at `/login` (desktop + mobile).
 
-Then C (reset emails) and F (Places) drop in once their credentials land — see
-`docs/blocked.md`.
+**Verified in the running app:** signup creates the customer (name auto-capitalized
+server-side) and session → `/account`; logout clears it and `/account` is gated; sign-in
+works; reset issues a valid token, the reset page accepts it, the new password works and
+the old one is rejected, and the token is consumed. Test customer removed afterward.
+
+### What still needs B's neighbors
+- **Google on `/login`** — button is wired but hidden until `GOOGLE_CLIENT_ID/SECRET` land
+  and a customer OAuth callback is added (admin Google path already exists). (blocked)
+- **D (roles) completion** — a customer becomes WHOLESALE when their application is
+  approved (Section E). The gate (`requireWholesale`) and role column are ready.
 
 ## Blocked (in `docs/blocked.md`)
 
