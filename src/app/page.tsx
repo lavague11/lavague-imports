@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Leaf, PackageCheck, Ship, Store } from "lucide-react";
+import { ArrowRight, Leaf, PackageCheck, Ship, Store } from "lucide-react";
 
 import { ProductCard } from "@/components/catalog/product-card";
 import { buttonClasses } from "@/components/ui/button";
@@ -43,20 +43,25 @@ export default async function HomePage() {
     <>
       {/* Hero */}
       <section className="border-b border-olive-100 bg-gradient-to-b from-olive-50 to-white">
-        <Container className="py-16 text-center lg:py-20">
+        <Container className="py-12 text-center lg:py-14">
           <p className="eyebrow">{site.tagline}</p>
           <h1 className="mx-auto mt-4 max-w-3xl text-4xl leading-[1.1] text-olive-900 sm:text-5xl lg:text-6xl">
             Bringing international tastes to the States.
           </h1>
-          <p className="mx-auto mt-6 max-w-md text-base leading-relaxed text-olive-600">
-            Specialty foods, imported direct — from {countries.length} countries to your shelf.
+          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-olive-600 sm:text-lg">
+            Moroccan olive oil, North African sodas, Mediterranean pantry staples, and
+            hard-to-find imports — bought direct at the source.
           </p>
-          <div className="mt-8 flex justify-center">
-            <Link href="/shop" className={buttonClasses({ size: "lg" })}>
+          <div className="mt-7 flex justify-center">
+            <Link
+              href="/shop"
+              className={buttonClasses({ size: "lg", className: "group shadow-sm transition-shadow hover:shadow-md" })}
+            >
               Shop all
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
             </Link>
           </div>
-          <div className="mt-12 lg:mt-14">
+          <div className="mt-8 lg:mt-9">
             <Image
               src="/home-hero.webp"
               alt="A spread of La Vague Imports products — Moroccan El Ouazzania olive oil, pitted green olives, Dalia spaghetti and couscous, Sultan tea with a silver tea service, a hand-painted tagine, and North African sodas."
@@ -67,6 +72,19 @@ export default async function HomePage() {
               className="h-auto w-full rounded-card border border-olive-100 shadow-sm"
             />
           </div>
+        </Container>
+      </section>
+
+      {/* Trust strip */}
+      <section className="border-b border-olive-100 bg-white">
+        <Container className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 py-3.5 text-center text-xs font-medium text-olive-600 sm:text-sm">
+          <span>Imported direct — no middleman</span>
+          <span className="text-olive-300" aria-hidden="true">·</span>
+          <span>Free shipping on every order</span>
+          <span className="text-olive-300" aria-hidden="true">·</span>
+          <span>Same-week delivery across NY &amp; NJ</span>
+          <span className="text-olive-300" aria-hidden="true">·</span>
+          <span>Wholesale pricing for the trade</span>
         </Container>
       </section>
 
