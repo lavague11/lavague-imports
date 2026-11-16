@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Leaf, PackageCheck, Ship, Store } from "lucide-react";
 
@@ -42,7 +43,7 @@ export default async function HomePage() {
     <>
       {/* Hero */}
       <section className="border-b border-olive-100 bg-gradient-to-b from-olive-50 to-white">
-        <Container className="py-20 text-center lg:py-28">
+        <Container className="py-16 text-center lg:py-20">
           <p className="eyebrow">{site.tagline}</p>
           <h1 className="mx-auto mt-4 max-w-3xl text-4xl leading-[1.1] text-olive-900 sm:text-5xl lg:text-6xl">
             Bringing international tastes to the States.
@@ -54,6 +55,17 @@ export default async function HomePage() {
             <Link href="/shop" className={buttonClasses({ size: "lg" })}>
               Shop all
             </Link>
+          </div>
+          <div className="mt-12 lg:mt-14">
+            <Image
+              src="/home-hero.webp"
+              alt="A spread of La Vague Imports products — Moroccan El Ouazzania olive oil, pitted green olives, Dalia spaghetti and couscous, Sultan tea with a silver tea service, a hand-painted tagine, and North African sodas."
+              width={1916}
+              height={821}
+              priority
+              sizes="(min-width: 1152px) 1088px, 100vw"
+              className="h-auto w-full rounded-card border border-olive-100 shadow-sm"
+            />
           </div>
         </Container>
       </section>
