@@ -33,6 +33,20 @@ export const metadata: Metadata = {
     siteName: site.name,
     title: `${site.name} — ${site.tagline}`,
     description: site.description,
+    images: [
+      {
+        url: "/social-share.webp",
+        width: 1200,
+        height: 514,
+        alt: `${site.name} — a spread of Moroccan olive oil, olives, pasta, tea and North African sodas`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${site.name} — ${site.tagline}`,
+    description: site.description,
+    images: ["/social-share.webp"],
   },
 };
 
