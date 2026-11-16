@@ -5,7 +5,7 @@ import { bulkSetActive } from "@/app/admin/actions";
 import { ColumnFilter, type FilterOption } from "@/components/admin/column-filter";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { FilterDrawer } from "@/components/admin/filter-drawer";
-import { VisibilityToggle } from "@/components/admin/visibility-toggle";
+import { StatusSelect } from "@/components/admin/status-select";
 import { getCurrentUser } from "@/lib/auth";
 import {
   CUSTOM,
@@ -156,15 +156,12 @@ export default async function AdminProducts({
     return `/admin/products?${p.toString()}`;
   };
 
-  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const end = Math.min(total, page * pageSize);
-
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl text-olive-900">Products</h1>
-          <Link href="/admin/products/new" className="rounded-lg bg-olive-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-olive-800">
+          <Link href="/admin/products/new" className="inline-flex h-10 items-center rounded-lg bg-olive-900 px-3.5 text-sm font-medium text-white hover:bg-olive-800">
             + New Product
           </Link>
         </div>
@@ -216,11 +213,7 @@ export default async function AdminProducts({
         </div>
       ) : null}
 
-      <p className="mt-4 text-sm text-olive-600">
-        {total === 0 ? "No products match" : `Showing ${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}`}
-      </p>
-
-      <form id="bulk" action={bulkSetActive} className="mt-3 mb-2 flex items-center gap-2 text-sm">
+      <form id="bulk" action={bulkSetActive} className="mt-4 mb-2 flex items-center gap-2 text-sm">
         <span className="text-olive-600">With selected:</span>
         <button name="action" value="show" className="rounded-md border border-olive-300 px-3 py-1 hover:bg-olive-50">Show</button>
         <button name="action" value="hide" className="rounded-md border border-olive-300 px-3 py-1 hover:bg-olive-50">Hide</button>
@@ -274,7 +267,7 @@ export default async function AdminProducts({
                     <td className="p-3 text-olive-600">{p.category.name}</td>
                     <td className="p-3 text-olive-600">{p.origin ?? "—"}</td>
                     <td className="p-3 text-olive-700">{formatPriceOrRequest(price)}</td>
-                    <td className="p-3"><VisibilityToggle slug={p.slug} active={p.isActive} /></td>
+                    <td className="p-3"><StatusSelect slug={p.slug} active={p.isActive} /></td>
                     <td className="p-3 text-right"><Link href={`/admin/products/${p.slug}`} className="text-olive-700 hover:underline">Edit</Link></td>
                   </tr>
                 );
@@ -287,6 +280,8 @@ export default async function AdminProducts({
       {/* Pagination + page-size */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-olive-600">
+          <span className="text-olive-500">{total.toLocaleString()} total</span>
+          <span className="text-olive-200" aria-hidden="true">·</span>
           Rows:
           {PAGE_SIZES.map((s) => (
             <Link key={s} href={sizeHref(s)} className={`rounded px-1.5 py-0.5 ${s === pageSize ? "bg-olive-900 text-white" : "hover:bg-olive-100"}`}>
