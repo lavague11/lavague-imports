@@ -7,6 +7,7 @@ import { CircleCheckBig } from "lucide-react";
 import { submitWholesaleApplication } from "@/app/actions/wholesale";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { capitalizeNameOnBlur } from "@/lib/capitalize";
 import { idleFormState } from "@/lib/form";
 import { site } from "@/lib/site";
 import {
@@ -62,6 +63,7 @@ export function WholesaleForm() {
               id="businessName"
               name="businessName"
               autoComplete="organization"
+              onBlur={capitalizeNameOnBlur}
               required
             />
           </Field>
@@ -92,6 +94,7 @@ export function WholesaleForm() {
               id="contactName"
               name="contactName"
               autoComplete="name"
+              onBlur={capitalizeNameOnBlur}
               required
             />
           </Field>

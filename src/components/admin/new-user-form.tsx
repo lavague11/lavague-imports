@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { createUser } from "@/app/admin/actions";
+import { capitalizeNameOnBlur } from "@/lib/capitalize";
 import { idleFormState } from "@/lib/form";
 
 const inputClass =
@@ -29,7 +30,7 @@ export function NewUserForm() {
         </div>
         <div>
           <label htmlFor="name" className="mb-1 block text-sm font-medium text-olive-800">Name</label>
-          <input id="name" name="name" className={inputClass} />
+          <input id="name" name="name" onBlur={capitalizeNameOnBlur} className={inputClass} />
         </div>
         <div>
           <label htmlFor="password" className="mb-1 block text-sm font-medium text-olive-800">Password * (8+ chars)</label>

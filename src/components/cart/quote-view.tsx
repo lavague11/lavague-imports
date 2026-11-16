@@ -9,6 +9,7 @@ import { submitQuoteRequest } from "@/app/actions/quote";
 import { useCart } from "@/components/cart/cart-provider";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { capitalizeNameOnBlur } from "@/lib/capitalize";
 import { idleFormState } from "@/lib/form";
 import { site } from "@/lib/site";
 import { formatPrice } from "@/lib/utils";
@@ -184,7 +185,7 @@ export function QuoteView() {
               required
               error={state.status === "error" ? state.fieldErrors?.name : undefined}
             >
-              <Input id="name" name="name" autoComplete="name" required />
+              <Input id="name" name="name" autoComplete="name" onBlur={capitalizeNameOnBlur} required />
             </Field>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -207,7 +208,7 @@ export function QuoteView() {
             </div>
 
             <Field label="Business name" htmlFor="company" hint="Leave blank if this is a personal order">
-              <Input id="company" name="company" autoComplete="organization" />
+              <Input id="company" name="company" autoComplete="organization" onBlur={capitalizeNameOnBlur} />
             </Field>
 
             <fieldset className="grid gap-5 sm:grid-cols-3">

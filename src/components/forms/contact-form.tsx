@@ -7,6 +7,7 @@ import { CircleCheckBig } from "lucide-react";
 import { submitContactMessage } from "@/app/actions/contact";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { capitalizeNameOnBlur } from "@/lib/capitalize";
 import { idleFormState } from "@/lib/form";
 
 const TOPICS = [
@@ -51,7 +52,7 @@ export function ContactForm() {
       <div className="space-y-5">
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Name" htmlFor="name" required error={errorFor("name")}>
-            <Input id="name" name="name" autoComplete="name" required />
+            <Input id="name" name="name" autoComplete="name" onBlur={capitalizeNameOnBlur} required />
           </Field>
           <Field label="Email" htmlFor="email" required error={errorFor("email")}>
             <Input
