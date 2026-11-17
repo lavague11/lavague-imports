@@ -134,8 +134,12 @@ export default async function AdminCustomers({
               </thead>
               <tbody>
                 {customers.map((c) => (
-                  <tr key={c.id} className="border-b border-olive-50 last:border-0 align-top">
-                    <td className="p-3 font-medium text-olive-900">{c.businessName || c.name || "—"}</td>
+                  <tr key={c.id} className="border-b border-olive-50 last:border-0 align-top hover:bg-olive-50/40">
+                    <td className="p-3 font-medium">
+                      <Link href={`/admin/customers/${c.id}`} className="text-olive-900 hover:underline">
+                        {c.businessName || c.name || "—"}
+                      </Link>
+                    </td>
                     <td className="p-3 text-olive-700">{c.businessName && c.name ? c.name : "—"}</td>
                     <td className="p-3 break-all text-olive-700">{c.email}</td>
                     <td className="p-3 whitespace-nowrap text-olive-700">{c.phone || "—"}</td>
@@ -150,7 +154,11 @@ export default async function AdminCustomers({
           {/* Mobile cards */}
           <div className="mt-5 grid gap-3 md:hidden">
             {customers.map((c) => (
-              <div key={c.id} className="rounded-xl border border-olive-100 bg-white p-4">
+              <Link
+                key={c.id}
+                href={`/admin/customers/${c.id}`}
+                className="block rounded-xl border border-olive-100 bg-white p-4 hover:border-olive-300"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-olive-900">{c.businessName || c.name || "—"}</p>
                   <RoleBadge role={c.role} blocked={c.blocked} />
@@ -159,7 +167,7 @@ export default async function AdminCustomers({
                 <p className="mt-1 text-sm break-all text-olive-700">{c.email}</p>
                 {c.phone ? <p className="text-sm text-olive-700">{c.phone}</p> : null}
                 {c.address ? <p className="mt-1 text-sm text-olive-500">{c.address}</p> : null}
-              </div>
+              </Link>
             ))}
           </div>
 

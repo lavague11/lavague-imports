@@ -1195,8 +1195,22 @@ model Customer {
   sessions     CustomerSession[]
   resetTokens  PasswordResetToken[]
   applications WholesaleApplication[]
+  audits       CustomerAudit[]
 
   @@index([role])
+}
+
+/// Admin change log for a customer — "who changed what", shown on the detail page.
+model CustomerAudit {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// Admin email who made the change.
+  actor     String
+  summary   String
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
 }
 
 model CustomerSession {

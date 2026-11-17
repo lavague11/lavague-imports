@@ -15,6 +15,7 @@ import {
   setProductPricing,
   type VariantPack,
 } from "@/lib/admin/products";
+import { titleCaseName } from "@/lib/capitalize";
 import { requirePrisma } from "@/lib/db";
 import { type FormState } from "@/lib/form";
 import { sendEmail, wholesaleDecisionEmail } from "@/lib/mail";
@@ -266,4 +267,76 @@ export async function reviewApplication(fd: FormData): Promise<void> {
 
   revalidatePath("/admin/wholesale");
   revalidatePath("/account");
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Edit one customer (Section I detail). Server-enforced admin. Capitalizes names,
+ * records a diff of what changed to CustomerAudit, and revalidates.
+ */
+export async function updateCustomer(_prev: FormState, fd: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const id = str(fd, "id");
+  if (!id) return { status: "error", message: "Missing customer id." };
+
+  const email = str(fd, "email").toLowerCase();
+  if (!EMAIL_RE.test(email)) {
+    return { status: "error", message: "Enter a valid email address.", fieldErrors: { email: "Invalid email." } };
+  }
+  const rawName = str(fd, "name");
+  const rawBiz = str(fd, "businessName");
+  const next = {
+    email,
+    name: rawName ? titleCaseName(rawName) : null,
+    businessName: rawBiz ? titleCaseName(rawBiz) : null,
+    phone: optStr(fd, "phone"),
+    address: optStr(fd, "address"),
+    notes: optStr(fd, "notes"),
+    role: (str(fd, "role") === "WHOLESALE" ? "WHOLESALE" : "CUSTOMER") as "WHOLESALE" | "CUSTOMER",
+    blocked: fd.get("blocked") === "on" || fd.get("blocked") === "true",
+  };
+
+  const prisma = requirePrisma();
+  const current = await prisma.customer.findUnique({ where: { id } });
+  if (!current) return { status: "error", message: "Customer not found." };
+
+  // Build a human diff for the audit log.
+  const changes: string[] = [];
+  const cmp = (label: string, before: unknown, after: unknown) => {
+    const b = before ?? "", a = after ?? "";
+    if (String(b) !== String(a)) changes.push(`${label}: “${b || "—"}” → “${a || "—"}”`);
+  };
+  cmp("Email", current.email, next.email);
+  cmp("Name", current.name, next.name);
+  cmp("Business", current.businessName, next.businessName);
+  cmp("Phone", current.phone, next.phone);
+  cmp("Address", current.address, next.address);
+  cmp("Role", current.role, next.role);
+  cmp("Blocked", current.blocked ? "yes" : "no", next.blocked ? "yes" : "no");
+  cmp("Notes", current.notes, next.notes);
+
+  if (changes.length === 0) {
+    return { status: "success", message: "No changes to save.", reference: id };
+  }
+
+  try {
+    await prisma.$transaction([
+      prisma.customer.update({ where: { id }, data: next }),
+      prisma.customerAudit.create({
+        data: { customerId: id, actor: admin.email, summary: changes.join(" · ") },
+      }),
+    ]);
+  } catch {
+    return {
+      status: "error",
+      message: "Couldn't save — that email may already be in use by another account.",
+      fieldErrors: { email: "Email already in use." },
+    };
+  }
+
+  revalidatePath(`/admin/customers/${id}`);
+  revalidatePath("/admin/customers");
+  revalidatePath("/account");
+  return { status: "success", message: "Saved.", reference: id };
 }

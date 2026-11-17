@@ -20,7 +20,7 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 | F | Google Places business autocomplete | 🔒 Blocked (Places API key) |
 | G | $500 wholesale minimum as order request | ⛔ Not started (needs L) |
 | H | One admin bar (hide store header on /admin) | ✅ Done & verified (nav finalized: Dashboard·Products·Orders·Customers·More) |
-| I | Customers page (replace "In progress") | 🟡 List + retail/wholesale toggle + search + CSV import done; detail/edit pending |
+| I | Customers page (replace "In progress") | ✅ Done & verified (list+toggle+search+import, detail/edit + audit log); pricing-tier/multi-address deferred |
 | J | Sample data script | ⛔ Not started (needs CRM tables) |
 | K | Remove demo admin admin@lavagueimports.com | ✅ Done & verified |
 | L | Wholesale ordering, no prices shown, reorder | ⛔ Not started (needs B/D) |
@@ -111,8 +111,14 @@ the old one is rejected, and the token is consumed. Test customer removed afterw
   (`scripts/import-wholesale-customers.mjs`, idempotent upsert on email, "(UC)/Not found"
   address markers cleaned). All now show as role WHOLESALE. The CSV holds customer PII and
   is intentionally **not** committed to the repo.
-- **Still to come for I:** customer detail page with edit (role/notes/block, addresses,
-  pricing tier) + change audit log, and the applicant "Request more info" action.
+- **Detail / edit screen (done):** `/admin/customers/[id]` — edit business, contact,
+  email, phone, address, role, **block**, and internal notes (names auto-capitalized).
+  Role/block changes ask for confirmation. Every save writes a **diff to `CustomerAudit`**
+  ("who changed what", shown as Change history on the page). Email-uniqueness guarded.
+  Also shows the customer's wholesale-application history. Verified: edited phone+notes →
+  audit recorded `sales@…` with the before→after diff; real row restored afterward.
+- **Deferred for I:** pricing-tier assignment and multiple saved addresses (depend on the
+  pricing/CRM wiring in L/M), and the applicant "Request more info" action.
 
 ## Blocked (in `docs/blocked.md`)
 
