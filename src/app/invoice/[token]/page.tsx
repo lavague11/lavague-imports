@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import { Download } from "lucide-react";
+import { CheckCircle2, Download } from "lucide-react";
 
-import { SignatureForm } from "@/components/invoice/signature-pad";
+import { SignInvoice } from "@/components/invoice/sign-invoice";
 import { composeAddress } from "@/lib/address";
 import { getPrisma } from "@/lib/db";
 import { invoiceDisplay } from "@/lib/invoice";
@@ -129,40 +129,49 @@ export default async function PublicInvoice({
         </div>
       </div>
 
-      {/* Payment + acceptance */}
-      {!isVoid ? (
-        <div className="mt-5 grid gap-5">
+      {/* Accept / sign — the primary action, right under the invoice. */}
+      {isVoid ? (
+        <div className="mt-5 rounded-2xl border border-olive-200 bg-olive-50 p-6 text-sm text-olive-600">
+          This invoice has been voided. Please contact {site.email} with any questions.
+        </div>
+      ) : (
+        <>
+          <div className="mt-5 rounded-2xl border border-olive-100 bg-white p-6">
+            {invoice.signedAt ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="inline-flex items-center gap-2 text-sm text-olive-800">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+                  <span>Accepted by <strong>{invoice.signerName}</strong> on {dateTimeFmt(invoice.signedAt)}.</span>
+                </p>
+                <a href={`/invoice/${token}/pdf`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-olive-200 px-4 py-2 text-sm font-medium text-olive-700 hover:bg-olive-50">
+                  <Download className="h-4 w-4" /> Download signed PDF
+                </a>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="font-display text-lg text-olive-900">Accept this invoice</h2>
+                  <p className="mt-0.5 text-sm text-olive-600">Review it and add your signature.</p>
+                </div>
+                <SignInvoice pdfUrl={`/invoice/${token}/pdf`} action={`/invoice/${token}/sign`} defaultName={c.name || c.businessName || ""} />
+              </div>
+            )}
+          </div>
+
+          {/* How to pay — at the very bottom. */}
           {balance > 0 ? (
-            <div className="rounded-2xl border border-olive-100 bg-white p-6">
+            <div className="mt-5 rounded-2xl border border-olive-100 bg-white p-6">
               <h2 className="font-display text-lg text-olive-900">How to pay</h2>
               <p className="mt-1 text-sm text-olive-600">
                 Remit <strong>{formatPrice(balance)}</strong> by check or ACH, payable to {site.name}. Mail checks to {fullAddress}. Questions? Email {site.email}.
               </p>
             </div>
           ) : (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6 text-sm text-emerald-800">
+            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6 text-sm text-emerald-800">
               This invoice is paid in full. Thank you!
             </div>
           )}
-
-          <div className="rounded-2xl border border-olive-100 bg-white p-6">
-            <h2 className="font-display text-lg text-olive-900">Accept this invoice</h2>
-            {invoice.signedAt ? (
-              <p className="mt-2 text-sm text-olive-700">
-                Accepted by <strong>{invoice.signerName}</strong> on {dateTimeFmt(invoice.signedAt)}.
-              </p>
-            ) : (
-              <>
-                <p className="mt-1 mb-4 text-sm text-olive-600">Confirm the details above are correct by signing below.</p>
-                <SignatureForm action={`/invoice/${token}/sign`} defaultName={c.name || c.businessName || ""} />
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="mt-5 rounded-2xl border border-olive-200 bg-olive-50 p-6 text-sm text-olive-600">
-          This invoice has been voided. Please contact {site.email} with any questions.
-        </div>
+        </>
       )}
     </div>
   );

@@ -45,6 +45,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     notes: invoice.notes,
     signerName: invoice.signerName,
     signedAt: invoice.signedAt,
+    signatureData: invoice.signatureData,
   });
 
   return new NextResponse(Buffer.from(bytes), {

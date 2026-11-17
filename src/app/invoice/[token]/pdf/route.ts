@@ -38,6 +38,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     notes: invoice.notes,
     signerName: invoice.signerName,
     signedAt: invoice.signedAt,
+    signatureData: invoice.signatureData,
   });
 
   return new NextResponse(Buffer.from(bytes), {

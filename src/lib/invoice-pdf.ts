@@ -33,6 +33,8 @@ export interface InvoicePdfData {
   notes: string | null;
   signerName: string | null;
   signedAt: Date | null;
+  /// PNG/JPEG data-URL of the drawn signature, embedded on the signature line.
+  signatureData: string | null;
 }
 
 const OLIVE = rgb(0.227, 0.247, 0.153);
@@ -178,11 +180,29 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
     }
   }
 
-  // Signature
+  // Signature block — a signature line + date line near the bottom of the page.
+  const lineY = 140;
+  page.drawLine({ start: { x: M, y: lineY }, end: { x: 260, y: lineY }, thickness: 0.8, color: LINE });
+  text("Signature", M, lineY - 12, { size: 8, font: bold, color: MUTED });
+  page.drawLine({ start: { x: 320, y: lineY }, end: { x: right, y: lineY }, thickness: 0.8, color: LINE });
+  text("Date", 320, lineY - 12, { size: 8, font: bold, color: MUTED });
+
   if (inv.signerName && inv.signedAt) {
-    y -= 14;
-    text(`Accepted by ${inv.signerName} on ${fmtDate(inv.signedAt)}`, M, y, { size: 9, font: bold, color: OLIVE });
-    y -= 12;
+    let placed = false;
+    const d = inv.signatureData;
+    if (d && d.startsWith("data:image")) {
+      try {
+        const png = d.includes("image/png") ? await doc.embedPng(d) : await doc.embedJpg(d);
+        const scale = Math.min(190 / png.width, 48 / png.height, 1);
+        page.drawImage(png, { x: M + 2, y: lineY + 4, width: png.width * scale, height: png.height * scale });
+        placed = true;
+      } catch {
+        /* unreadable signature image — fall back to the typed name */
+      }
+    }
+    if (!placed) text(inv.signerName, M + 4, lineY + 8, { size: 15, font: bold, color: OLIVE });
+    text(fmtDate(inv.signedAt), 324, lineY + 6, { size: 10 });
+    text(`Accepted electronically by ${inv.signerName} on ${fmtDate(inv.signedAt)}.`, M, lineY - 26, { size: 8, color: MUTED });
   }
 
   // Footer
