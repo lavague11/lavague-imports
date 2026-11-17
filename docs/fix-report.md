@@ -20,7 +20,7 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 | F | Google Places business autocomplete | 🔒 Blocked (Places API key) |
 | G | $500 wholesale minimum as order request | ⛔ Not started (needs L) |
 | H | One admin bar (hide store header on /admin) | ✅ Done & verified (nav finalized: Dashboard·Products·Orders·Customers·More) |
-| I | Customers page (replace "In progress") | ⛔ Not started (needs B/D + CRM tables) |
+| I | Customers page (replace "In progress") | 🟡 List + retail/wholesale toggle + search + CSV import done; detail/edit pending |
 | J | Sample data script | ⛔ Not started (needs CRM tables) |
 | K | Remove demo admin admin@lavagueimports.com | ✅ Done & verified |
 | L | Wholesale ordering, no prices shown, reorder | ⛔ Not started (needs B/D) |
@@ -98,6 +98,21 @@ the old one is rejected, and the token is consumed. Test customer removed afterw
 - **Verified end-to-end:** seeded a customer + linked application → admin saw "has account"
   → clicked Approve → DB showed APPROVED + `reviewedBy` + customer role `WHOLESALE` → that
   customer's `/account` rendered the wholesale view (no "apply" card). Fixtures removed.
+
+## Section I — Customers page (list + toggle + import; DONE this run)
+
+- Replaced the "In progress" placeholder at `/admin/customers` with a real page:
+  a **Retail ⇄ Wholesale ⇄ All toggle** (with live counts), search over business/name/
+  email, a desktop table + mobile cards (verified at 375px), role badges (Customer /
+  Wholesale / Blocked), and a "new applicants" badge linking to Applications.
+- Extended `Customer` with `businessName`, `phone`, `address`, `notes`, `blocked`
+  (additive migration `003`).
+- **Imported 29 wholesale customers** from the user's CSV
+  (`scripts/import-wholesale-customers.mjs`, idempotent upsert on email, "(UC)/Not found"
+  address markers cleaned). All now show as role WHOLESALE. The CSV holds customer PII and
+  is intentionally **not** committed to the repo.
+- **Still to come for I:** customer detail page with edit (role/notes/block, addresses,
+  pricing tier) + change audit log, and the applicant "Request more info" action.
 
 ## Blocked (in `docs/blocked.md`)
 

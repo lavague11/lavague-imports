@@ -1180,12 +1180,23 @@ model Customer {
   /// Google "sub" claim, set when the account is linked to Google sign-in.
   googleSub     String?      @unique
   emailVerified DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+
+  /// Business details — set for wholesale accounts (imported or approved).
+  businessName String?
+  phone        String?
+  address      String?
+  /// Admin-only notes and a soft block (can't sign in / order).
+  notes   String?
+  blocked Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   sessions     CustomerSession[]
   resetTokens  PasswordResetToken[]
   applications WholesaleApplication[]
+
+  @@index([role])
 }
 
 model CustomerSession {
