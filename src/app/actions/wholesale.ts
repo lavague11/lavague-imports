@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 
+import { getCustomer } from "@/lib/customer-auth";
 import { requirePrisma } from "@/lib/db";
 import { salesInbox, sendEmail, wholesaleNotificationEmail } from "@/lib/mail";
 import {
@@ -76,11 +77,15 @@ export async function submitWholesaleApplication(
 
   const reference = makeReference("LVW");
 
+  // Link the application to the signed-in customer, if any, so approving it can
+  // flip their role and so they see the status on their account page.
+  const customer = await getCustomer();
+
   let savedToDb = false;
   try {
     const prisma = requirePrisma();
     await prisma.wholesaleApplication.create({
-      data: { reference, ...parsed.data },
+      data: { reference, ...parsed.data, customerId: customer?.id ?? null },
     });
     savedToDb = true;
   } catch (error) {

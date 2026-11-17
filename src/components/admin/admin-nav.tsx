@@ -11,12 +11,12 @@ const CORE = [
   { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/wholesale", label: "Wholesale" },
   { href: "/admin/customers", label: "Customers" },
 ];
 
 /** Lower-frequency tools tucked under "More". */
 const MORE = [
+  { href: "/admin/wholesale", label: "Applications" },
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/price-compare", label: "Price compare" },
   { href: "/admin/notifications", label: "Stock requests" },
@@ -57,7 +57,7 @@ export function AdminNav({ email, isAdmin }: { email: string; isAdmin: boolean }
     <header className="border-b border-olive-200 bg-white">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
         <Link href="/admin" className="font-display text-lg whitespace-nowrap text-olive-900">
-          La Vague <span className="text-olive-600">Admin</span>
+          La Vague
         </Link>
 
         <nav className="ml-4 flex items-center gap-0.5">

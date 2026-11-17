@@ -134,6 +134,32 @@ export function passwordResetEmail(url: string): { subject: string; html: string
   return { subject, html, text };
 }
 
+/** The approve/decline email sent to a wholesale applicant. */
+export function wholesaleDecisionEmail(opts: {
+  approved: boolean;
+  businessName: string;
+  note?: string | null;
+  loginUrl: string;
+}): { subject: string; html: string; text: string } {
+  const { approved, businessName, note, loginUrl } = opts;
+  const subject = approved
+    ? "You're approved for wholesale — La Vague Imports"
+    : "Your La Vague Imports wholesale application";
+  const noteBlock = note ? `\n\nA note from our team:\n${note}` : "";
+  const text = approved
+    ? `Good news — ${businessName} is approved for a wholesale account with La Vague Imports.${noteBlock}\n\nSign in to see wholesale pricing and place your first order:\n${loginUrl}\n\n— La Vague Imports`
+    : `Thank you for your interest in a wholesale account for ${businessName}. After review we're not able to approve the account at this time.${noteBlock}\n\nIf you think this was a mistake or your situation changes, just reply to this email.\n\n— La Vague Imports`;
+  const heading = approved ? "You're approved for wholesale" : "About your wholesale application";
+  const bodyHtml = approved
+    ? `<p style="font-size:15px;line-height:1.6;margin:0 0 16px"><strong>${esc(businessName)}</strong> is approved for a wholesale account. You'll now see wholesale pricing and case packs when you sign in.</p>
+       ${note ? `<p style="font-size:14px;line-height:1.6;background:#f1f3ea;border-radius:8px;padding:10px 12px;margin:0 0 16px">${esc(note)}</p>` : ""}
+       <p style="margin:0 0 8px"><a href="${loginUrl}" style="display:inline-block;background:#3a3f27;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9999px;font-size:14px">Sign in to order</a></p>`
+    : `<p style="font-size:15px;line-height:1.6;margin:0 0 16px">Thank you for your interest in a wholesale account for <strong>${esc(businessName)}</strong>. After review, we're not able to approve the account at this time.</p>
+       ${note ? `<p style="font-size:14px;line-height:1.6;background:#f1f3ea;border-radius:8px;padding:10px 12px;margin:0 0 16px">${esc(note)}</p>` : ""}
+       <p style="font-size:14px;line-height:1.6;color:#6b7150;margin:0">If you think this was a mistake or your situation changes, just reply to this email.</p>`;
+  return { subject, html: shell(heading, bodyHtml, true), text };
+}
+
 // ---------------------------------------------------------------------------
 // Staff notifications — the emails that land in the sales inbox when a customer
 // submits a quote, a wholesale application, or a contact message.

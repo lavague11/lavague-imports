@@ -17,6 +17,7 @@ import {
 } from "@/lib/admin/products";
 import { requirePrisma } from "@/lib/db";
 import { type FormState } from "@/lib/form";
+import { sendEmail, wholesaleDecisionEmail } from "@/lib/mail";
 import { formatUnitSize } from "@/lib/units";
 import { makeReference } from "@/lib/utils";
 
@@ -209,4 +210,60 @@ export async function createUser(_prev: FormState, fd: FormData): Promise<FormSt
   }
   revalidatePath("/admin/users");
   return { status: "success", message: `Added ${email}.`, reference: makeReference("USR") };
+}
+
+/**
+ * Approve or decline a wholesale application (Section E). Server-enforced admin.
+ * Approving sets the application APPROVED, flips any linked customer to the
+ * WHOLESALE role, and emails the applicant. Declining records a note and emails.
+ */
+export async function reviewApplication(fd: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  const id = str(fd, "id");
+  const decision = str(fd, "decision"); // "approve" | "decline"
+  const note = optStr(fd, "note");
+  if (!id || (decision !== "approve" && decision !== "decline")) return;
+
+  const prisma = requirePrisma();
+  const app = await prisma.wholesaleApplication.findUnique({ where: { id } });
+  if (!app) return;
+
+  const approved = decision === "approve";
+  await prisma.wholesaleApplication.update({
+    where: { id },
+    data: {
+      status: approved ? "APPROVED" : "REJECTED",
+      decisionNote: note,
+      reviewedAt: new Date(),
+      reviewedBy: admin.email,
+    },
+  });
+
+  // Flip the linked customer's role on approval.
+  if (approved && app.customerId) {
+    try {
+      await prisma.customer.update({
+        where: { id: app.customerId },
+        data: { role: "WHOLESALE" },
+      });
+    } catch {
+      /* customer may have been deleted; the application stays approved */
+    }
+  }
+
+  // Email the applicant (best-effort; logs if mail isn't configured).
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://lavagueimport.com";
+  const mail = wholesaleDecisionEmail({
+    approved,
+    businessName: app.businessName,
+    note,
+    loginUrl: `${base}/login`,
+  });
+  const result = await sendEmail({ to: app.email, subject: mail.subject, html: mail.html, text: mail.text });
+  if (!result.ok) {
+    console.warn(`[application] decision email not sent (${result.reason}) to ${app.email}`);
+  }
+
+  revalidatePath("/admin/wholesale");
+  revalidatePath("/account");
 }

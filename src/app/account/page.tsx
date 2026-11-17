@@ -4,6 +4,7 @@ import { PackageCheck, Store } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
 import { getCustomer } from "@/lib/customer-auth";
+import { getPrisma } from "@/lib/db";
 
 export const metadata = {
   title: "Your account",
@@ -15,6 +16,23 @@ export default async function AccountPage() {
   if (!customer) redirect("/login?next=/account");
 
   const isWholesale = customer.role === "WHOLESALE";
+
+  // Latest wholesale application for this customer (for status on the card).
+  const prisma = getPrisma();
+  let application: { status: string; decisionNote: string | null } | null = null;
+  if (prisma && !isWholesale) {
+    try {
+      application = await prisma.wholesaleApplication.findFirst({
+        where: { customerId: customer.id },
+        orderBy: { createdAt: "desc" },
+        select: { status: true, decisionNote: true },
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+  const pending = application?.status === "NEW" || application?.status === "IN_REVIEW";
+  const declined = application?.status === "REJECTED";
 
   return (
     <Container className="py-12 lg:py-16">
@@ -57,15 +75,30 @@ export default async function AccountPage() {
               Browse your line sheet and build an order from your case pricing.
             </p>
           </Link>
+        ) : pending ? (
+          <div className="rounded-card border border-amber-200 bg-amber-50/60 p-6">
+            <Store className="h-6 w-6 text-amber-700" aria-hidden="true" />
+            <h2 className="mt-3 text-base font-semibold text-olive-900">
+              Wholesale application: <span className="text-amber-800">pending review</span>
+            </h2>
+            <p className="mt-1 text-sm text-olive-600">
+              Thanks for applying. We review new trade accounts within two business days and
+              will email you — you&apos;ll see wholesale pricing here once you&apos;re approved.
+            </p>
+          </div>
         ) : (
           <Link
             href="/wholesale"
             className="group rounded-card border border-olive-100 bg-white p-6 transition-colors hover:border-olive-300"
           >
             <Store className="h-6 w-6 text-olive-600" aria-hidden="true" />
-            <h2 className="mt-3 text-base font-semibold text-olive-900">Apply for wholesale</h2>
+            <h2 className="mt-3 text-base font-semibold text-olive-900">
+              {declined ? "Re-apply for wholesale" : "Apply for wholesale"}
+            </h2>
             <p className="mt-1 text-sm text-olive-600">
-              Stock La Vague in your store — apply for a trade account with case pricing.
+              {declined
+                ? "Your previous application wasn't approved. If your situation has changed, you're welcome to apply again."
+                : "Stock La Vague in your store — apply for a trade account with case pricing."}
             </p>
           </Link>
         )}

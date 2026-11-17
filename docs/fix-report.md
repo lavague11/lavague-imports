@@ -15,11 +15,11 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 | — | Durable DB → Supabase | ✅ Done & verified (9,106 rows migrated) |
 | B | One `/login` for everyone (email/pw + create + forgot) | ✅ Done & verified (Google pending OAuth creds) |
 | C | Password reset, 30-min one-time links | 🟡 Built & verified; email send 🔒 blocked (SMTP) |
-| D | Server-enforced roles Customer/Wholesale/Admin | 🟡 Partial (admin + customer roles + gates in; wholesale promotion needs E) |
-| E | Wholesale application flow | 🟡 Partial (public form exists; account creation needs B/D) |
+| D | Server-enforced roles Customer/Wholesale/Admin | ✅ Core done (admin + customer roles, server gates, approval promotes to WHOLESALE) |
+| E | Wholesale application flow | ✅ Done & verified (apply→link→admin approve/decline→role flip + status) |
 | F | Google Places business autocomplete | 🔒 Blocked (Places API key) |
 | G | $500 wholesale minimum as order request | ⛔ Not started (needs L) |
-| H | One admin bar (hide store header on /admin) | ✅ Done & verified |
+| H | One admin bar (hide store header on /admin) | ✅ Done & verified (nav finalized: Dashboard·Products·Orders·Customers·More) |
 | I | Customers page (replace "In progress") | ⛔ Not started (needs B/D + CRM tables) |
 | J | Sample data script | ⛔ Not started (needs CRM tables) |
 | K | Remove demo admin admin@lavagueimports.com | ✅ Done & verified |
@@ -80,8 +80,24 @@ the old one is rejected, and the token is consumed. Test customer removed afterw
 ### What still needs B's neighbors
 - **Google on `/login`** — button is wired but hidden until `GOOGLE_CLIENT_ID/SECRET` land
   and a customer OAuth callback is added (admin Google path already exists). (blocked)
-- **D (roles) completion** — a customer becomes WHOLESALE when their application is
-  approved (Section E). The gate (`requireWholesale`) and role column are ready.
+
+## Section E — wholesale application (DONE & verified this run)
+
+- Application now links to the signed-in `Customer` (`WholesaleApplication.customerId`,
+  additive migration `002`); the wholesale form attaches it automatically.
+- **Admin Applications list** at `/admin/wholesale` (replaces the placeholder): tabs
+  Pending/Approved/Declined/All with a pending count badge, full applicant details, and
+  **Approve / Decline with an optional note** — server-enforced (`requireAdmin`).
+- **Approve** sets the application APPROVED, **flips the linked customer to `WHOLESALE`**,
+  records who/when, and emails the applicant (logged until SMTP lands). **Decline** records
+  the note and emails. This completes **D**: role promotion is server-side.
+- `/account` shows the application state: *pending review* card, or *re-apply* after a
+  decline, or the wholesale-order card once approved.
+- **H nav finalized** alongside: core bar is Dashboard · Products · Orders · Customers ·
+  More; the Wholesale tab is gone (Applications moved under More); "Admin" text dropped.
+- **Verified end-to-end:** seeded a customer + linked application → admin saw "has account"
+  → clicked Approve → DB showed APPROVED + `reviewedBy` + customer role `WHOLESALE` → that
+  customer's `/account` rendered the wholesale view (no "apply" card). Fixtures removed.
 
 ## Blocked (in `docs/blocked.md`)
 

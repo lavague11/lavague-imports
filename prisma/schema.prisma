@@ -245,8 +245,19 @@ model WholesaleApplication {
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
+  /// The signed-in customer who applied (null for a logged-out application).
+  /// Approving the application flips this customer's role to WHOLESALE.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  /// Admin decision metadata.
+  decisionNote String?
+  reviewedAt   DateTime?
+  reviewedBy   String?
+
   @@index([status])
   @@index([createdAt])
+  @@index([customerId])
 }
 
 // ---------------------------------------------------------------------------
@@ -1172,8 +1183,9 @@ model Customer {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  sessions    CustomerSession[]
-  resetTokens PasswordResetToken[]
+  sessions     CustomerSession[]
+  resetTokens  PasswordResetToken[]
+  applications WholesaleApplication[]
 }
 
 model CustomerSession {
