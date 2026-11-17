@@ -9,6 +9,7 @@ import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist
 import { NotesDictation } from "@/components/admin/notes-dictation";
 import { PhotoToInvoice } from "@/components/admin/photo-to-invoice";
 import { PreviousItems, type InvoiceLineInput } from "@/components/admin/previous-items";
+import { PriceHint } from "@/components/admin/price-hint";
 import { VoiceOrder, type VoiceItem } from "@/components/admin/voice-order";
 
 import {
@@ -223,9 +224,12 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
               {r.isCredit ? <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Credit{r.creditReason ? ` · ${r.creditReason}` : ""}</span> : null}
             </div>
             <input name="qty" inputMode="numeric" value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value })} placeholder="Qty" className={`${inputCls} sm:text-right`} />
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-olive-400">$</span>
-              <input name="unit" inputMode="decimal" value={r.unit} onChange={(e) => setRow(i, { unit: e.target.value })} placeholder="0.00" className={`${inputCls} pl-6 sm:text-right`} />
+            <div>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-olive-400">$</span>
+                <input name="unit" inputMode="decimal" value={r.unit} onChange={(e) => setRow(i, { unit: e.target.value })} placeholder="0.00" className={`${inputCls} pl-6 sm:text-right`} />
+              </div>
+              <PriceHint customerId={props.customerId} name={r.description} price={r.unit} isCredit={r.isCredit} onAutoFill={(v) => setRow(i, { unit: v })} />
             </div>
             <div className={`text-sm sm:text-right ${r.isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{r.isCredit ? `−${money(lineTotal(r))}` : money(lineTotal(r))}</div>
             <button type="button" onClick={() => removeRow(i)} aria-label="Remove line" className="justify-self-start text-olive-400 hover:text-red-600 sm:justify-self-center">
