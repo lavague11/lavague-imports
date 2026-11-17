@@ -82,6 +82,7 @@ export default async function InvoiceDetail({
   const now = new Date();
   const disp = invoiceDisplay(invoice, now);
   const balance = invoice.totalCents - invoice.paidCents;
+  const creditsCents = Math.abs(invoice.lines.filter((l) => l.isCredit).reduce((s, l) => s + l.lineTotalCents, 0));
   const addr = c ? composeAddress(c) : null;
   const customerName = c ? c.businessName || c.name || c.email : "No customer yet";
 
@@ -207,11 +208,11 @@ export default async function InvoiceDetail({
             {invoice.lines.length === 0 ? (
               <tr><td colSpan={4} className="py-6 text-center text-olive-400">No line items yet — <Link href={`/admin/invoices/${id}/edit`} className="underline">add some</Link >.</td></tr>
             ) : invoice.lines.map((l) => (
-              <tr key={l.id} className="border-b border-olive-50">
-                <td className="py-2 text-olive-800">{l.description}</td>
+              <tr key={l.id} className={`border-b border-olive-50 ${l.isCredit ? "bg-amber-50/40" : ""}`}>
+                <td className="py-2 text-olive-800">{l.description}{l.isCredit ? <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Credit</span> : null}</td>
                 <td className="py-2 text-right text-olive-600">{l.quantity}</td>
-                <td className="py-2 text-right text-olive-600">{formatPrice(l.unitPriceCents)}</td>
-                <td className="py-2 text-right text-olive-800">{formatPrice(l.lineTotalCents)}</td>
+                <td className="py-2 text-right text-olive-600">{l.isCredit ? `−${formatPrice(Math.abs(l.unitPriceCents))}` : formatPrice(l.unitPriceCents)}</td>
+                <td className={`py-2 text-right ${l.isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{l.isCredit ? `−${formatPrice(Math.abs(l.lineTotalCents))}` : formatPrice(l.lineTotalCents)}</td>
               </tr>
             ))}
           </tbody>
@@ -222,6 +223,7 @@ export default async function InvoiceDetail({
           {invoice.discountCents > 0 ? <Amount label="Discount" value={`−${formatPrice(invoice.discountCents)}`} /> : null}
           {invoice.shippingCents > 0 ? <Amount label="Delivery" value={formatPrice(invoice.shippingCents)} /> : null}
           {invoice.taxCents > 0 ? <Amount label="Tax" value={formatPrice(invoice.taxCents)} /> : null}
+          {creditsCents > 0 ? <Amount label="Credits" value={`−${formatPrice(creditsCents)}`} /> : null}
           <Amount label="Total" value={formatPrice(invoice.totalCents)} bold />
           {invoice.paidCents > 0 ? <Amount label="Paid" value={`−${formatPrice(invoice.paidCents)}`} /> : null}
           <Amount label="Balance due" value={formatPrice(Math.max(0, balance))} bold danger={balance > 0} />

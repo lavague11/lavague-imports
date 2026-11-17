@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
+import { AddCredit, type CreditInput } from "@/components/admin/add-credit";
 import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist";
 import { NotesDictation } from "@/components/admin/notes-dictation";
 import { PreviousItems, type InvoiceLineInput } from "@/components/admin/previous-items";
@@ -20,6 +21,8 @@ export interface EditLine {
   description: string;
   quantity: number;
   unitPriceCents: number;
+  isCredit?: boolean;
+  creditReason?: string | null;
 }
 
 export interface InvoiceEditFormProps {
@@ -48,12 +51,12 @@ const addDays = (iso: string, days: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-interface Row { description: string; qty: string; unit: string }
+interface Row { description: string; qty: string; unit: string; isCredit?: boolean; creditReason?: string }
 
 export function InvoiceEditForm(props: InvoiceEditFormProps) {
   const [rows, setRows] = useState<Row[]>(
     props.lines.length
-      ? props.lines.map((l) => ({ description: l.description, qty: String(l.quantity), unit: dollars(l.unitPriceCents) }))
+      ? props.lines.map((l) => ({ description: l.description, qty: String(l.quantity), unit: dollars(Math.abs(l.unitPriceCents)), isCredit: l.isCredit, creditReason: l.creditReason ?? undefined }))
       : [{ description: "", qty: "1", unit: "" }],
   );
   const [issueDate, setIssueDate] = useState(props.issueDate);
@@ -96,10 +99,18 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     });
   };
 
+  // Add a credit line (negative) from the Add-credit form.
+  const addCredit = (c: CreditInput) => {
+    const row: Row = { description: c.description, qty: String(c.quantity || 1), unit: (c.amountCentsEach / 100).toFixed(2), isCredit: true, creditReason: c.reason };
+    setRows((prev) => (prev.length === 1 && !prev[0].description.trim() && !prev[0].unit.trim() ? [prev[0], row] : [...prev, row]));
+  };
+
+  // Magnitude of a row (positive); credits count against the total.
   const lineTotal = (r: Row) => Math.max(0, Math.round(Number(r.qty) || 0)) * dollarsToCents(r.unit);
-  const subtotalCents = useMemo(() => rows.reduce((s, r) => s + lineTotal(r), 0), [rows]);
+  const subtotalCents = useMemo(() => rows.filter((r) => !r.isCredit).reduce((s, r) => s + lineTotal(r), 0), [rows]);
+  const creditsCents = useMemo(() => rows.filter((r) => r.isCredit).reduce((s, r) => s + lineTotal(r), 0), [rows]);
   const totalCents =
-    Math.max(0, subtotalCents - dollarsToCents(discount) + dollarsToCents(shipping) + dollarsToCents(tax));
+    Math.max(0, subtotalCents - dollarsToCents(discount) + dollarsToCents(shipping) + dollarsToCents(tax) - creditsCents);
 
   const belowMinimum = props.customerRole === "WHOLESALE" && subtotalCents > 0 && subtotalCents < WHOLESALE_MINIMUM_CENTS;
 
@@ -154,17 +165,22 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
           <span>Description</span><span className="text-right">Qty</span><span className="text-right">Unit price</span><span className="text-right">Amount</span><span />
         </div>
         {rows.map((r, i) => (
-          <div key={i} className="grid grid-cols-1 gap-2 border-b border-olive-50 px-4 py-3 last:border-0 sm:grid-cols-[1fr_5rem_7rem_6rem_2rem] sm:items-center">
-            <input name="desc" value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} placeholder="Item or service" className={inputCls} />
+          <div key={i} className={`grid grid-cols-1 gap-2 border-b border-olive-50 px-4 py-3 last:border-0 sm:grid-cols-[1fr_5rem_7rem_6rem_2rem] sm:items-center ${r.isCredit ? "bg-amber-50/40" : ""}`}>
+            <div>
+              <input name="desc" value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} placeholder="Item or service" className={inputCls} />
+              {r.isCredit ? <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Credit{r.creditReason ? ` · ${r.creditReason}` : ""}</span> : null}
+            </div>
             <input name="qty" inputMode="numeric" value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value })} placeholder="Qty" className={`${inputCls} sm:text-right`} />
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-olive-400">$</span>
               <input name="unit" inputMode="decimal" value={r.unit} onChange={(e) => setRow(i, { unit: e.target.value })} placeholder="0.00" className={`${inputCls} pl-6 sm:text-right`} />
             </div>
-            <div className="text-sm text-olive-800 sm:text-right">{money(lineTotal(r))}</div>
+            <div className={`text-sm sm:text-right ${r.isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{r.isCredit ? `−${money(lineTotal(r))}` : money(lineTotal(r))}</div>
             <button type="button" onClick={() => removeRow(i)} aria-label="Remove line" className="justify-self-start text-olive-400 hover:text-red-600 sm:justify-self-center">
               <Trash2 className="h-4 w-4" />
             </button>
+            <input type="hidden" name="isCredit" value={r.isCredit ? "1" : "0"} />
+            <input type="hidden" name="creditReason" value={r.creditReason ?? ""} />
           </div>
         ))}
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -174,6 +190,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <VoiceOrder onAddLine={addVoiceLine} />
             <PreviousItems customerId={props.customerId} onAdd={addLines} />
+            <AddCredit customerId={props.customerId} onAdd={addCredit} />
             <InvoiceAssist getLines={assistLines} onApply={applyAssist} />
           </div>
         </div>
@@ -193,6 +210,11 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
           <Adjust label="Discount" name="discount" value={discount} onChange={setDiscount} />
           <Adjust label="Delivery" name="shipping" value={shipping} onChange={setShipping} />
           <Adjust label="Tax" name="tax" value={tax} onChange={setTax} />
+          {creditsCents > 0 ? (
+            <div className="flex items-center justify-between py-1 text-amber-700">
+              <span>Credits</span><span>−{money(creditsCents)}</span>
+            </div>
+          ) : null}
           <div className="mt-2 flex items-center justify-between border-t border-olive-100 pt-2 text-base font-semibold text-olive-900">
             <span>Total</span><span>{money(totalCents)}</span>
           </div>

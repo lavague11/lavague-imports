@@ -85,6 +85,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               quantity: l.quantity,
               unitPriceCents: l.unitPriceCents,
               lineTotalCents: l.lineTotalCents,
+              isCredit: l.isCredit,
+              creditReason: l.creditReason,
             })),
           },
         },

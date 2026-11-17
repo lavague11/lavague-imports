@@ -1361,8 +1361,12 @@ model CustomerInvoiceLine {
   quantity       Int             @default(1)
   unitPriceCents Int             @default(0)
   lineTotalCents Int             @default(0)
+  /// A credit line: negative lineTotalCents, with a reason (reports filter on this).
+  isCredit       Boolean         @default(false)
+  creditReason   String?
 
   @@index([invoiceId])
+  @@index([isCredit])
 }
 
 /// Wholesale order request (Section L). Wholesale accounts never see prices, so

@@ -90,31 +90,46 @@ export interface ParsedLine {
   quantity: number;
   unitPriceCents: number;
   lineTotalCents: number;
+  isCredit: boolean;
+  creditReason: string | null;
 }
 
-/** Zip the repeated desc/qty/unit fields of the editor form into clean lines. */
+/** Zip the repeated desc/qty/unit fields of the editor form into clean lines.
+ *  Credit rows (isCredit=1) are stored with a NEGATIVE unit price and line total. */
 export function parseLines(fd: FormData): ParsedLine[] {
   const descs = fd.getAll("desc").map(String);
   const qtys = fd.getAll("qty").map(String);
   const units = fd.getAll("unit").map(String);
+  const credits = fd.getAll("isCredit").map(String);
+  const reasons = fd.getAll("creditReason").map(String);
   const out: ParsedLine[] = [];
   for (let i = 0; i < descs.length; i += 1) {
     const description = descs[i].trim();
     if (!description) continue;
     const quantity = Math.max(0, Math.round(Number(qtys[i]) || 0));
-    const unitPriceCents = dollarsToCents(units[i]);
-    out.push({ description, quantity, unitPriceCents, lineTotalCents: quantity * unitPriceCents });
+    const isCredit = credits[i] === "1" || credits[i] === "true";
+    const magnitude = Math.abs(dollarsToCents(units[i]));
+    const unitPriceCents = isCredit ? -magnitude : magnitude;
+    out.push({
+      description,
+      quantity,
+      unitPriceCents,
+      lineTotalCents: quantity * unitPriceCents,
+      isCredit,
+      creditReason: isCredit ? (reasons[i]?.trim() || null) : null,
+    });
   }
   return out;
 }
 
 export function computeTotals(
-  lines: Array<{ lineTotalCents: number }>,
+  lines: Array<{ lineTotalCents: number; isCredit?: boolean }>,
   discountCents: number,
   shippingCents: number,
   taxCents: number,
-): { subtotalCents: number; totalCents: number } {
-  const subtotalCents = lines.reduce((s, l) => s + l.lineTotalCents, 0);
-  const totalCents = Math.max(0, subtotalCents - discountCents + shippingCents + taxCents);
-  return { subtotalCents, totalCents };
+): { subtotalCents: number; creditsCents: number; totalCents: number } {
+  const subtotalCents = lines.filter((l) => !l.isCredit).reduce((s, l) => s + l.lineTotalCents, 0);
+  const creditsCents = lines.filter((l) => l.isCredit).reduce((s, l) => s + l.lineTotalCents, 0); // negative
+  const totalCents = Math.max(0, subtotalCents - discountCents + shippingCents + taxCents + creditsCents);
+  return { subtotalCents, creditsCents, totalCents };
 }

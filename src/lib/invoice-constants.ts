@@ -42,3 +42,15 @@ export function termsDueDays(terms: string | null | undefined): number | null {
   if (/receipt/i.test(terms)) return 0;
   return null;
 }
+
+/** Credit reasons for invoice credit lines (Add credit + credits by voice). */
+export const CREDIT_REASONS = [
+  "Damaged",
+  "Expired",
+  "Returned",
+  "Short delivery",
+  "Courtesy",
+  "Price adjustment",
+  "Other",
+] as const;
+export type CreditReason = (typeof CREDIT_REASONS)[number];

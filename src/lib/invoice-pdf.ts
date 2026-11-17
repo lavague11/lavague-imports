@@ -10,6 +10,7 @@ export interface InvoicePdfLine {
   quantity: number;
   unitPriceCents: number;
   lineTotalCents: number;
+  isCredit?: boolean;
 }
 
 export interface InvoicePdfData {
@@ -140,10 +141,10 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
 
   for (const l of inv.lines) {
     const desc = l.description.length > 58 ? l.description.slice(0, 57) + "…" : l.description;
-    text(desc, M + 6, y, { size: 10 });
+    text(desc, M + 6, y, { size: 10, color: l.isCredit ? MUTED : OLIVE });
     textR(String(l.quantity), colQty, y, { size: 10, color: MUTED });
-    textR(formatPrice(l.unitPriceCents), colUnit, y, { size: 10, color: MUTED });
-    textR(formatPrice(l.lineTotalCents), colAmt, y, { size: 10 });
+    textR(l.isCredit ? `-${formatPrice(Math.abs(l.unitPriceCents))}` : formatPrice(l.unitPriceCents), colUnit, y, { size: 10, color: MUTED });
+    textR(l.isCredit ? `-${formatPrice(Math.abs(l.lineTotalCents))}` : formatPrice(l.lineTotalCents), colAmt, y, { size: 10 });
     y -= 10;
     page.drawLine({ start: { x: M, y }, end: { x: right, y }, thickness: 0.5, color: LINE });
     y -= 12;
@@ -162,6 +163,8 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
   if (inv.discountCents > 0) totalRow("Discount", `-${formatPrice(inv.discountCents)}`);
   if (inv.shippingCents > 0) totalRow("Delivery", formatPrice(inv.shippingCents));
   if (inv.taxCents > 0) totalRow("Tax", formatPrice(inv.taxCents));
+  const creditsCents = Math.abs(inv.lines.filter((l) => l.isCredit).reduce((s, l) => s + l.lineTotalCents, 0));
+  if (creditsCents > 0) totalRow("Credits", `-${formatPrice(creditsCents)}`);
   page.drawLine({ start: { x: colUnit - 70, y: y + 6 }, end: { x: colAmt, y: y + 6 }, thickness: 0.5, color: LINE });
   totalRow("Total", formatPrice(inv.totalCents), { bold: true });
   if (inv.paidCents > 0) totalRow("Paid", `-${formatPrice(inv.paidCents)}`);

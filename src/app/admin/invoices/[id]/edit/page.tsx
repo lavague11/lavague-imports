@@ -96,7 +96,7 @@ export default async function EditInvoice({
         discount={dollarsOrBlank(invoice.discountCents)}
         shipping={dollarsOrBlank(invoice.shippingCents)}
         tax={dollarsOrBlank(invoice.taxCents)}
-        lines={invoice.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents }))}
+        lines={invoice.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents, isCredit: l.isCredit, creditReason: l.creditReason }))}
       />
     </div>
   );
