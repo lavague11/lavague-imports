@@ -23,7 +23,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,
     terms: invoice.terms,
-    poNumber: invoice.poNumber,
+    salesRep: invoice.salesRep,
     billToName: c.businessName || c.name || c.email,
     billToContact: c.businessName && c.name ? c.name : null,
     billToEmail: c.email,

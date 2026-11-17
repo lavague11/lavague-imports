@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { AddCredit, type CreditInput } from "@/components/admin/add-credit";
@@ -11,7 +11,8 @@ import { PreviousItems, type InvoiceLineInput } from "@/components/admin/previou
 import { VoiceOrder, type VoiceItem } from "@/components/admin/voice-order";
 
 import {
-  INVOICE_TERMS,
+  SALES_REPS,
+  TERMS_OPTIONS,
   WHOLESALE_MINIMUM_CENTS,
   dollarsToCents,
   termsDueDays,
@@ -34,7 +35,7 @@ export interface InvoiceEditFormProps {
   issueDate: string; // yyyy-mm-dd
   dueDate: string;
   terms: string;
-  poNumber: string;
+  salesRep: string;
   notes: string;
   discount: string; // dollars
   shipping: string;
@@ -60,16 +61,45 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
       : [{ description: "", qty: "1", unit: "" }],
   );
   const [issueDate, setIssueDate] = useState(props.issueDate);
-  const [dueDate, setDueDate] = useState(props.dueDate);
-  const [terms, setTerms] = useState(props.terms);
+  const [terms, setTerms] = useState(props.terms || "Due on receipt");
+  // Due date is derived from terms + issue date and shown read-only.
+  const dueDate = useMemo(() => {
+    const days = termsDueDays(terms);
+    return days != null && issueDate ? addDays(issueDate, days) : issueDate || "";
+  }, [terms, issueDate]);
   const [discount, setDiscount] = useState(props.discount);
   const [shipping, setShipping] = useState(props.shipping);
   const [tax, setTax] = useState(props.tax);
 
+  const [undo, setUndo] = useState<{ row: Row; index: number } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const addRow = () => setRows((rs) => [...rs, { description: "", qty: "1", unit: "" }]);
-  const removeRow = (i: number) => setRows((rs) => (rs.length > 1 ? rs.filter((_, j) => j !== i) : rs));
+  const removeRow = (i: number) => {
+    setRows((rs) => {
+      if (rs.length <= 1) return [{ description: "", qty: "1", unit: "" }]; // clear the last line instead of deleting
+      setUndo({ row: rs[i], index: i });
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      undoTimer.current = setTimeout(() => setUndo(null), 10000);
+      return rs.filter((_, j) => j !== i);
+    });
+  };
+  const doUndo = () => {
+    if (!undo) return;
+    setRows((rs) => { const c = [...rs]; c.splice(Math.min(undo.index, c.length), 0, undo.row); return c; });
+    setUndo(null);
+  };
+
+  // Always keep one blank line open at the bottom.
+  useEffect(() => {
+    const last = rows[rows.length - 1];
+    if (last && (last.description.trim() || last.unit.trim())) {
+      setRows((rs) => [...rs, { description: "", qty: "1", unit: "" }]);
+    }
+  }, [rows]);
 
   // AI assist: current lines for "Pro clean-up", and applying the reviewed rows.
   const assistLines = () => rows.map((r) => ({ description: r.description, quantity: Math.max(1, parseInt(r.qty, 10) || 1) }));
@@ -124,16 +154,23 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
 
   const belowMinimum = props.customerRole === "WHOLESALE" && subtotalCents > 0 && subtotalCents < WHOLESALE_MINIMUM_CENTS;
 
-  const onTermsChange = (v: string) => {
-    setTerms(v);
-    const days = termsDueDays(v);
-    if (days != null && issueDate) setDueDate(addDays(issueDate, days));
+  // Block save if any filled line is missing a name or a price.
+  const onSubmit = (e: React.FormEvent) => {
+    const bad = rows.some((r) => {
+      const hasName = r.description.trim().length > 0;
+      const hasPrice = r.unit.trim().length > 0;
+      return (hasName && !hasPrice) || (hasPrice && !hasName);
+    });
+    if (bad) {
+      e.preventDefault();
+      setSaveError("Every line needs both a name and a price — fill them in or remove the line.");
+    }
   };
 
   const inputCls = "h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none";
 
   return (
-    <form method="post" action={props.action} className="mt-4 space-y-5">
+    <form method="post" action={props.action} onSubmit={onSubmit} className="mt-4 space-y-5">
       <div className="rounded-xl border border-olive-100 bg-white p-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -142,23 +179,26 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
             <p className="mt-1 text-xs text-olive-400">Editable — must be unique.</p>
           </div>
           <div>
+            <label className="text-xs text-olive-500">Terms</label>
+            <select name="terms" value={terms} onChange={(e) => setTerms(e.target.value)} className={inputCls}>
+              {TERMS_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-olive-500">Due date</label>
+            <input type="date" name="dueDate" value={dueDate} readOnly className={`${inputCls} bg-olive-50/60 text-olive-600`} />
+            <p className="mt-1 text-xs text-olive-400">Auto-calculated from terms.</p>
+          </div>
+          <div>
             <label className="text-xs text-olive-500">Issue date</label>
             <input type="date" name="issueDate" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="text-xs text-olive-500">Due date</label>
-            <input type="date" name="dueDate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputCls} />
-          </div>
-          <div>
-            <label className="text-xs text-olive-500">Terms</label>
-            <input name="terms" list="invoice-terms" value={terms} onChange={(e) => onTermsChange(e.target.value)} placeholder="e.g. Net 30" className={inputCls} />
-            <datalist id="invoice-terms">
-              {INVOICE_TERMS.map((t) => <option key={t} value={t} />)}
+            <label className="text-xs text-olive-500">Sales rep</label>
+            <input name="salesRep" list="sales-reps" defaultValue={props.salesRep || "Waleed"} placeholder="Team member" className={inputCls} />
+            <datalist id="sales-reps">
+              {SALES_REPS.map((r) => <option key={r} value={r} />)}
             </datalist>
-          </div>
-          <div>
-            <label className="text-xs text-olive-500">PO number</label>
-            <input name="poNumber" defaultValue={props.poNumber} placeholder="Optional" className={inputCls} />
           </div>
         </div>
       </div>
@@ -175,7 +215,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
           <span>Description</span><span className="text-right">Qty</span><span className="text-right">Unit price</span><span className="text-right">Amount</span><span />
         </div>
         {rows.map((r, i) => (
-          <div key={i} className={`grid grid-cols-1 gap-2 border-b border-olive-50 px-4 py-3 last:border-0 sm:grid-cols-[1fr_5rem_7rem_6rem_2rem] sm:items-center ${r.isCredit ? "bg-amber-50/40" : ""}`}>
+          <div key={i} className={`grid grid-cols-1 gap-2 border-b border-olive-50 px-4 py-3 last:border-0 sm:grid-cols-[1fr_5rem_7rem_6rem_2rem] sm:items-center ${r.isCredit ? "bg-amber-50/40" : i % 2 ? "bg-olive-50/30" : ""}`}>
             <div>
               <input name="desc" value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} placeholder="Item or service" className={inputCls} />
               {r.isCredit ? <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Credit{r.creditReason ? ` · ${r.creditReason}` : ""}</span> : null}
@@ -231,10 +271,22 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
         </div>
       </div>
 
+      {saveError ? (
+        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-right text-sm text-red-700">{saveError}</p>
+      ) : null}
+
       <div className="flex items-center justify-end gap-3">
         <Link href={props.cancelHref} className="rounded-lg border border-olive-200 px-4 py-2 text-sm text-olive-700 hover:bg-olive-50">Cancel</Link>
         <button type="submit" className="rounded-lg bg-olive-900 px-5 py-2 text-sm font-medium text-white hover:bg-olive-800">Save invoice</button>
       </div>
+
+      {/* Undo toast after removing a line */}
+      {undo ? (
+        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-olive-900 px-4 py-2 text-sm text-white shadow-lg">
+          Line removed
+          <button type="button" onClick={doUndo} className="font-semibold text-emerald-300 underline">Undo</button>
+        </div>
+      ) : null}
     </form>
   );
 }

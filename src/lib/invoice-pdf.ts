@@ -19,7 +19,7 @@ export interface InvoicePdfData {
   issueDate: Date;
   dueDate: Date | null;
   terms: string | null;
-  poNumber: string | null;
+  salesRep: string | null;
   billToName: string;
   billToContact: string | null;
   billToEmail: string | null;
@@ -118,7 +118,7 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
     ["Due date", inv.dueDate ? fmtDate(inv.dueDate) : "—"],
     ["Terms", inv.terms || "—"],
   ];
-  if (inv.poNumber) metaRows.push(["PO number", inv.poNumber]);
+  if (inv.salesRep) metaRows.push(["Sales rep", inv.salesRep]);
   let my = metaTop;
   for (const [k, v] of metaRows) {
     text(k, metaX, my, { size: 9, color: MUTED });

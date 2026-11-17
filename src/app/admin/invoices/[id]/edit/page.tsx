@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { AssignCustomer, type CustomerOption } from "@/components/admin/assign-customer";
+import { CustomerSearchBar, type CustomerSearchOption } from "@/components/admin/customer-search-bar";
 import { InvoiceEditForm } from "@/components/admin/invoice-edit-form";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
@@ -48,18 +48,20 @@ export default async function EditInvoice({
     }),
     prisma.customer.findMany({
       orderBy: [{ businessName: "asc" }, { name: "asc" }],
-      select: { id: true, businessName: true, name: true, email: true },
+      select: { id: true, businessName: true, name: true, email: true, phone: true },
       take: 2000,
     }),
   ]);
   if (!invoice) notFound();
 
   const c = invoice.customer;
-  const current = c ? { id: c.id, label: c.businessName || c.name || c.email } : null;
-  const customers: CustomerOption[] = customerRows.map((r) => ({
+  const customerName = c ? c.businessName || c.name || c.email : null;
+  const current = c ? { id: c.id, label: customerName as string } : null;
+  const customers: CustomerSearchOption[] = customerRows.map((r) => ({
     id: r.id,
     label: r.businessName || r.name || r.email,
     sub: r.businessName && (r.name || r.email) ? r.name || r.email : r.email !== (r.businessName || r.name) ? r.email : "",
+    phone: r.phone ?? "",
   }));
 
   const flashKey = ["customer", "error"].map((k) => (sp[k] ? `${k}:${firstValue(sp[k])}` : null)).find(Boolean);
@@ -71,9 +73,15 @@ export default async function EditInvoice({
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to invoice
       </Link>
 
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <h1 className="font-display text-2xl text-olive-900">Edit {invoice.number}</h1>
-        <AssignCustomer invoiceId={id} current={current} customers={customers} />
+      <div className="mt-3">
+        <h1 className="font-display text-2xl text-olive-900">
+          {customerName ?? "New invoice"}
+          <span className="ml-2 align-middle text-base font-normal text-olive-400">{invoice.number}</span>
+        </h1>
+      </div>
+
+      <div className="mt-3">
+        <CustomerSearchBar invoiceId={id} current={current} customers={customers} />
       </div>
 
       {flash ? (
@@ -91,7 +99,7 @@ export default async function EditInvoice({
         issueDate={toInput(invoice.issueDate)}
         dueDate={toInput(invoice.dueDate)}
         terms={invoice.terms ?? ""}
-        poNumber={invoice.poNumber ?? ""}
+        salesRep={invoice.salesRep ?? ""}
         notes={invoice.notes ?? ""}
         discount={dollarsOrBlank(invoice.discountCents)}
         shipping={dollarsOrBlank(invoice.shippingCents)}

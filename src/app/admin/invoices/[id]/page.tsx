@@ -191,7 +191,7 @@ export default async function InvoiceDetail({
           ) : (
             <p className="mt-1 text-amber-700">No customer yet. <Link href={`/admin/invoices/${id}/edit`} className="underline">Add one in the editor</Link>.</p>
           )}
-          {invoice.poNumber ? <p className="mt-1 text-olive-500">PO: {invoice.poNumber}</p> : null}
+          {invoice.salesRep ? <p className="mt-1 text-olive-500">Sales rep: {invoice.salesRep}</p> : null}
           {invoice.terms ? <p className="text-olive-500">Terms: {invoice.terms}</p> : null}
         </div>
 

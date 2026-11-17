@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const issueDate = dateOrNull(String(fd.get("issueDate") ?? ""));
     const dueDate = dateOrNull(String(fd.get("dueDate") ?? ""));
     const terms = String(fd.get("terms") ?? "").trim() || null;
-    const poNumber = String(fd.get("poNumber") ?? "").trim() || null;
+    const salesRep = String(fd.get("salesRep") ?? "").trim() || null;
     const notes = String(fd.get("notes") ?? "").trim() || null;
 
     const status = settledStatus(totalCents, current.paidCents, current.status);
@@ -71,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           ...(issueDate ? { issueDate } : {}),
           dueDate,
           terms,
-          poNumber,
+          salesRep,
           notes,
           discountCents,
           shippingCents,

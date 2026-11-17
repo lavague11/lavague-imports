@@ -1264,6 +1264,8 @@ model CustomerInvoice {
   // Section M — invoicing lifecycle (payments, delivery, e-sign, customer link).
   terms          String?
   poNumber       String?
+  /// Internal sales rep assigned to this invoice (free text, team-member suggestions).
+  salesRep       String?
   /// Secure random token for the customer-facing /invoice/[token] view + e-sign.
   publicToken    String?   @unique
   sentAt         DateTime?

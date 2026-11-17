@@ -54,3 +54,9 @@ export const CREDIT_REASONS = [
   "Other",
 ] as const;
 export type CreditReason = (typeof CREDIT_REASONS)[number];
+
+/** Terms dropdown for the editor (due date auto-calculates from these). */
+export const TERMS_OPTIONS = ["Due on receipt", "Net 7", "Net 15", "Net 30", "Net 60"] as const;
+
+/** Internal sales-rep suggestions (typable combobox; default Waleed). */
+export const SALES_REPS = ["Waleed", "Ahmed", "Sam"] as const;
