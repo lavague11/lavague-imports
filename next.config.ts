@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Cap the build-time worker pool. By default Next sizes the "Collecting page
+  // data" / static-generation workers to the machine's CPU count; Hostinger's
+  // build container reports 63 CPUs but caps spawnable threads far lower, so the
+  // build died with "OS can't spawn worker thread: Resource temporarily
+  // unavailable (os error 11)". Any explicit value overrides that default
+  // (build/index.js getNumberOfWorkers). 2 keeps the build well under the limit.
+  experimental: {
+    cpus: 2,
+  },
   // Server-only dependencies; keep them out of the bundle.
   serverExternalPackages: ["nodemailer", "pdf-lib", "qrcode", "jimp"],
   // Present so dev (Turbopack) doesn't error on the webpack config below.
