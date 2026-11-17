@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, FilePlus2, Globe, Lock, Trash2, Truck } from "lucide-react";
 
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { CustomerEditDrawer } from "@/components/admin/customer-edit-drawer";
-import { InlineNotes } from "@/components/admin/inline-notes";
 import { getCurrentUser } from "@/lib/auth";
 import { composeAddress, mapsUrl } from "@/lib/address";
 import { getPrisma } from "@/lib/db";
+import { paymentMethodLabel } from "@/lib/invoice";
 import { formatPrice } from "@/lib/utils";
 
 export const metadata = {
@@ -58,15 +59,27 @@ export default async function CustomerOverview({
   const sp = await searchParams;
   const invFilter = firstValue(sp.inv) || "all";
 
-  const customer = await prisma.customer.findUnique({
-    where: { id },
-    include: {
-      audits: { orderBy: { createdAt: "desc" }, take: 20 },
-      invoices: { orderBy: { issueDate: "desc" } },
-      orderRequests: { orderBy: { createdAt: "desc" }, take: 5, include: { _count: { select: { lines: true } } } },
-    },
-  });
+  const [customer, payments] = await Promise.all([
+    prisma.customer.findUnique({
+      where: { id },
+      include: {
+        audits: { orderBy: { createdAt: "desc" }, take: 20 },
+        invoices: { orderBy: { issueDate: "desc" } },
+        orderRequests: { orderBy: { createdAt: "desc" }, take: 5, include: { _count: { select: { lines: true } } } },
+        customerNotes: { orderBy: { createdAt: "desc" } },
+      },
+    }),
+    prisma.customerPayment.findMany({
+      where: { invoice: { customerId: id } },
+      orderBy: { receivedAt: "desc" },
+      take: 20,
+      include: { invoice: { select: { id: true, number: true } } },
+    }),
+  ]);
   if (!customer) notFound();
+
+  const deliveries = customer.invoices.filter((i) => i.deliveredAt);
+  const noteFlash = firstValue(sp.note);
 
   const now = new Date();
   const nonVoid = customer.invoices.filter((i) => i.status !== "VOID");
@@ -126,27 +139,35 @@ export default async function CustomerOverview({
               {customer.passwordHash ? "" : " · no password set"}
             </p>
           </div>
-          <CustomerEditDrawer
-            customer={{
-              id: customer.id,
-              email: customer.email,
-              name: customer.name,
-              businessName: customer.businessName,
-              phone: customer.phone,
-              notes: customer.notes,
-              role: customer.role as "CUSTOMER" | "WHOLESALE",
-              blocked: customer.blocked,
-              street: customer.street,
-              unit: customer.unit,
-              city: customer.city,
-              state: customer.state,
-              zip: customer.zip,
-              lat: customer.lat,
-              lng: customer.lng,
-              placeId: customer.placeId,
-            }}
-            audits={customer.audits.map((a) => ({ id: a.id, actor: a.actor, summary: a.summary, when: dateTimeFmt(a.createdAt) }))}
-          />
+          <div className="flex shrink-0 flex-col items-stretch gap-2">
+            <form method="post" action="/admin/invoices/create">
+              <input type="hidden" name="customerId" value={customer.id} />
+              <button className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-olive-900 px-3 py-2 text-sm font-medium text-white hover:bg-olive-800">
+                <FilePlus2 className="h-4 w-4" /> New invoice
+              </button>
+            </form>
+            <CustomerEditDrawer
+              customer={{
+                id: customer.id,
+                email: customer.email,
+                name: customer.name,
+                businessName: customer.businessName,
+                phone: customer.phone,
+                notes: customer.notes,
+                role: customer.role as "CUSTOMER" | "WHOLESALE",
+                blocked: customer.blocked,
+                street: customer.street,
+                unit: customer.unit,
+                city: customer.city,
+                state: customer.state,
+                zip: customer.zip,
+                lat: customer.lat,
+                lng: customer.lng,
+                placeId: customer.placeId,
+              }}
+              audits={customer.audits.map((a) => ({ id: a.id, actor: a.actor, summary: a.summary, when: dateTimeFmt(a.createdAt) }))}
+            />
+          </div>
         </div>
       </div>
 
@@ -244,11 +265,100 @@ export default async function CustomerOverview({
         )}
       </section>
 
-      {/* Internal notes */}
+      {/* Payments */}
       <section className="mt-6">
-        <h2 className="font-display text-lg text-olive-900">Internal notes</h2>
-        <p className="mt-0.5 mb-2 text-xs text-olive-500">Staff-only. Saved to the change history.</p>
-        <InlineNotes id={customer.id} notes={customer.notes} />
+        <h2 className="font-display text-lg text-olive-900">Payments</h2>
+        {payments.length === 0 ? (
+          <div className="mt-3 rounded-xl border border-dashed border-olive-200 bg-white p-8 text-center text-sm text-olive-500">No payments recorded yet.</div>
+        ) : (
+          <div className="mt-3 overflow-hidden rounded-xl border border-olive-100 bg-white">
+            <table className="w-full text-sm">
+              <tbody>
+                {payments.map((p) => (
+                  <tr key={p.id} className="border-b border-olive-50 last:border-0">
+                    <td className="p-3 whitespace-nowrap text-olive-600">{dateFmt(p.receivedAt)}</td>
+                    <td className="p-3 text-olive-700">{paymentMethodLabel(p.method)}{p.reference ? ` · ${p.reference}` : ""}</td>
+                    <td className="p-3"><Link href={`/admin/invoices/${p.invoice.id}`} className="text-olive-500 hover:underline">{p.invoice.number}</Link></td>
+                    <td className="p-3 text-right font-medium text-olive-900">{formatPrice(p.amountCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Deliveries */}
+      <section className="mt-6">
+        <h2 className="inline-flex items-center gap-1.5 font-display text-lg text-olive-900"><Truck className="h-4 w-4 text-olive-500" /> Deliveries</h2>
+        {deliveries.length === 0 ? (
+          <div className="mt-3 rounded-xl border border-dashed border-olive-200 bg-white p-8 text-center text-sm text-olive-500">No deliveries recorded yet.</div>
+        ) : (
+          <div className="mt-3 overflow-hidden rounded-xl border border-olive-100 bg-white">
+            <table className="w-full text-sm">
+              <tbody>
+                {deliveries.map((i) => (
+                  <tr key={i.id} className="border-b border-olive-50 last:border-0">
+                    <td className="p-3 whitespace-nowrap text-olive-600">{i.deliveredAt ? dateFmt(i.deliveredAt) : "—"}</td>
+                    <td className="p-3"><Link href={`/admin/invoices/${i.id}`} className="font-medium text-olive-900 hover:underline">{i.number}</Link></td>
+                    <td className="p-3 text-olive-600">{i.deliveredBy ? `Received by ${i.deliveredBy}` : ""}{i.deliveryNote ? ` · ${i.deliveryNote}` : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* Notes & log */}
+      <section className="mt-6 mb-4">
+        <h2 className="font-display text-lg text-olive-900">Notes &amp; log</h2>
+        <p className="mt-0.5 mb-2 text-xs text-olive-500">Private notes are staff-only; public notes are visible to the customer in their portal.</p>
+        {noteFlash === "1" ? <p className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Note added.</p> : null}
+
+        <form method="post" action={`/admin/customers/${id}/note`} className="rounded-xl border border-olive-100 bg-white p-4">
+          <textarea name="body" rows={2} required placeholder="Add a note…" className="w-full rounded-lg border border-olive-200 px-3 py-2 text-sm focus:border-olive-500 focus:outline-none" />
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <label className="inline-flex items-center gap-2 text-sm text-olive-700">
+              <input type="checkbox" name="public" className="h-4 w-4 accent-olive-800" />
+              Visible to the customer (public)
+            </label>
+            <button className="rounded-lg bg-olive-900 px-4 py-2 text-sm font-medium text-white hover:bg-olive-800">Add note</button>
+          </div>
+        </form>
+
+        {customer.customerNotes.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {customer.customerNotes.map((n) => (
+              <li key={n.id} className="rounded-xl border border-olive-100 bg-white p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="whitespace-pre-wrap text-sm text-olive-800">{n.body}</p>
+                  <form method="post" action={`/admin/customers/${id}/note/delete`} className="shrink-0">
+                    <input type="hidden" name="noteId" value={n.id} />
+                    <ConfirmSubmit message="Delete this note?" className="text-olive-300 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></ConfirmSubmit>
+                  </form>
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-olive-400">
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${n.isPublic ? "bg-sky-100 text-sky-700" : "bg-olive-100 text-olive-600"}`}>
+                    {n.isPublic ? <><Globe className="h-3 w-3" /> Public</> : <><Lock className="h-3 w-3" /> Private</>}
+                  </span>
+                  <span>{n.author ?? "—"} · {dateTimeFmt(n.createdAt)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {customer.audits.length > 0 ? (
+          <div className="mt-4">
+            <p className="mb-1 text-xs font-medium text-olive-500">Change history</p>
+            <ul className="space-y-1 text-xs text-olive-500">
+              {customer.audits.slice(0, 8).map((a) => (
+                <li key={a.id}>{dateTimeFmt(a.createdAt)} · {a.actor} — {a.summary}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
     </div>
   );

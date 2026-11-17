@@ -1208,8 +1208,24 @@ model Customer {
   audits        CustomerAudit[]
   orderRequests OrderRequest[]
   invoices      CustomerInvoice[]
+  customerNotes CustomerNote[]
 
   @@index([role])
+}
+
+/// A dated note on a customer's timeline. Public notes are visible to the
+/// customer in their portal; private notes are staff-only.
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  body       String
+  isPublic   Boolean  @default(false)
+  /// Admin email who wrote it.
+  author     String?
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
 }
 
 /// Customer-based invoice (lightweight; foundation for Section M). Distinct from
