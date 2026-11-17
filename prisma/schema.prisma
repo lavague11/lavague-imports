@@ -1192,12 +1192,58 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions     CustomerSession[]
-  resetTokens  PasswordResetToken[]
-  applications WholesaleApplication[]
-  audits       CustomerAudit[]
+  sessions      CustomerSession[]
+  resetTokens   PasswordResetToken[]
+  applications  WholesaleApplication[]
+  audits        CustomerAudit[]
+  orderRequests OrderRequest[]
 
   @@index([role])
+}
+
+/// Wholesale order request (Section L). Wholesale accounts never see prices, so
+/// they submit a request in CASES; admin quotes it into an invoice (Section M).
+/// Customer-based (not the heavy BusinessAccount CRM) to match the accounts system.
+enum OrderRequestStatus {
+  SUBMITTED
+  QUOTED
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+model OrderRequest {
+  id         String             @id @default(cuid())
+  reference  String             @unique
+  customerId String
+  customer   Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status     OrderRequestStatus @default(SUBMITTED)
+  /// Customer's note at submit, and the admin's note on decision.
+  note      String?
+  adminNote String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  lines OrderRequestLine[]
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model OrderRequestLine {
+  id        String       @id @default(cuid())
+  requestId String
+  request   OrderRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  /// Snapshot of the product (no FK, so the line survives catalog changes).
+  productId   String?
+  slug        String?
+  productName String
+  unitSize    String?
+  casePack    Int?
+  cases       Int
+  createdAt   DateTime @default(now())
+
+  @@index([requestId])
 }
 
 /// Admin change log for a customer — "who changed what", shown on the detail page.

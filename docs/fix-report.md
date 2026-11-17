@@ -18,12 +18,12 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 | D | Server-enforced roles Customer/Wholesale/Admin | ✅ Core done (admin + customer roles, server gates, approval promotes to WHOLESALE) |
 | E | Wholesale application flow | ✅ Done & verified (apply→link→admin approve/decline→role flip + status) |
 | F | Google Places business autocomplete | 🔒 Blocked (Places API key) |
-| G | $500 wholesale minimum as order request | ⛔ Not started (needs L) |
+| G | $500 wholesale minimum as order request | ⛔ Deferred to M (checked at quote/invoice time, not in the no-price cart) |
 | H | One admin bar (hide store header on /admin) | ✅ Done & verified (nav finalized: Dashboard·Products·Orders·Customers·More) |
 | I | Customers page (replace "In progress") | ✅ Done & verified (list+toggle+search+import, detail/edit + audit log); pricing-tier/multi-address deferred |
 | J | Sample data script | ⛔ Not started (needs CRM tables) |
 | K | Remove demo admin admin@lavagueimports.com | ✅ Done & verified |
-| L | Wholesale ordering, no prices shown, reorder | ⛔ Not started (needs B/D) |
+| L | Wholesale ordering, no prices shown, reorder | ✅ Core done & verified (line sheet, cart, submit, admin orders, usual items/reorder); Suggested-5 pending |
 | M | Invoicing: PDF, e-sign, payments, delivery, reports, LV-#### | ⛔ Not started (largest; needs CRM tables + durable DB) |
 | N | Auto-capitalize names on all forms | ✅ Done & verified |
 | O | Wholesale customer portal | ⛔ Not started (needs B/D) |
@@ -119,6 +119,32 @@ the old one is rejected, and the token is consumed. Test customer removed afterw
   audit recorded `sales@…` with the before→after diff; real row restored afterward.
 - **Deferred for I:** pricing-tier assignment and multiple saved addresses (depend on the
   pricing/CRM wiring in L/M), and the applicant "Request more info" action.
+
+## Section L — wholesale ordering, no prices (DONE this run)
+
+Architecture note: order requests are **Customer-based** (`OrderRequest` + `OrderRequestLine`,
+migration `005`), not the heavy `BusinessAccount`/`WholesaleOrder` CRM — matching the
+accounts system actually in use. Admin converts a request to an invoice in M.
+
+- **No prices anywhere for wholesale.** New line sheet at `/wholesale/order` (gated to role
+  WHOLESALE) shows photo, name, unit size and case pack only — never a price. Cookie-based
+  order-request cart (`lv_wholesale_cart`, stores only `{slug: cases}`).
+- **Flow:** add/update/remove cases → `/wholesale/cart` review (no prices) → submit creates
+  an `OrderRequest` (status SUBMITTED, ref `WR-…`) + lines, clears the cart, emails sales
+  (logged until SMTP), and shows a confirmation page.
+- **Admin Orders** (`/admin/orders`, replaced the placeholder): tabbed list (Open/New/
+  Quoted/All) with a "New" badge, and a detail page with the customer, note, and line items
+  in cases. Server-enforced admin.
+- **Your usual items / Reorder:** the line sheet shows products from past requests with the
+  last-ordered quantities and per-item re-add, plus a **Reorder all** button.
+- **Verified end-to-end:** signed in as a test wholesale account → line sheet renders with
+  no prices (only React's internal `$` markers, not money) → added 2 items → cart showed
+  them with no prices → submitted → `OrderRequest WR-… (2 lines, 5 cases, note)` created and
+  appeared in admin Orders list + detail → usual items + Reorder all worked. Test data removed.
+- **Deferred for L:** the **Suggested items (5)** block (regularly-ordered-but-missing →
+  popular-in-their-categories → new arrivals); it also appears in the M invoice builder.
+- **Section G** ($500 minimum as an order request) lands with **M**, since the minimum is
+  evaluated when the request is quoted/invoiced — wholesale never sees cart prices.
 
 ## Blocked (in `docs/blocked.md`)
 
