@@ -28,19 +28,21 @@ const MATCH_TAG: Record<string, { label: string; cls: string }> = {
 };
 const PRICE_TAG: Record<string, { label: string; cls: string }> = {
   spoken: { label: "spoken price", cls: "bg-sky-100 text-sky-700" },
+  last: { label: "last paid", cls: "bg-emerald-100 text-emerald-700" },
   catalog: { label: "catalog price", cls: "bg-olive-100 text-olive-600" },
   none: { label: "no price", cls: "bg-olive-100 text-olive-500" },
 };
 
 const money = (c: number | null) => (c != null ? `$${(c / 100).toFixed(2)}` : "—");
 
-export function VoiceOrder({ onAddLine }: { onAddLine: (item: VoiceItem) => void }) {
+export function VoiceOrder({ onAddLine, customerId }: { onAddLine: (item: VoiceItem) => void; customerId?: string | null }) {
   const [status, setStatus] = useState<"idle" | "recording" | "transcribing" | "matching">("idle");
   const [transcript, setTranscript] = useState("");
   const [queue, setQueue] = useState<VoiceItem[]>([]);
   const [tally, setTally] = useState({ added: 0, skipped: 0 });
   const [done, setDone] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [heardCustomer, setHeardCustomer] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -62,9 +64,11 @@ export function VoiceOrder({ onAddLine }: { onAddLine: (item: VoiceItem) => void
       setStatus("matching");
       const mfd = new FormData();
       mfd.append("transcript", tData.text);
+      if (customerId) mfd.append("customerId", customerId);
       const mRes = await fetch("/admin/invoices/voice/match", { method: "POST", body: mfd });
       const mData = await mRes.json();
       if (mData.configured === false) { setNote("Matching needs an ANTHROPIC_API_KEY — add it under /developers."); setStatus("idle"); return; }
+      setHeardCustomer(mData.customer?.label || mData.heardCustomer || null);
       const items: VoiceItem[] = Array.isArray(mData.items) ? mData.items : [];
       if (items.length === 0) setNote("Couldn't pull any items out of that — try again.");
       setQueue(items);
@@ -75,7 +79,7 @@ export function VoiceOrder({ onAddLine }: { onAddLine: (item: VoiceItem) => void
     } finally {
       setStatus("idle");
     }
-  }, []);
+  }, [customerId]);
 
   const start = async () => {
     setNote(null);
@@ -224,6 +228,7 @@ export function VoiceOrder({ onAddLine }: { onAddLine: (item: VoiceItem) => void
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDone(false)}>
           <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
             <p className="font-display text-xl text-olive-900">{tally.added} added · {tally.skipped} skipped</p>
+            {heardCustomer ? <p className="mt-1 text-sm text-olive-700">For: <span className="font-medium">{heardCustomer}</span> <span className="text-xs text-olive-400">— pick them in the customer bar</span></p> : null}
             {transcript ? <p className="mt-2 text-xs text-olive-500">Heard: &ldquo;{transcript}&rdquo;</p> : null}
             <button type="button" onClick={() => setDone(false)} className="mt-4 w-full rounded-lg bg-olive-900 py-2.5 text-sm font-medium text-white hover:bg-olive-800">Done</button>
           </div>

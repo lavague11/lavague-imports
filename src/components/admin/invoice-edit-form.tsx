@@ -244,7 +244,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
             <Plus className="h-4 w-4" /> Add line
           </button>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            <VoiceOrder onAddLine={addVoiceLine} />
+            <VoiceOrder onAddLine={addVoiceLine} customerId={props.customerId} />
             <PreviousItems customerId={props.customerId} onAdd={addLines} />
             <AddCredit customerId={props.customerId} onAdd={addCredit} />
             <InvoiceAssist getLines={assistLines} onApply={applyAssist} />

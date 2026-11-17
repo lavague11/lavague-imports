@@ -5,42 +5,25 @@ import Anthropic from "@anthropic-ai/sdk";
 import { requireAdmin } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { searchTermsFor } from "@/lib/invoice-aliases";
 import { getKey } from "@/lib/vault";
 
 export const runtime = "nodejs";
 
-// Turn a spoken (bilingual) order transcript into matched invoice line items.
-// Admin-only. Pre-filters catalog candidates cheaply (text similarity + brand
-// aliases) before asking Claude Sonnet to extract qty/unit/price and match.
-// Never invents a SKU, quantity, price or product — unknowns come back blank/"best guess".
+// Turn a spoken (bilingual) order transcript into matched invoice line items + an optional
+// customer. Admin-only. Pre-filters catalog candidates with the shared alias table, prices
+// from the customer's last-paid price when available, and attaches catalog photos.
+// Never invents a SKU, quantity, price or product.
 
-// Arabic → English brand aliases, so an Arabic-only mention still seeds the catalog search.
-const BRAND_ALIASES: Record<string, string> = {
-  وزنية: "ouazzania",
-  ملسوكة: "malsouka",
-  سلطان: "sultan",
-  شاكور: "chakour",
-  طيب: "tayeb",
-  ايديال: "ideal",
-  إيديال: "ideal",
-  زيت: "oil",
-  زيتون: "olive",
-};
+interface Candidate { name: string; brand: string | null; imageUrl: string | null; sku: string; packSize: string; priceCents: number | null }
 
-function searchTerms(transcript: string): string[] {
-  const latin = transcript.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [];
-  const aliased: string[] = [];
-  for (const [ar, en] of Object.entries(BRAND_ALIASES)) if (transcript.includes(ar)) aliased.push(en);
-  return [...new Set([...latin, ...aliased])].slice(0, 12);
-}
-
-async function candidates(prisma: PrismaClient, transcript: string) {
-  const terms = searchTerms(transcript);
+async function candidates(prisma: PrismaClient, transcript: string): Promise<Candidate[]> {
+  const terms = searchTermsFor(transcript).slice(0, 14);
   if (terms.length === 0) return [];
   const products = await prisma.product.findMany({
     where: { isActive: true, OR: terms.map((t) => ({ name: { contains: t, mode: "insensitive" as const } })) },
     select: { name: true, brand: true, imageUrl: true, variants: { select: { sku: true, name: true, retailPriceCents: true }, take: 1 } },
-    take: 16,
+    take: 20,
   });
   return products.map((p) => ({
     name: p.name,
@@ -52,15 +35,43 @@ async function candidates(prisma: PrismaClient, transcript: string) {
   }));
 }
 
-function parseJsonArray(text: string): unknown {
-  const s = text.indexOf("[");
-  const e = text.lastIndexOf("]");
+async function lastPaid(prisma: PrismaClient, customerId: string, name: string): Promise<{ cents: number; date: string } | null> {
+  const line = await prisma.customerInvoiceLine.findFirst({
+    where: { isCredit: false, description: { contains: name, mode: "insensitive" }, invoice: { customerId, status: { not: "VOID" } } },
+    orderBy: { invoice: { issueDate: "desc" } },
+    select: { unitPriceCents: true, invoice: { select: { issueDate: true } } },
+  });
+  return line ? { cents: line.unitPriceCents, date: line.invoice.issueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) } : null;
+}
+
+// Fuzzy-match a spoken customer name against the customer list.
+async function matchCustomer(prisma: PrismaClient, spoken: string) {
+  const n = spoken.trim().toLowerCase();
+  if (n.length < 2) return { customer: null, candidates: [] as { id: string; label: string }[] };
+  const rows = await prisma.customer.findMany({
+    orderBy: [{ businessName: "asc" }],
+    select: { id: true, businessName: true, name: true, phone: true },
+    take: 2000,
+  });
+  const scored = rows
+    .map((r) => {
+      const hay = `${r.businessName ?? ""} ${r.name ?? ""} ${r.phone ?? ""}`.toLowerCase();
+      const words = n.split(/\s+/).filter(Boolean);
+      const score = words.filter((w) => hay.includes(w)).length;
+      return { r, score };
+    })
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((s) => ({ id: s.r.id, label: s.r.businessName || s.r.name || "Customer" }));
+  return { customer: scored[0] ?? null, candidates: scored };
+}
+
+function parseJson(text: string, open: string, close: string): unknown {
+  const s = text.indexOf(open);
+  const e = text.lastIndexOf(close);
   if (s === -1 || e === -1) return null;
-  try {
-    return JSON.parse(text.slice(s, e + 1));
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(text.slice(s, e + 1)); } catch { return null; }
 }
 
 export async function POST(request: Request) {
@@ -78,30 +89,34 @@ export async function POST(request: Request) {
 
   const fd = await request.formData().catch(() => null);
   const transcript = String(fd?.get("transcript") ?? "").trim();
+  const customerId = String(fd?.get("customerId") ?? "").trim() || null;
   if (!transcript) return NextResponse.json({ configured: true, items: [] });
 
   const cands = await candidates(prisma, transcript);
 
-  const prompt = `You are taking a spoken wholesale grocery order for a North African / Middle Eastern importer. The transcript mixes Egyptian/Moroccan/Algerian Arabic and English. It may include CREDITS (returns/refunds/discounts). Convert it into invoice line items and return ONLY a JSON array (no prose, no fences), one object per distinct product or credit:
-[{
-  "heard": string,          // the exact phrase for this item, as transcribed
-  "name": string,           // matched catalog product name, or a clean English name if no match; for a pure money credit use "Credit"
-  "brand": string,          // brand if known, else ""
-  "sku": string,            // matched catalog SKU, or "" if no match — NEVER invent one
-  "packSize": string,       // catalog pack/size label if matched, else ""
-  "quantity": number,       // parse Arabic/English number words or digits (واحدة/one=1, اتنين/two=2, تلاتة/three=3 ...); default 1
-  "unit": "piece" | "case", // "case" if كرتونة/صندوق/carton/case is said, else "piece"
-  "priceCents": number|null,// per-unit price in cents if matched or spoken (see rules); for a money credit, the credit amount; else null — NEVER invent
-  "priceSource": "spoken" | "catalog" | "none",
-  "matchTag": "matched" | "best guess" | "not in catalog",
-  "isCredit": boolean,      // true if this is a credit / return / refund / discount (كريدت, credit, "give him $X credit", "اعمله كريدت", a damaged/expired return, etc.)
-  "creditReason": string    // only if isCredit: map the spoken reason to EXACTLY one of [Damaged, Expired, Returned, Short delivery, Courtesy, Price adjustment, Other]. Arabic: تالف/damaged=Damaged, منتهي الصلاحية/expired=Expired, مرتجع/returned=Returned, نقص/short=Short delivery, هدية/courtesy=Courtesy. "" if no reason was spoken.
-}]
-PRICE RULES: "ب<number>" or "at <number>" = unit price each. "الكرتونة"/"per case" = price per case. "الكل"/"total" = line total for the whole quantity (divide by quantity for priceCents). If no price is spoken, use the matched catalog price and set priceSource "catalog"; if there's no catalog match either, priceCents null and priceSource "none".
-CREDIT RULES: "credit 2 cases harissa damaged" → isCredit true, match harissa, quantity 2, unit case, creditReason "Damaged", priceCents from the catalog/last price. "give him $40 courtesy credit" / "اعمله كريدت بأربعين" → isCredit true, name "Credit", quantity 1, priceCents 4000, creditReason "Courtesy". A normal order item has isCredit false and creditReason "".
-Only use a SKU/price/brand from the CANDIDATES below — never make one up. If nothing fits, matchTag "not in catalog", sku "", but still give a clean English name and the heard phrase.
+  const prompt = `You are taking a spoken wholesale grocery order for a North African / Middle Eastern importer. The transcript mixes Egyptian/Moroccan/Algerian Arabic and English and may include CREDITS and a CUSTOMER name. Return ONLY a JSON object (no prose, no fences):
+{
+  "customerName": string,   // if the speaker says who it's for ("invoice for X", "لـ X", "للزعيم"), the name; else ""
+  "items": [{
+    "heard": string,
+    "name": string,          // matched catalog product name, or a clean English name; "Credit" for a money credit
+    "brand": string,
+    "sku": string,           // matched catalog SKU, or "" — NEVER invent
+    "packSize": string,
+    "quantity": number,      // Arabic/English numbers (واحدة/one=1, اتنين/two=2, تلاتة/three=3 ...); default 1
+    "unit": "piece" | "case",// case if box/كرتونة/صندوق/carton/case
+    "priceCents": number|null,
+    "priceSource": "spoken" | "catalog" | "none",
+    "matchTag": "matched" | "best guess" | "not in catalog",
+    "isCredit": boolean,
+    "creditReason": string   // if credit, one of [Damaged, Expired, Returned, Short delivery, Courtesy, Price adjustment, Other]; else ""
+  }]
+}
+Match each item to the CANDIDATES below using brand + product + size (وزنية/wazneya = El Ouazzania extra virgin, المغربية = Al Maghribya, داري = Dari, بلبولة/belboula = Dari barley couscous). Prefer the candidate whose brand AND size match. Only use a SKU/price/brand from the candidates — never invent. If nothing fits, matchTag "not in catalog", sku "".
+PRICE: "ب<n>"/"at n" = unit price; "الكل"/"total" = line total (÷ qty). No price spoken → matched catalog price, priceSource "catalog"; no match → null, "none".
+CREDIT: "credit 2 cases harissa damaged" → isCredit true, reason Damaged. "$40 courtesy credit" → name "Credit", priceCents 4000, reason Courtesy.
 
-CATALOG CANDIDATES:
+CANDIDATES:
 ${JSON.stringify(cands, null, 1)}
 
 TRANSCRIPT:
@@ -109,19 +124,32 @@ ${transcript}`;
 
   try {
     const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
-      model: "claude-sonnet-5-5",
-      max_tokens: 2000,
-      messages: [{ role: "user", content: prompt }],
-    });
+    const msg = await client.messages.create({ model: "claude-sonnet-5-5", max_tokens: 2000, messages: [{ role: "user", content: prompt }] });
     const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
-    const items = parseJsonArray(text);
-    // Attach catalog photos for matched items (by SKU) so the cards can show them.
+    const parsed = parseJson(text, "{", "}") as { customerName?: string; items?: Record<string, unknown>[] } | null;
+    const rawItems = Array.isArray(parsed?.items) ? parsed!.items : [];
+
     const bySku = new Map(cands.filter((c) => c.sku).map((c) => [c.sku, c]));
-    const withPhotos = Array.isArray(items)
-      ? (items as { sku?: string }[]).map((it) => ({ ...it, imageUrl: it.sku ? bySku.get(it.sku)?.imageUrl ?? null : null }))
-      : [];
-    return NextResponse.json({ configured: true, items: withPhotos });
+    const items = await Promise.all(
+      rawItems.map(async (it) => {
+        const sku = String(it.sku ?? "");
+        const name = String(it.name ?? "");
+        const cand = sku ? bySku.get(sku) : undefined;
+        let priceCents = (it.priceCents as number | null) ?? null;
+        let priceSource = String(it.priceSource ?? "none");
+        // Prefer this customer's last-paid price for matched, non-spoken, non-credit items.
+        if (customerId && cand && !it.isCredit && priceSource !== "spoken") {
+          const lp = await lastPaid(prisma, customerId, cand.name);
+          if (lp) { priceCents = lp.cents; priceSource = "last"; }
+        }
+        return { ...it, priceCents, priceSource, imageUrl: cand?.imageUrl ?? null };
+      }),
+    );
+
+    const customerName = String(parsed?.customerName ?? "").trim();
+    const customerMatch = customerName ? await matchCustomer(prisma, customerName) : { customer: null, candidates: [] };
+
+    return NextResponse.json({ configured: true, items, heardCustomer: customerName || null, customer: customerMatch.customer, customerCandidates: customerMatch.candidates });
   } catch (error) {
     console.error("[voice] match failed", error);
     return NextResponse.json({ configured: true, error: "failed" });
