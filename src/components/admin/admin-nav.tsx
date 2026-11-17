@@ -18,6 +18,7 @@ const CORE = [
 /** Lower-frequency tools tucked under "More". */
 const MORE = [
   { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/photos", label: "Photo library" },
   { href: "/admin/wholesale", label: "Applications" },
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/price-compare", label: "Price compare" },

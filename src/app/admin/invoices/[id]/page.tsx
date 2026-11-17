@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Download, Pencil, Send } from "lucide-react";
+import { ArrowLeft, Download, Pencil, Send, Trash2 } from "lucide-react";
 
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { CopyLink } from "@/components/admin/copy-link";
+import { PhotoUpload } from "@/components/admin/photo-upload";
 import { getCurrentUser } from "@/lib/auth";
 import { composeAddress } from "@/lib/address";
 import { getPrisma } from "@/lib/db";
@@ -13,6 +14,7 @@ import {
   PAYMENT_METHODS,
   WHOLESALE_MINIMUM_CENTS,
 } from "@/lib/invoice";
+import { photoKindLabel, PHOTO_KIND_BADGE } from "@/lib/invoice-photo-constants";
 import { formatPrice } from "@/lib/utils";
 
 export const metadata = {
@@ -33,6 +35,11 @@ const FLASH: Record<string, { ok?: boolean; text: string }> = {
   "delivered:cleared": { ok: true, text: "Delivery cleared." },
   "voided:1": { ok: true, text: "Invoice voided." },
   "unvoided:1": { ok: true, text: "Invoice restored." },
+  "photo:1": { ok: true, text: "Photo uploaded." },
+  "photo:deleted": { ok: true, text: "Photo removed." },
+  "photo:none": { text: "Choose a photo first." },
+  "photo:bad": { text: "Couldn't read that image — try a different file." },
+  "photo:error": { text: "Couldn't save the photo — try again." },
   "error:amount": { text: "Enter a payment amount greater than zero." },
   "error:void": { text: "That action isn't available on a voided invoice." },
   "error:send": { text: "Couldn't send — try again." },
@@ -63,6 +70,7 @@ export default async function InvoiceDetail({
       customer: true,
       lines: { orderBy: { id: "asc" } },
       payments: { orderBy: { receivedAt: "desc" } },
+      photos: { orderBy: { createdAt: "desc" } },
       orderRequest: { select: { id: true, reference: true } },
     },
   });
@@ -74,7 +82,7 @@ export default async function InvoiceDetail({
   const balance = invoice.totalCents - invoice.paidCents;
   const addr = composeAddress(c);
 
-  const flashKey = ["sent", "paid", "delivered", "voided", "unvoided", "error"]
+  const flashKey = ["sent", "paid", "delivered", "voided", "unvoided", "photo", "error"]
     .map((k) => (sp[k] ? `${k}:${firstValue(sp[k])}` : null))
     .find(Boolean);
   const flash = flashKey ? FLASH[flashKey] : undefined;
@@ -310,6 +318,41 @@ export default async function InvoiceDetail({
             Not yet accepted. {invoice.publicToken ? "The customer can accept it from their link above." : "Send the invoice to let the customer accept it online."}
           </p>
         )}
+      </section>
+
+      {/* Photos */}
+      <section className="mt-6 mb-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg text-olive-900">Photos</h2>
+          <a href="/admin/photos" className="text-sm text-olive-600 hover:text-olive-900">Photo library →</a>
+        </div>
+        <p className="mt-0.5 mb-2 text-xs text-olive-500">Proof of delivery, a check or payment, or anything else — saved to this invoice.</p>
+
+        {invoice.photos.length > 0 ? (
+          <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {invoice.photos.map((p) => (
+              <div key={p.id} className="overflow-hidden rounded-xl border border-olive-100 bg-white">
+                <a href={p.url} target="_blank" rel="noreferrer" className="block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.url} alt={p.label ?? photoKindLabel(p.kind)} className="h-32 w-full object-cover" />
+                </a>
+                <div className="flex items-center justify-between gap-1 p-2">
+                  <span className={`truncate rounded-full px-2 py-0.5 text-xs font-medium ${PHOTO_KIND_BADGE[p.kind] ?? "bg-olive-100 text-olive-700"}`} title={p.label ?? photoKindLabel(p.kind)}>
+                    {p.kind === "OTHER" && p.label ? p.label : photoKindLabel(p.kind)}
+                  </span>
+                  <form method="post" action={`/admin/invoices/${id}/photo/delete`} className="shrink-0">
+                    <input type="hidden" name="photoId" value={p.id} />
+                    <ConfirmSubmit message="Delete this photo?" className="text-olive-300 hover:text-red-600">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </ConfirmSubmit>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        <PhotoUpload action={`/admin/invoices/${id}/photo`} />
       </section>
     </div>
   );

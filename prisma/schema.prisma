@@ -1263,10 +1263,37 @@ model CustomerInvoice {
 
   lines    CustomerInvoiceLine[]
   payments CustomerPayment[]
+  photos   InvoicePhoto[]
 
   @@index([customerId])
   @@index([status])
   @@index([orderRequestId])
+}
+
+/// What an uploaded invoice photo depicts. OTHER carries a freeform label.
+enum InvoicePhotoKind {
+  DELIVERY
+  PAYMENT
+  OTHER
+}
+
+/// A photo attached to an invoice (proof of delivery, a check/payment, etc.).
+/// Bytes live in MediaAsset (served at /media/<id>); `url` is that path.
+model InvoicePhoto {
+  id        String           @id @default(cuid())
+  invoiceId String
+  invoice   CustomerInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  /// The /media/<id> URL of the stored image.
+  url       String
+  kind      InvoicePhotoKind @default(OTHER)
+  /// Freeform caption; required wording when kind = OTHER.
+  label     String?
+  /// Admin email who uploaded it.
+  uploadedBy String?
+  createdAt DateTime         @default(now())
+
+  @@index([invoiceId])
+  @@index([kind])
 }
 
 enum CustomerPaymentMethod {
