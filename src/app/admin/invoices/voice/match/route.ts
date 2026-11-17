@@ -82,20 +82,23 @@ export async function POST(request: Request) {
 
   const cands = await candidates(prisma, transcript);
 
-  const prompt = `You are taking a spoken wholesale grocery order for a North African / Middle Eastern importer. The transcript mixes Egyptian/Moroccan/Algerian Arabic and English. Convert it into invoice line items and return ONLY a JSON array (no prose, no fences), one object per distinct product ordered:
+  const prompt = `You are taking a spoken wholesale grocery order for a North African / Middle Eastern importer. The transcript mixes Egyptian/Moroccan/Algerian Arabic and English. It may include CREDITS (returns/refunds/discounts). Convert it into invoice line items and return ONLY a JSON array (no prose, no fences), one object per distinct product or credit:
 [{
   "heard": string,          // the exact phrase for this item, as transcribed
-  "name": string,           // matched catalog product name, or a clean English name if no match
+  "name": string,           // matched catalog product name, or a clean English name if no match; for a pure money credit use "Credit"
   "brand": string,          // brand if known, else ""
   "sku": string,            // matched catalog SKU, or "" if no match — NEVER invent one
   "packSize": string,       // catalog pack/size label if matched, else ""
   "quantity": number,       // parse Arabic/English number words or digits (واحدة/one=1, اتنين/two=2, تلاتة/three=3 ...); default 1
   "unit": "piece" | "case", // "case" if كرتونة/صندوق/carton/case is said, else "piece"
-  "priceCents": number|null,// price in cents if clearly matched or spoken (see rules), else null — NEVER invent
+  "priceCents": number|null,// per-unit price in cents if matched or spoken (see rules); for a money credit, the credit amount; else null — NEVER invent
   "priceSource": "spoken" | "catalog" | "none",
-  "matchTag": "matched" | "best guess" | "not in catalog"
+  "matchTag": "matched" | "best guess" | "not in catalog",
+  "isCredit": boolean,      // true if this is a credit / return / refund / discount (كريدت, credit, "give him $X credit", "اعمله كريدت", a damaged/expired return, etc.)
+  "creditReason": string    // only if isCredit: map the spoken reason to EXACTLY one of [Damaged, Expired, Returned, Short delivery, Courtesy, Price adjustment, Other]. Arabic: تالف/damaged=Damaged, منتهي الصلاحية/expired=Expired, مرتجع/returned=Returned, نقص/short=Short delivery, هدية/courtesy=Courtesy. "" if no reason was spoken.
 }]
-PRICE RULES: "ب<number>" or "at <number>" = unit price each. "الكرتونة"/"per case" = price per case (still store as the per-unit priceCents when you can, else keep as given and note case). "الكل"/"total" = line total for the whole quantity (divide by quantity for priceCents). If no price is spoken, use the matched catalog price and set priceSource "catalog"; if there's no catalog match either, priceCents null and priceSource "none".
+PRICE RULES: "ب<number>" or "at <number>" = unit price each. "الكرتونة"/"per case" = price per case. "الكل"/"total" = line total for the whole quantity (divide by quantity for priceCents). If no price is spoken, use the matched catalog price and set priceSource "catalog"; if there's no catalog match either, priceCents null and priceSource "none".
+CREDIT RULES: "credit 2 cases harissa damaged" → isCredit true, match harissa, quantity 2, unit case, creditReason "Damaged", priceCents from the catalog/last price. "give him $40 courtesy credit" / "اعمله كريدت بأربعين" → isCredit true, name "Credit", quantity 1, priceCents 4000, creditReason "Courtesy". A normal order item has isCredit false and creditReason "".
 Only use a SKU/price/brand from the CANDIDATES below — never make one up. If nothing fits, matchTag "not in catalog", sku "", but still give a clean English name and the heard phrase.
 
 CATALOG CANDIDATES:

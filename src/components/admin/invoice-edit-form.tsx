@@ -85,7 +85,17 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
 
   // Voice order: add one spoken line at a time (replacing a lone empty starter row).
   const addVoiceLine = (item: VoiceItem) => {
-    const row: Row = { description: item.name, qty: String(item.quantity || 1), unit: item.priceCents != null ? (item.priceCents / 100).toFixed(2) : "" };
+    const isCredit = Boolean(item.isCredit);
+    const description = isCredit
+      ? `Credit – ${item.creditReason || "Other"}${item.name && item.name !== "Credit" ? ` – ${item.name}` : ""}`
+      : item.name;
+    const row: Row = {
+      description,
+      qty: String(item.quantity || 1),
+      unit: item.priceCents != null ? (item.priceCents / 100).toFixed(2) : "",
+      isCredit,
+      creditReason: isCredit ? item.creditReason || "Other" : undefined,
+    };
     setRows((prev) => (prev.length === 1 && !prev[0].description.trim() && !prev[0].unit.trim() ? [row] : [...prev, row]));
   };
 

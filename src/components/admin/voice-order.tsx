@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Mic, Square, X } from "lucide-react";
+import { Check, Mic, Square, Undo2, X } from "lucide-react";
+
+import { CREDIT_REASONS } from "@/lib/invoice-constants";
 
 export interface VoiceItem {
   heard: string;
@@ -15,6 +17,8 @@ export interface VoiceItem {
   priceSource: "spoken" | "catalog" | "none";
   matchTag: "matched" | "best guess" | "not in catalog";
   imageUrl: string | null;
+  isCredit?: boolean;
+  creditReason?: string;
 }
 
 const MATCH_TAG: Record<string, { label: string; cls: string }> = {
@@ -99,15 +103,18 @@ export function VoiceOrder({ onAddLine }: { onAddLine: (item: VoiceItem) => void
     recorderRef.current = null;
   };
 
+  const [reason, setReason] = useState("");
   const answer = useCallback((yes: boolean) => {
-    setQueue((q) => {
-      const [first, ...rest] = q;
-      if (first && yes) onAddLine(first);
-      setTally((t) => ({ added: t.added + (yes ? 1 : 0), skipped: t.skipped + (yes ? 0 : 1) }));
-      if (rest.length === 0) setDone(true);
-      return rest;
-    });
-  }, [onAddLine]);
+    const first = queue[0];
+    if (yes && first) {
+      const effReason = first.creditReason || reason;
+      if (first.isCredit && !effReason) return; // a credit needs a reason first
+      onAddLine(first.isCredit ? { ...first, creditReason: effReason } : first);
+    }
+    setTally((t) => ({ added: t.added + (yes ? 1 : 0), skipped: t.skipped + (yes ? 0 : 1) }));
+    setReason("");
+    setQueue((q) => { const rest = q.slice(1); if (rest.length === 0) setDone(true); return rest; });
+  }, [queue, reason, onAddLine]);
 
   // Desktop shortcuts: Enter = Yes, Esc = No, while a card is showing.
   useEffect(() => {
@@ -139,14 +146,22 @@ export function VoiceOrder({ onAddLine }: { onAddLine: (item: VoiceItem) => void
       {note ? <p className="mt-1 text-right text-xs text-olive-500">{note}</p> : null}
 
       {/* Item card (one at a time, queued) */}
-      {current ? (
+      {current ? (() => {
+        const isCredit = Boolean(current.isCredit);
+        const effReason = current.creditReason || reason;
+        const yesBlocked = isCredit && !effReason;
+        return (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={(e) => e.stopPropagation()}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+          <div className={`w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl ${isCredit ? "ring-2 ring-amber-300" : ""}`}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-olive-500">{queue.length} item{queue.length === 1 ? "" : "s"} left</span>
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${MATCH_TAG[current.matchTag]?.cls ?? MATCH_TAG["not in catalog"].cls}`}>
-                {MATCH_TAG[current.matchTag]?.label ?? current.matchTag}
-              </span>
+              {isCredit ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"><Undo2 className="h-3 w-3" /> Credit</span>
+              ) : (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${MATCH_TAG[current.matchTag]?.cls ?? MATCH_TAG["not in catalog"].cls}`}>
+                  {MATCH_TAG[current.matchTag]?.label ?? current.matchTag}
+                </span>
+              )}
             </div>
 
             <p className="mt-2 text-xs text-olive-500">Heard: <span className="text-olive-700">&ldquo;{current.heard}&rdquo;</span></p>
@@ -156,36 +171,53 @@ export function VoiceOrder({ onAddLine }: { onAddLine: (item: VoiceItem) => void
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={current.imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-lg border border-olive-100 object-cover" />
               ) : (
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-olive-200 text-xs text-olive-400">No photo</div>
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-olive-200 text-xs text-olive-400">{isCredit ? "Credit" : "No photo"}</div>
               )}
               <div className="min-w-0">
                 <p className="font-medium text-olive-900">{current.name || "Unknown item"}</p>
                 <p className="text-xs text-olive-500">{[current.brand, current.packSize].filter(Boolean).join(" · ") || " "}</p>
-                <p className="text-xs text-olive-500">{current.sku ? `SKU ${current.sku}` : "No SKU"}</p>
+                <p className="text-xs text-olive-500">{current.sku ? `SKU ${current.sku}` : isCredit ? "Credit line" : "No SKU"}</p>
               </div>
             </div>
 
+            {isCredit ? (
+              <div className="mt-3">
+                <label className="mb-1 block text-[11px] text-olive-500">Reason {effReason ? "" : <span className="text-red-500">— required</span>}</label>
+                {current.creditReason ? (
+                  <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-sm font-medium text-amber-800">{current.creditReason}</p>
+                ) : (
+                  <select value={reason} onChange={(e) => setReason(e.target.value)} className="h-9 w-full rounded-lg border border-olive-200 px-2 text-sm focus:border-olive-500 focus:outline-none">
+                    <option value="">What&apos;s the reason for the credit?</option>
+                    {CREDIT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                )}
+              </div>
+            ) : null}
+
             <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-olive-50/60 p-2 text-center text-sm">
               <div><p className="text-[11px] text-olive-500">Qty</p><p className="font-semibold text-olive-900">{current.quantity} {current.unit === "case" ? "case" : "pc"}</p></div>
-              <div><p className="text-[11px] text-olive-500">Price</p><p className="font-semibold text-olive-900">{money(current.priceCents)}</p></div>
-              <div><p className="text-[11px] text-olive-500">Line total</p><p className="font-semibold text-olive-900">{current.priceCents != null ? money(current.priceCents * current.quantity) : "—"}</p></div>
+              <div><p className="text-[11px] text-olive-500">{isCredit ? "Credit each" : "Price"}</p><p className="font-semibold text-olive-900">{money(current.priceCents)}</p></div>
+              <div><p className="text-[11px] text-olive-500">{isCredit ? "Credit total" : "Line total"}</p><p className={`font-semibold ${isCredit ? "text-amber-700" : "text-olive-900"}`}>{current.priceCents != null ? `${isCredit ? "−" : ""}${money(current.priceCents * current.quantity)}` : "—"}</p></div>
             </div>
-            <div className="mt-1.5 text-center">
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRICE_TAG[current.priceSource]?.cls ?? PRICE_TAG.none.cls}`}>{PRICE_TAG[current.priceSource]?.label ?? "no price"}</span>
-            </div>
+            {!isCredit ? (
+              <div className="mt-1.5 text-center">
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRICE_TAG[current.priceSource]?.cls ?? PRICE_TAG.none.cls}`}>{PRICE_TAG[current.priceSource]?.label ?? "no price"}</span>
+              </div>
+            ) : null}
 
             <div className="mt-4 flex gap-2">
-              <button type="button" onClick={() => answer(true)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-olive-900 py-3 text-base font-semibold text-white hover:bg-olive-800">
+              <button type="button" onClick={() => answer(true)} disabled={yesBlocked} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-olive-900 py-3 text-base font-semibold text-white hover:bg-olive-800 disabled:opacity-50">
                 <Check className="h-5 w-5" /> Yes
               </button>
               <button type="button" onClick={() => answer(false)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-olive-200 py-3 text-base font-semibold text-olive-700 hover:bg-olive-50">
                 <X className="h-5 w-5" /> No
               </button>
             </div>
-            <p className="mt-2 text-center text-[11px] text-olive-400">Enter = Yes · Esc = No</p>
+            <p className="mt-2 text-center text-[11px] text-olive-400">{yesBlocked ? "Pick a reason to add this credit" : "Enter = Yes · Esc = No"}</p>
           </div>
         </div>
-      ) : null}
+        );
+      })() : null}
 
       {/* Summary after Stop */}
       {done && !current ? (
