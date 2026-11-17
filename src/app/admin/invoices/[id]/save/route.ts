@@ -32,9 +32,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const prisma = requirePrisma();
     const current = await prisma.customerInvoice.findUnique({
       where: { id },
-      select: { id: true, status: true, paidCents: true },
+      select: { id: true, status: true, paidCents: true, number: true },
     });
     if (!current) return redirectTo("/admin/invoices");
+
+    // Invoice number is editable; only change it if non-empty and not taken.
+    const nextNumber = String(fd.get("number") ?? "").trim();
+    let number: string | undefined;
+    if (nextNumber && nextNumber !== current.number) {
+      const taken = await prisma.customerInvoice.findFirst({
+        where: { number: nextNumber, NOT: { id } },
+        select: { id: true },
+      });
+      if (taken) return redirectTo(`/admin/invoices/${id}/edit?error=number`);
+      number = nextNumber;
+    }
 
     const lines = parseLines(fd);
     const discountCents = dollarsToCents(String(fd.get("discount") ?? ""));
@@ -55,6 +67,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       prisma.customerInvoice.update({
         where: { id },
         data: {
+          ...(number ? { number } : {}),
           ...(issueDate ? { issueDate } : {}),
           dueDate,
           terms,

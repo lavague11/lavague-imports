@@ -33,6 +33,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     if (!invoice) return redirectTo("/admin/invoices");
     if (invoice.status === "VOID") return redirectTo(`/admin/invoices/${id}?error=void`);
+    if (!invoice.customer) return redirectTo(`/admin/invoices/${id}?error=nocustomer`);
+    const customer = invoice.customer;
 
     const publicToken = invoice.publicToken ?? newPublicToken();
     const nextStatus = invoice.status === "DRAFT" ? "SENT" : invoice.status;
@@ -47,7 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const balance = invoice.totalCents - invoice.paidCents;
     const mail = invoiceEmail({
       number: invoice.number,
-      businessName: invoice.customer.businessName || invoice.customer.name || "there",
+      businessName: customer.businessName || customer.name || "there",
       totalLabel: formatPrice(invoice.totalCents),
       balanceLabel: formatPrice(Math.max(0, balance)),
       dueLabel: invoice.dueDate ? fmtDate(invoice.dueDate) : null,
@@ -55,14 +57,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       note: invoice.notes,
     });
     const result = await sendEmail({
-      to: invoice.customer.email,
+      to: customer.email,
       replyTo: undefined,
       subject: mail.subject,
       html: mail.html,
       text: mail.text,
     });
     if (!result.ok) {
-      console.warn(`[invoice] ${invoice.number} email not sent (${result.reason}) to ${invoice.customer.email}`);
+      console.warn(`[invoice] ${invoice.number} email not sent (${result.reason}) to ${customer.email}`);
       return redirectTo(`/admin/invoices/${id}?sent=link`);
     }
     return redirectTo(`/admin/invoices/${id}?sent=1`);

@@ -74,7 +74,9 @@ export default async function PhotoLibrary({
       ) : (
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {photos.map((p) => {
-            const biz = p.invoice.customer.businessName || p.invoice.customer.name || p.invoice.customer.email;
+            const biz = p.invoice.customer
+              ? p.invoice.customer.businessName || p.invoice.customer.name || p.invoice.customer.email
+              : "No customer";
             return (
               <div key={p.id} className="overflow-hidden rounded-xl border border-olive-100 bg-white">
                 <a href={p.url} target="_blank" rel="noreferrer" className="block">

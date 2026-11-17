@@ -14,7 +14,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
     where: { publicToken: token },
     include: { customer: true, lines: true },
   });
-  if (!invoice) return new NextResponse("Not found", { status: 404 });
+  if (!invoice || !invoice.customer) return new NextResponse("Not found", { status: 404 });
 
   const c = invoice.customer;
   const bytes = await buildInvoicePdf({

@@ -54,3 +54,6 @@ skills-lock.json
 
 # Server-side API key vault (secrets — never commit)
 /.data/
+
+# Local working spreadsheets (cost sheets, contact imports — not for the repo)
+Spreadsheets/

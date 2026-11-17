@@ -1242,8 +1242,9 @@ enum CustomerInvoiceStatus {
 model CustomerInvoice {
   id         String                @id @default(cuid())
   number     String                @unique
-  customerId String
-  customer   Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// Optional: a new invoice can start as a blank draft and get a customer later.
+  customerId String?
+  customer   Customer?             @relation(fields: [customerId], references: [id], onDelete: Cascade)
   status     CustomerInvoiceStatus @default(DRAFT)
   issueDate  DateTime              @default(now())
   dueDate    DateTime?
@@ -1270,6 +1271,8 @@ model CustomerInvoice {
   signedAt       DateTime?
   signerName     String?
   signatureData  String?
+  /// Soft-hide from the invoices list (bulk "archive"); never shown by default.
+  archived       Boolean   @default(false)
   /// The wholesale order request this invoice was quoted from, if any.
   orderRequestId String?
   orderRequest   OrderRequest? @relation(fields: [orderRequestId], references: [id], onDelete: SetNull)

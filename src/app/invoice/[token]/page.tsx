@@ -34,7 +34,7 @@ export default async function PublicInvoice({
     where: { publicToken: token },
     include: { customer: true, lines: { orderBy: { id: "asc" } } },
   });
-  if (!invoice) notFound();
+  if (!invoice || !invoice.customer) notFound();
 
   const c = invoice.customer;
   const disp = invoiceDisplay(invoice);

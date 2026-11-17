@@ -19,22 +19,27 @@ export async function POST(request: Request) {
   }
 
   const fd = await request.formData();
+  // customerId is optional: a new invoice opens as a blank draft and gets a
+  // customer assigned later from the editor ("Add customer").
   const customerId = String(fd.get("customerId") ?? "").trim();
-  if (!customerId) return redirectTo("/admin/invoices/new?error=customer");
 
   try {
     const prisma = requirePrisma();
-    const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { id: true } });
-    if (!customer) return redirectTo("/admin/invoices/new?error=customer");
+
+    let linkedCustomerId: string | undefined;
+    if (customerId) {
+      const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { id: true } });
+      if (customer) linkedCustomerId = customer.id;
+    }
 
     const number = await mintInvoiceNumber(prisma);
     const invoice = await prisma.customerInvoice.create({
-      data: { number, customerId, status: "DRAFT" },
+      data: { number, customerId: linkedCustomerId ?? null, status: "DRAFT" },
       select: { id: true },
     });
     return redirectTo(`/admin/invoices/${invoice.id}/edit`);
   } catch (error) {
     console.error("[invoice] create failed", error);
-    return redirectTo("/admin/invoices/new?error=create");
+    return redirectTo("/admin/invoices?error=create");
   }
 }

@@ -21,8 +21,7 @@ export interface InvoiceEditFormProps {
   action: string;
   cancelHref: string;
   number: string;
-  customerName: string;
-  customerRole: "CUSTOMER" | "WHOLESALE";
+  customerRole: "CUSTOMER" | "WHOLESALE" | null;
   issueDate: string; // yyyy-mm-dd
   dueDate: string;
   terms: string;
@@ -82,6 +81,11 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     <form method="post" action={props.action} className="mt-4 space-y-5">
       <div className="rounded-xl border border-olive-100 bg-white p-4">
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="text-xs text-olive-500">Invoice number</label>
+            <input name="number" defaultValue={props.number} className={`${inputCls} font-medium`} placeholder="LV-0001" />
+            <p className="mt-1 text-xs text-olive-400">Editable — must be unique.</p>
+          </div>
           <div>
             <label className="text-xs text-olive-500">Issue date</label>
             <input type="date" name="issueDate" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className={inputCls} />

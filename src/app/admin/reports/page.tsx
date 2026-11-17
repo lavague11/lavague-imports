@@ -58,6 +58,7 @@ export default async function Reports() {
   // Top customers by amount collected.
   const byCustomer = new Map<string, { name: string; id: string; paid: number; outstanding: number }>();
   for (const i of live) {
+    if (!i.customer) continue; // blank drafts with no customer yet
     const key = i.customer.id;
     const entry = byCustomer.get(key) ?? {
       id: i.customer.id,
@@ -154,7 +155,7 @@ export default async function Reports() {
                 {recentPayments.map((p) => (
                   <tr key={p.id} className="border-b border-olive-50 last:border-0">
                     <td className="p-3 whitespace-nowrap text-olive-600">{dateFmt(p.receivedAt)}</td>
-                    <td className="p-3"><Link href={`/admin/customers/${p.invoice.customer.id}`} className="text-olive-700 hover:underline">{p.invoice.customer.businessName || p.invoice.customer.name || p.invoice.customer.email}</Link></td>
+                    <td className="p-3">{p.invoice.customer ? <Link href={`/admin/customers/${p.invoice.customer.id}`} className="text-olive-700 hover:underline">{p.invoice.customer.businessName || p.invoice.customer.name || p.invoice.customer.email}</Link> : <span className="text-olive-400">No customer</span>}</td>
                     <td className="p-3"><Link href={`/admin/invoices/${p.invoice.id}`} className="text-olive-500 hover:underline">{p.invoice.number}</Link></td>
                     <td className="p-3 text-right font-medium text-olive-900">{formatPrice(p.amountCents)}</td>
                   </tr>

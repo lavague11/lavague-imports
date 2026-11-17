@@ -42,6 +42,7 @@ const FLASH: Record<string, { ok?: boolean; text: string }> = {
   "photo:bad": { text: "Couldn't read that image — try a different file." },
   "photo:error": { text: "Couldn't save the photo — try again." },
   "error:amount": { text: "Enter a payment amount greater than zero." },
+  "error:nocustomer": { text: "Add a customer to this invoice before sending it." },
   "error:void": { text: "That action isn't available on a voided invoice." },
   "error:send": { text: "Couldn't send — try again." },
   "error:payment": { text: "Couldn't record the payment — try again." },
@@ -81,7 +82,8 @@ export default async function InvoiceDetail({
   const now = new Date();
   const disp = invoiceDisplay(invoice, now);
   const balance = invoice.totalCents - invoice.paidCents;
-  const addr = composeAddress(c);
+  const addr = c ? composeAddress(c) : null;
+  const customerName = c ? c.businessName || c.name || c.email : "No customer yet";
 
   const flashKey = ["sent", "paid", "delivered", "voided", "unvoided", "photo", "error"]
     .map((k) => (sp[k] ? `${k}:${firstValue(sp[k])}` : null))
@@ -89,7 +91,7 @@ export default async function InvoiceDetail({
   const flash = flashKey ? FLASH[flashKey] : undefined;
 
   const isVoid = invoice.status === "VOID";
-  const belowMin = c.role === "WHOLESALE" && invoice.subtotalCents > 0 && invoice.subtotalCents < WHOLESALE_MINIMUM_CENTS;
+  const belowMin = c?.role === "WHOLESALE" && invoice.subtotalCents > 0 && invoice.subtotalCents < WHOLESALE_MINIMUM_CENTS;
 
   const btn = "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium";
 
@@ -113,7 +115,11 @@ export default async function InvoiceDetail({
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${disp.badge}`}>{disp.label}</span>
           </div>
           <p className="mt-1 text-sm text-olive-600">
-            <Link href={`/admin/customers/${c.id}`} className="font-medium text-olive-800 hover:underline">{c.businessName || c.name || c.email}</Link>
+            {c ? (
+              <Link href={`/admin/customers/${c.id}`} className="font-medium text-olive-800 hover:underline">{customerName}</Link>
+            ) : (
+              <Link href={`/admin/invoices/${id}/edit`} className="font-medium text-amber-700 hover:underline">No customer yet — add one</Link>
+            )}
             {" · "}Issued {dateFmt(invoice.issueDate)}{invoice.dueDate ? ` · due ${dateFmt(invoice.dueDate)}` : ""}
             {invoice.orderRequest ? <> · from <Link href={`/admin/orders/${invoice.orderRequest.id}`} className="hover:underline">{invoice.orderRequest.reference}</Link></> : null}
           </p>
@@ -130,12 +136,16 @@ export default async function InvoiceDetail({
         <a href={`/admin/invoices/${id}/pdf`} target="_blank" rel="noreferrer" className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>
           <Download className="h-4 w-4" /> PDF
         </a>
-        {!isVoid ? (
+        {!isVoid && c ? (
           <form method="post" action={`/admin/invoices/${id}/send`}>
             <button className={`${btn} bg-olive-900 text-white hover:bg-olive-800`}>
               <Send className="h-4 w-4" /> {invoice.sentAt ? "Resend" : "Send to customer"}
             </button>
           </form>
+        ) : !isVoid ? (
+          <Link href={`/admin/invoices/${id}/edit`} className={`${btn} border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100`}>
+            <Send className="h-4 w-4" /> Add a customer to send
+          </Link>
         ) : null}
         {isVoid ? (
           <form method="post" action={`/admin/invoices/${id}/void`}>
@@ -170,10 +180,16 @@ export default async function InvoiceDetail({
       <div className="mt-4 rounded-xl border border-olive-100 bg-white p-5">
         <div className="text-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-olive-400">Bill to</p>
-          <p className="mt-1 font-medium text-olive-900">{c.businessName || c.name || c.email}</p>
-          {c.name && c.businessName ? <p className="text-olive-600">{c.name}</p> : null}
-          <p className="text-olive-600">{c.email}</p>
-          {addr ? <p className="text-olive-500">{addr}</p> : null}
+          {c ? (
+            <>
+              <p className="mt-1 font-medium text-olive-900">{customerName}</p>
+              {c.name && c.businessName ? <p className="text-olive-600">{c.name}</p> : null}
+              <p className="text-olive-600">{c.email}</p>
+              {addr ? <p className="text-olive-500">{addr}</p> : null}
+            </>
+          ) : (
+            <p className="mt-1 text-amber-700">No customer yet. <Link href={`/admin/invoices/${id}/edit`} className="underline">Add one in the editor</Link>.</p>
+          )}
           {invoice.poNumber ? <p className="mt-1 text-olive-500">PO: {invoice.poNumber}</p> : null}
           {invoice.terms ? <p className="text-olive-500">Terms: {invoice.terms}</p> : null}
         </div>
