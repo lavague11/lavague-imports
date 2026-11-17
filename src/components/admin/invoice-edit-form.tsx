@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
+import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist";
+
 import {
   INVOICE_TERMS,
   WHOLESALE_MINIMUM_CENTS,
@@ -61,6 +63,18 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const addRow = () => setRows((rs) => [...rs, { description: "", qty: "1", unit: "" }]);
   const removeRow = (i: number) => setRows((rs) => (rs.length > 1 ? rs.filter((_, j) => j !== i) : rs));
+
+  // AI assist: current lines for "Pro clean-up", and applying the reviewed rows.
+  const assistLines = () => rows.map((r) => ({ description: r.description, quantity: Math.max(1, parseInt(r.qty, 10) || 1) }));
+  const applyAssist = (assistRows: AssistRow[], mode: "cleanup" | "photo") => {
+    const mapped: Row[] = assistRows.map((a) => ({
+      description: a.name,
+      qty: String(a.quantity || 1),
+      unit: a.priceCents != null ? (a.priceCents / 100).toFixed(2) : "",
+    }));
+    if (mode === "cleanup") setRows(mapped.length ? mapped : rows);
+    else setRows((prev) => { const keep = prev.filter((r) => r.description.trim() || r.unit.trim()); return [...keep, ...mapped]; });
+  };
 
   const lineTotal = (r: Row) => Math.max(0, Math.round(Number(r.qty) || 0)) * dollarsToCents(r.unit);
   const subtotalCents = useMemo(() => rows.reduce((s, r) => s + lineTotal(r), 0), [rows]);
@@ -133,10 +147,13 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
             </button>
           </div>
         ))}
-        <div className="px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <button type="button" onClick={addRow} className="inline-flex items-center gap-1.5 text-sm font-medium text-olive-700 hover:text-olive-900">
             <Plus className="h-4 w-4" /> Add line
           </button>
+          <div className="ml-auto">
+            <InvoiceAssist getLines={assistLines} onApply={applyAssist} />
+          </div>
         </div>
       </div>
 
