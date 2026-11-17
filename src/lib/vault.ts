@@ -96,6 +96,14 @@ export const KNOWN_KEYS: KnownKey[] = [
     kind: "config",
     group: "Email",
   },
+  {
+    name: "ANTHROPIC_API_KEY",
+    label: "Anthropic (Claude)",
+    description: "Powers the AI product auto-identify on the new-product form. Server-side only.",
+    kind: "secret",
+    getUrl: "https://console.anthropic.com/settings/keys",
+    group: "AI",
+  },
 ];
 
 const KNOWN_BY_NAME = new Map(KNOWN_KEYS.map((k) => [k.name, k]));
