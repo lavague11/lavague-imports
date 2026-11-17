@@ -36,12 +36,16 @@ async function candidates(prisma: PrismaClient, transcript: string): Promise<Can
 }
 
 // Deterministic catalog match by an item's cleaned name (fallback when Sonnet
-// returns no SKU even though the product exists). Scores by token overlap.
+// returns no SKU even though the product exists). Requires the brand / most
+// distinctive word so generic words like "olive oil" don't match the wrong brand.
 async function catalogByName(prisma: PrismaClient, name: string, brand: string) {
-  const terms = searchTermsFor(`${brand} ${name}`).slice(0, 8);
+  const terms = searchTermsFor(`${brand} ${name}`);
   if (terms.length === 0) return null;
+  const brandTerms = brand.trim() ? searchTermsFor(brand) : [];
+  const required = brandTerms[0] || [...terms].sort((a, b) => b.length - a.length)[0];
+  if (!required || required.length < 4) return null; // need a distinctive anchor word
   const products = await prisma.product.findMany({
-    where: { isActive: true, OR: terms.map((t) => ({ name: { contains: t, mode: "insensitive" as const } })) },
+    where: { isActive: true, name: { contains: required, mode: "insensitive" } },
     select: { name: true, imageUrl: true, variants: { select: { sku: true, name: true, retailPriceCents: true }, take: 1 } },
     take: 12,
   });
@@ -49,7 +53,6 @@ async function catalogByName(prisma: PrismaClient, name: string, brand: string) 
   const scored = products
     .map((p) => ({ p, score: terms.filter((t) => p.name.toLowerCase().includes(t)).length }))
     .sort((a, b) => b.score - a.score);
-  if (scored[0].score < 2) return null; // need a couple of overlapping words to call it a match
   const p = scored[0].p;
   return { name: p.name, sku: p.variants[0]?.sku ?? "", packSize: p.variants[0]?.name ?? "", priceCents: p.variants[0]?.retailPriceCents ?? null, imageUrl: p.imageUrl };
 }
