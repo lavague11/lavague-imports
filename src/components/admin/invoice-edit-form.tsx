@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist";
+import { VoiceOrder, type VoiceItem } from "@/components/admin/voice-order";
 
 import {
   INVOICE_TERMS,
@@ -74,6 +75,12 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     }));
     if (mode === "cleanup") setRows(mapped.length ? mapped : rows);
     else setRows((prev) => { const keep = prev.filter((r) => r.description.trim() || r.unit.trim()); return [...keep, ...mapped]; });
+  };
+
+  // Voice order: add one spoken line at a time (replacing a lone empty starter row).
+  const addVoiceLine = (item: VoiceItem) => {
+    const row: Row = { description: item.name, qty: String(item.quantity || 1), unit: item.priceCents != null ? (item.priceCents / 100).toFixed(2) : "" };
+    setRows((prev) => (prev.length === 1 && !prev[0].description.trim() && !prev[0].unit.trim() ? [row] : [...prev, row]));
   };
 
   const lineTotal = (r: Row) => Math.max(0, Math.round(Number(r.qty) || 0)) * dollarsToCents(r.unit);
@@ -151,7 +158,8 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
           <button type="button" onClick={addRow} className="inline-flex items-center gap-1.5 text-sm font-medium text-olive-700 hover:text-olive-900">
             <Plus className="h-4 w-4" /> Add line
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <VoiceOrder onAddLine={addVoiceLine} />
             <InvoiceAssist getLines={assistLines} onApply={applyAssist} />
           </div>
         </div>
