@@ -11,11 +11,13 @@ const CORE = [
   { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/invoices", label: "Invoices" },
   { href: "/admin/customers", label: "Customers" },
 ];
 
 /** Lower-frequency tools tucked under "More". */
 const MORE = [
+  { href: "/admin/reports", label: "Reports" },
   { href: "/admin/wholesale", label: "Applications" },
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/price-compare", label: "Price compare" },

@@ -45,3 +45,15 @@ Branch: `accounts-fixes`. Mobile-first (390 / 430 / 1440).
     the Hostinger environment. The old Neon URL is kept commented in `.env` as a fallback.
   - Helper scripts committed: `supabase-run-sql.mjs`, `supabase-copy-data.mjs`,
     `table-counts.mjs` (all read secrets from env, none hardcoded).
+
+- **Section M invoicing on the lightweight `CustomerInvoice` model, not the CRM `Invoice`.**
+  The storefront accounts system is `Customer`-based (Sections B/E/I/L), so invoices hang off
+  `Customer` (`CustomerInvoice` / `CustomerInvoiceLine` / `CustomerPayment`), matching order
+  requests. The heavy `BusinessAccount → Invoice → Payment` CRM exists in the DB but isn't the
+  system in use; wiring M into it would have split the customer record in two.
+- **Invoicing is credential-free by design.** PDFs are generated server-side with `pdf-lib`
+  (already a dependency), e-signature is in-app (typed name + canvas, timestamped on the public
+  token link), and payments are recorded manually. Online card (Stripe) and external DocuSign
+  are optional, parked in `docs/blocked.md`. This keeps the whole A/R loop working with no new
+  secrets. `paidCents` is always the transactional sum of `CustomerPayment` rows; "Overdue" is
+  derived from due date + balance, never stored. LV-#### is minted atomically via `NumberSeries`.

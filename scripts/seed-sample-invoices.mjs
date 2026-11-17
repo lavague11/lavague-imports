@@ -58,6 +58,15 @@ for (const [number, status, issO, dueO, paid, lines] of invoices) {
       [id("il"), invId, desc, qty, unit, qty * unit],
     );
   }
+  // Back paidCents with a real payment row so the demo matches the live model
+  // (paidCents is always the sum of CustomerPayment rows).
+  if (paid > 0) {
+    await c.query(
+      `INSERT INTO "CustomerPayment"(id,"invoiceId","amountCents",method,reference,"receivedAt","recordedBy")
+       VALUES($1,$2,$3,'CHECK',$4,$5,'sales@lavagueimport.com')`,
+      [id("pay"), invId, paid, `Check ${1000 + Math.floor(Math.random() * 900)}`, days(issO + 2)],
+    );
+  }
 }
 
 // one order request too

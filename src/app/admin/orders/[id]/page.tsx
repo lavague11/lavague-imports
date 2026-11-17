@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
+import { formatPrice } from "@/lib/utils";
 
 export const metadata = {
   title: "Order request · Admin",
@@ -33,7 +34,11 @@ export default async function OrderRequestDetail({
   const { id } = await params;
   const order = await prisma.orderRequest.findUnique({
     where: { id },
-    include: { customer: true, lines: { orderBy: { productName: "asc" } } },
+    include: {
+      customer: true,
+      lines: { orderBy: { productName: "asc" } },
+      invoices: { orderBy: { createdAt: "desc" }, select: { id: true, number: true, totalCents: true } },
+    },
   });
   if (!order) notFound();
 
@@ -99,9 +104,28 @@ export default async function OrderRequestDetail({
         </table>
       </div>
 
-      <p className="mt-4 text-sm text-olive-500">
-        Pricing is quoted per request — turn this into an invoice from the invoicing module (coming in Section M).
-      </p>
+      {order.invoices.length > 0 ? (
+        <div className="mt-4 rounded-xl border border-olive-100 bg-white p-4 text-sm">
+          <p className="font-medium text-olive-800">Invoices from this request</p>
+          <ul className="mt-2 space-y-1">
+            {order.invoices.map((inv) => (
+              <li key={inv.id}>
+                <Link href={`/admin/invoices/${inv.id}`} className="text-olive-700 hover:underline">{inv.number}</Link>
+                <span className="text-olive-400"> · {formatPrice(inv.totalCents)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <form method="post" action={`/admin/orders/${order.id}/invoice`}>
+          <button className="rounded-lg bg-olive-900 px-4 py-2 text-sm font-medium text-white hover:bg-olive-800">
+            {order.invoices.length > 0 ? "Create another invoice" : "Create invoice"}
+          </button>
+        </form>
+        <p className="text-sm text-olive-500">Prefills one line per item (quantity in cases) — add prices in the editor.</p>
+      </div>
     </div>
   );
 }

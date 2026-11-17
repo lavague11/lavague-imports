@@ -18,13 +18,13 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 | D | Server-enforced roles Customer/Wholesale/Admin | ✅ Core done (admin + customer roles, server gates, approval promotes to WHOLESALE) |
 | E | Wholesale application flow | ✅ Done & verified (apply→link→admin approve/decline→role flip + status) |
 | F | Google Places business autocomplete | 🔒 Blocked (Places API key) |
-| G | $500 wholesale minimum as order request | ⛔ Deferred to M (checked at quote/invoice time, not in the no-price cart) |
+| G | $500 wholesale minimum as order request | ✅ Done with M — flagged in the invoice editor + on the invoice when a wholesale subtotal is under $500 |
 | H | One admin bar (hide store header on /admin) | ✅ Done & verified (nav finalized: Dashboard·Products·Orders·Customers·More) |
 | I | Customers page (replace "In progress") | ✅ Done & verified; detail redesigned as an overview (stats, invoices, orders, notes, edit drawer) |
 | J | Sample data script | ⛔ Not started (needs CRM tables) |
 | K | Remove demo admin admin@lavagueimports.com | ✅ Done & verified |
 | L | Wholesale ordering, no prices shown, reorder | ✅ Core done & verified (line sheet, cart, submit, admin orders, usual items/reorder); Suggested-5 pending |
-| M | Invoicing: PDF, e-sign, payments, delivery, reports, LV-#### | ⛔ Not started (largest; needs CRM tables + durable DB) |
+| M | Invoicing: PDF, e-sign, payments, delivery, reports, LV-#### | ✅ Core done & verified (create/convert, LV-####, editor, PDF, send + customer link, in-app e-sign, manual payments, delivery, reports); online card (Stripe) + external DocuSign optional/blocked |
 | N | Auto-capitalize names on all forms | ✅ Done & verified |
 | O | Wholesale customer portal | ⛔ Not started (needs B/D) |
 | P | Restock tool | ⛔ Not started (needs CRM tables) |
@@ -165,7 +165,43 @@ accounts system actually in use. Admin converts a request to an invoice in M.
   foundation for **Section M** (PDF, e-sign, payments still to build). A removable sample
   customer with 4 invoices demos the populated state (`scripts/seed-sample-invoices.mjs`).
 
+## Section M — invoicing (DONE & verified this run)
+
+Built on the lightweight `CustomerInvoice` model (not the heavy BusinessAccount CRM), matching
+the accounts system actually in use. Credential-free by design — the whole A/R loop works with
+no external service; Stripe/DocuSign are optional add-ons (`docs/blocked.md`).
+
+- **Data model** (migration `007`): payments (`CustomerPayment` + method enum), delivery fields,
+  in-app e-sign fields, a `publicToken` for the customer link, `orderRequestId` lineage, and a
+  `NumberSeries` counter that mints **LV-####** atomically (single `UPDATE … +1`, race-safe).
+- **Create an invoice** two ways: pick a customer at `/admin/invoices/new`, or **convert a
+  wholesale order request** straight from the Orders page (seeds one line per item with the
+  cases as quantity, links it back, flips the request to QUOTED).
+- **Editor** (`/admin/invoices/[id]/edit`): add/remove lines, live subtotal/total, discount/
+  delivery/tax, terms (with **auto due-date** from "Net N"), PO, notes. **Section G**: a wholesale
+  subtotal under **$500** shows a minimum warning here and on the invoice.
+- **Send**: mints the customer link, stamps sent, flips DRAFT→SENT, and emails the customer
+  (best-effort — if SMTP isn't set it still marks sent and shows a copyable link).
+- **Customer link** (`/invoice/[token]`, no sign-in): branded invoice, **Download PDF**, pay-by-
+  check/ACH remittance, and an **in-app e-signature** (typed name + drawn signature, timestamped).
+  Verified: customer signed → admin sees "Accepted by … on …" with the signature image.
+- **Payments**: record manual payments (check/cash/card/ACH/wire); paid total + status recompute
+  from the authoritative payment rows inside a transaction. (Online card = Stripe, blocked.)
+- **Delivery confirmation**: mark delivered with date, who received it, and a note; clearable.
+- **PDF**: a real server-generated PDF via `pdf-lib` (brand header, bill-to, lines, totals,
+  balance, signature line) — no external service. Served inline at `/admin/invoices/[id]/pdf`
+  and `/invoice/[token]/pdf`. WinAnsi-sanitized so a stray glyph can't break it.
+- **Reports** (`/admin/reports`): invoiced / collected / outstanding / overdue, **A/R aging**
+  (current · 1–30 · 31–60 · 61+), top customers, and recent payments.
+- **Verified end-to-end** on the sample customer: converted WR-SAMPLE1 → LV-0005 draft → priced
+  it in the editor (live total $360, auto Net-30 due date, $500-minimum warning) → saved → sent
+  (link generated) → opened the customer link → signed → recorded a $454 payment (status/balance
+  updated) → marked delivered → PDF rendered (200, valid `%PDF`) → reports totals reconciled.
+- **Deferred/optional (blocked):** online card payments (Stripe) and an external DocuSign-style
+  signature — both are credentialed add-ons; the in-app signature + manual payments cover the
+  workflow today. A removable sample customer with 4 paid/open/overdue/partial invoices demos it.
+
 ## Blocked (in `docs/blocked.md`)
 
 SMTP for `sales@` (C), Google OAuth client (B's Google button), Google Places key (F),
-durable-Postgres decision before M, one-time Hostinger CDN purge.
+optional Stripe online payments + external e-sign (M), one-time Hostinger CDN purge.

@@ -1240,13 +1240,68 @@ model CustomerInvoice {
   paidCents     Int @default(0)
 
   notes     String?
+
+  // Section M — invoicing lifecycle (payments, delivery, e-sign, customer link).
+  terms          String?
+  poNumber       String?
+  /// Secure random token for the customer-facing /invoice/[token] view + e-sign.
+  publicToken    String?   @unique
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  deliveredBy    String?
+  deliveryNote   String?
+  /// In-app e-signature (no external service): typed name + drawn data-URL.
+  signedAt       DateTime?
+  signerName     String?
+  signatureData  String?
+  /// The wholesale order request this invoice was quoted from, if any.
+  orderRequestId String?
+  orderRequest   OrderRequest? @relation(fields: [orderRequestId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lines CustomerInvoiceLine[]
+  lines    CustomerInvoiceLine[]
+  payments CustomerPayment[]
 
   @@index([customerId])
   @@index([status])
+  @@index([orderRequestId])
+}
+
+enum CustomerPaymentMethod {
+  CHECK
+  CASH
+  CARD
+  ACH
+  WIRE
+  OTHER
+}
+
+/// A payment recorded against a customer invoice. Manual/offline methods only;
+/// an online card gateway (Stripe) is a separate, credentialed integration.
+model CustomerPayment {
+  id          String                @id @default(cuid())
+  invoiceId   String
+  invoice     CustomerInvoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amountCents Int                   @default(0)
+  method      CustomerPaymentMethod @default(OTHER)
+  /// External reference (check #, ACH trace, card auth…).
+  reference   String?
+  receivedAt  DateTime              @default(now())
+  /// Admin email who recorded it.
+  recordedBy  String?
+  note        String?
+  createdAt   DateTime              @default(now())
+
+  @@index([invoiceId])
+}
+
+/// Atomic sequential counters, incremented in a single UPDATE (e.g. "invoice" →
+/// LV-0007). Distinct from the CRM Counter used by the BusinessAccount system.
+model NumberSeries {
+  key   String @id
+  value Int    @default(0)
 }
 
 model CustomerInvoiceLine {
@@ -1284,7 +1339,8 @@ model OrderRequest {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  lines OrderRequestLine[]
+  lines    OrderRequestLine[]
+  invoices CustomerInvoice[]
 
   @@index([customerId])
   @@index([status])

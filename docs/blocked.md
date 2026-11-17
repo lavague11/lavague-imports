@@ -20,6 +20,17 @@ needed to unblock. Nothing here is faked or stubbed as "done".
   application). Need a key with Places API (New) enabled, restricted to the site's domains,
   as `GOOGLE_PLACES_API_KEY`. Field falls back to plain text input until then.
 
+- [ ] **Online card payments — Stripe** (Section M, optional). Invoicing records manual
+  payments (check / cash / ACH / wire / card-offline) today, which is the whole A/R loop.
+  A "Pay now" card button on the customer invoice link needs a Stripe account:
+  `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` (and a webhook to mark the invoice paid).
+  Everything else — PDF, send, e-sign, delivery, reports — works without it.
+
+- [ ] **External e-signature — DocuSign/Dropbox Sign** (Section M, optional). Invoices use a
+  built-in e-signature (typed name + drawn signature, captured on the customer link with a
+  timestamp) — no external service needed. A legally-branded DocuSign flow, if ever wanted,
+  would need that provider's API key; the in-app signature covers acceptance in the meantime.
+
 ## Infrastructure
 
 - [x] **Durable Postgres — RESOLVED (2026-11-16).** Migrated to a durable Supabase project

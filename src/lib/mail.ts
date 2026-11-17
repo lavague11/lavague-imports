@@ -160,6 +160,37 @@ export function wholesaleDecisionEmail(opts: {
   return { subject, html: shell(heading, bodyHtml, true), text };
 }
 
+/** The invoice email sent to a customer when an invoice is issued (Section M). */
+export function invoiceEmail(opts: {
+  number: string;
+  businessName: string;
+  totalLabel: string;
+  balanceLabel: string;
+  dueLabel?: string | null;
+  url: string;
+  note?: string | null;
+}): { subject: string; html: string; text: string } {
+  const { number, businessName, totalLabel, balanceLabel, dueLabel, url, note } = opts;
+  const subject = `Invoice ${number} from La Vague Imports`;
+  const due = dueLabel ? ` Payment is due ${dueLabel}.` : "";
+  const text = `Hi ${businessName},\n\nYour invoice ${number} is ready. Total ${totalLabel}, balance due ${balanceLabel}.${due}\n\nView, download, or accept it here:\n${url}\n${note ? `\nNote: ${note}\n` : ""}\nRemit by check or ACH. Thank you for your business.\n\n— La Vague Imports`;
+  const html = shell(
+    `Invoice ${esc(number)}`,
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 16px">Hi ${esc(businessName)}, your invoice is ready.</p>
+     <table style="border-collapse:collapse;font-size:14px;line-height:1.6;margin:0 0 16px">
+       <tr><td style="padding:2px 16px 2px 0;color:#6b7150">Invoice</td><td style="padding:2px 0;color:#2b2b22"><strong>${esc(number)}</strong></td></tr>
+       <tr><td style="padding:2px 16px 2px 0;color:#6b7150">Total</td><td style="padding:2px 0;color:#2b2b22">${esc(totalLabel)}</td></tr>
+       <tr><td style="padding:2px 16px 2px 0;color:#6b7150">Balance due</td><td style="padding:2px 0;color:#2b2b22"><strong>${esc(balanceLabel)}</strong></td></tr>
+       ${dueLabel ? `<tr><td style="padding:2px 16px 2px 0;color:#6b7150">Due</td><td style="padding:2px 0;color:#2b2b22">${esc(dueLabel)}</td></tr>` : ""}
+     </table>
+     ${note ? `<p style="font-size:14px;line-height:1.6;background:#f1f3ea;border-radius:8px;padding:10px 12px;margin:0 0 16px">${esc(note)}</p>` : ""}
+     <p style="margin:0 0 20px"><a href="${url}" style="display:inline-block;background:#3a3f27;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9999px;font-size:14px">View &amp; accept invoice</a></p>
+     <p style="font-size:12px;color:#8a8f70;line-height:1.5;margin:0">Remit by check or ACH. Thank you for your business.</p>`,
+    true,
+  );
+  return { subject, html, text };
+}
+
 // ---------------------------------------------------------------------------
 // Staff notifications — the emails that land in the sales inbox when a customer
 // submits a quote, a wholesale application, or a contact message.
