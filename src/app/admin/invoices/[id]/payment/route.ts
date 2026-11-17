@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 
 import { requireAdmin } from "@/lib/auth";
 import { requirePrisma } from "@/lib/db";
-import { dollarsToCents, PAYMENT_METHODS, settledStatus, type PaymentMethod } from "@/lib/invoice";
+import { dollarsToCents, PAYMENT_METHODS, paymentMethodLabel, settledStatus, type PaymentMethod } from "@/lib/invoice";
+import { storeInvoicePhoto } from "@/lib/invoice-photos";
 
 // Record a manual payment against an invoice, recompute the paid total and
 // status atomically, then 303 back to the detail page. (Online card payment is
@@ -67,6 +68,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }),
       prisma.customerInvoice.update({ where: { id }, data: { paidCents: newPaid, status } }),
     ]);
+
+    // Optional photo of the check/receipt — saved to the invoice as a PAYMENT photo.
+    const photo = fd.get("photo");
+    if (photo instanceof File && photo.size > 0) {
+      try {
+        const url = await storeInvoicePhoto(photo);
+        if (url) {
+          await prisma.invoicePhoto.create({
+            data: {
+              invoiceId: id,
+              url,
+              kind: "PAYMENT",
+              label: `Payment · ${paymentMethodLabel(method)}${reference ? ` ${reference}` : ""}`,
+              uploadedBy: admin.email,
+            },
+          });
+        }
+      } catch (e) {
+        console.warn("[invoice] payment photo failed", e);
+      }
+    }
 
     return redirectTo(`/admin/invoices/${id}?paid=1`);
   } catch (error) {

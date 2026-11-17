@@ -4,6 +4,7 @@ import { ArrowLeft, Download, Pencil, Send, Trash2 } from "lucide-react";
 
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { CopyLink } from "@/components/admin/copy-link";
+import { PaymentPhotoField } from "@/components/admin/payment-photo";
 import { PhotoUpload } from "@/components/admin/photo-upload";
 import { getCurrentUser } from "@/lib/auth";
 import { composeAddress } from "@/lib/address";
@@ -236,14 +237,14 @@ export default async function InvoiceDetail({
         )}
 
         {!isVoid ? (
-          <form method="post" action={`/admin/invoices/${id}/payment`} className="mt-3 rounded-xl border border-olive-100 bg-white p-4">
+          <form method="post" action={`/admin/invoices/${id}/payment`} encType="multipart/form-data" className="mt-3 rounded-xl border border-olive-100 bg-white p-4">
             <p className="text-sm font-medium text-olive-800">Record a payment</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-4">
               <div>
                 <label className="text-xs text-olive-500">Amount</label>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-olive-400">$</span>
-                  <input name="amount" inputMode="decimal" placeholder={balance > 0 ? (balance / 100).toFixed(2) : "0.00"} className="h-10 w-full rounded-lg border border-olive-200 pl-6 pr-3 text-sm focus:border-olive-500 focus:outline-none" />
+                  <input name="amount" inputMode="decimal" defaultValue={balance > 0 ? (balance / 100).toFixed(2) : ""} placeholder="0.00" className="h-10 w-full rounded-lg border border-olive-200 pl-6 pr-3 text-sm focus:border-olive-500 focus:outline-none" />
                 </div>
               </div>
               <div>
@@ -261,11 +262,12 @@ export default async function InvoiceDetail({
                 <input type="date" name="receivedAt" defaultValue={today()} className="h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none" />
               </div>
             </div>
+            <div className="mt-3"><PaymentPhotoField /></div>
             <div className="mt-3 flex items-center justify-between gap-3">
               <input name="note" placeholder="Optional note" className="h-10 flex-1 rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none" />
               <button className="h-10 shrink-0 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white hover:bg-olive-800">Record</button>
             </div>
-            <p className="mt-2 text-xs text-olive-400">Online card payments (Stripe) are a separate integration — see the developer portal.</p>
+            <p className="mt-2 text-xs text-olive-400">Attach a photo of the check or receipt (optional) — it&apos;s saved to this invoice. Online card payments (Stripe) are a separate integration.</p>
           </form>
         ) : null}
       </section>
