@@ -46,10 +46,13 @@ const invoices = [
 for (const [number, status, issO, dueO, paid, lines] of invoices) {
   const invId = id("inv");
   const subtotal = lines.reduce((s, [, q, unit]) => s + q * unit, 0);
+  // These are all SENT/PARTIAL/PAID (not drafts), so they carry a customer link
+  // + sentAt — the state a real invoice has once it's been sent to the customer.
+  const token = randomBytes(24).toString("base64url");
   await c.query(
-    `INSERT INTO "CustomerInvoice"(id,number,"customerId",status,"issueDate","dueDate","subtotalCents","totalCents","paidCents","updatedAt")
-     VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8,now())`,
-    [invId, number, custId, status, days(issO), days(dueO), subtotal, paid],
+    `INSERT INTO "CustomerInvoice"(id,number,"customerId",status,"issueDate","dueDate","subtotalCents","totalCents","paidCents","publicToken","sentAt","updatedAt")
+     VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$5,now())`,
+    [invId, number, custId, status, days(issO), days(dueO), subtotal, paid, token],
   );
   for (const [desc, qty, unit] of lines) {
     await c.query(
@@ -76,8 +79,8 @@ await c.query(
   [reqId, "WR-SAMPLE1", custId, "Standing monthly order — call to confirm."],
 );
 await c.query(
-  `INSERT INTO "OrderRequestLine"(id,"requestId","productName","unitSize","casePack",cases) VALUES($1,$2,$3,$4,$5,$6)`,
-  [id("orl"), reqId, "Moroccan olive oil", "1L", 12, 5],
+  `INSERT INTO "OrderRequestLine"(id,"requestId",slug,"productName","unitSize","casePack",cases) VALUES($1,$2,$3,$4,$5,$6,$7)`,
+  [id("orl"), reqId, "7-spice-mix", "7 Spice Mix", "Each", 12, 5],
 );
 
 console.log(`Seeded sample customer ${EMAIL} (id ${custId}) with 4 invoices + 1 order request.`);

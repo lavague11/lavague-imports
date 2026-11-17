@@ -26,7 +26,7 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 | L | Wholesale ordering, no prices shown, reorder | ✅ Core done & verified (line sheet, cart, submit, admin orders, usual items/reorder); Suggested-5 pending |
 | M | Invoicing: PDF, e-sign, payments, delivery, reports, LV-#### | ✅ Core done & verified (create/convert, LV-####, editor, PDF, send + customer link, in-app e-sign, manual payments, delivery, reports); online card (Stripe) + external DocuSign optional/blocked |
 | N | Auto-capitalize names on all forms | ✅ Done & verified |
-| O | Wholesale customer portal | ⛔ Not started (needs B/D) |
+| O | Wholesale customer portal | ✅ Done & verified (overview + stats, invoices, order history + reorder, profile) |
 | P | Restock tool | ⛔ Not started (needs CRM tables) |
 | Q | Products list redesign | ✅ Done & verified |
 
@@ -200,6 +200,30 @@ no external service; Stripe/DocuSign are optional add-ons (`docs/blocked.md`).
 - **Deferred/optional (blocked):** online card payments (Stripe) and an external DocuSign-style
   signature — both are credentialed add-ons; the in-app signature + manual payments cover the
   workflow today. A removable sample customer with 4 paid/open/overdue/partial invoices demos it.
+
+## Section O — wholesale customer portal (DONE & verified this run)
+
+The signed-in customer's own view of everything M produces, in the storefront chrome (not the
+admin). Gated by the existing `CustomerSession`; role-aware.
+
+- **`/account` dashboard** — greeting + role badge, a tab bar (Overview · Invoices · Orders ·
+  Profile), stat cards (open balance, open invoices, overdue count, orders placed), a "Place a
+  wholesale order" CTA, and recent-invoices / recent-orders snapshots. Retail customers instead
+  see the apply/pending/re-apply card (unchanged B/E behaviour).
+- **`/account/invoices`** — their full invoice list (issued/due/total/balance/status, overdue
+  highlighted). Each row opens the customer invoice view (`/invoice/[token]` from M) to download
+  the PDF, see payment instructions, and accept/sign. Only **sent** invoices appear (those with a
+  customer link), so drafts stay internal.
+- **`/account/orders`** — order-request history with line items and status, a per-order
+  **"Reorder these"** and a **"Reorder usual items"** button (both reuse the Section L cookie cart
+  → `/wholesale/cart`). Wholesale-only (retail is redirected to the overview).
+- **`/account/profile`** — business / contact / email / phone / address (Google Maps link) and
+  member-since, with an email link to request changes (admin still owns edits + the audit log).
+- **Verified end-to-end** signed in as the sample wholesale customer: dashboard showed open
+  balance $1,285, 3 open / 1 overdue, and the recent lists; the Invoices tab listed all four with
+  correct derived statuses; "Reorder these" added the order's item (5 cases) to the cart; the
+  Profile tab rendered the address as a Maps link. Auth gating (redirect to `/login?next=…`) and
+  the retail-vs-wholesale branches both exercised.
 
 ## Blocked (in `docs/blocked.md`)
 
