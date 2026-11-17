@@ -107,10 +107,15 @@ the old one is rejected, and the token is consumed. Test customer removed afterw
   Wholesale / Blocked), and a "new applicants" badge linking to Applications.
 - Extended `Customer` with `businessName`, `phone`, `address`, `notes`, `blocked`
   (additive migration `003`).
-- **Imported 29 wholesale customers** from the user's CSV
-  (`scripts/import-wholesale-customers.mjs`, idempotent upsert on email, "(UC)/Not found"
-  address markers cleaned). All now show as role WHOLESALE. The CSV holds customer PII and
-  is intentionally **not** committed to the repo.
+- **Imported the wholesale customers** from the user's CSVs. The initial 29 came via
+  `scripts/import-wholesale-customers.mjs` (upsert on email). A later 63-row list is handled by
+  the robust `scripts/import-wholesale-contacts.mjs`: it **dedupes by business name** (so the
+  earlier rows update rather than duplicate and no two businesses collapse onto a shared email),
+  adds **every** business (the email-keyed importer silently skipped no-email / shared-email
+  rows), gives those a clearly-fake `…@contacts.invalid` placeholder with a note explaining why,
+  and folds the `(UC)` "unconfirmed" marker into a note. Dry-run by default; `--apply` to write.
+  Now **64 wholesale** (incl. the sample). `parse-addresses.mjs` structures the single-line
+  addresses. The CSVs hold customer PII and are intentionally **not** committed to the repo.
 - **Detail / edit screen (done):** `/admin/customers/[id]` — edit business, contact,
   email, phone, address, role, **block**, and internal notes (names auto-capitalized).
   Role/block changes ask for confirmation. Every save writes a **diff to `CustomerAudit`**
