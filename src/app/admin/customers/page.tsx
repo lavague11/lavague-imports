@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AddCustomer } from "@/components/admin/add-customer";
 import { getCurrentUser } from "@/lib/auth";
 import { composeAddress } from "@/lib/address";
 import { getPrisma } from "@/lib/db";
@@ -27,6 +28,19 @@ export default async function AdminCustomers({
     ? (firstValue(params.view) as View)
     : "all";
   const q = (firstValue(params.q) || "").trim();
+
+  const importedN = firstValue(params.imported);
+  const createdFlag = firstValue(params.created);
+  const errKey = firstValue(params.error);
+  const flash = importedN
+    ? { ok: true, text: `Imported ${importedN} customer${importedN === "1" ? "" : "s"} from the contact file.` }
+    : createdFlag
+      ? { ok: true, text: "Customer created." }
+      : errKey === "vcf"
+        ? { ok: false, text: "Couldn't read any contacts from that .vcf file." }
+        : errKey === "create"
+          ? { ok: false, text: "Couldn't create the customer — try again." }
+          : null;
 
   const search: Prisma.CustomerWhereInput = q
     ? {
@@ -81,37 +95,46 @@ export default async function AdminCustomers({
         ) : null}
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Retail ⇄ Wholesale toggle */}
-        <div className="inline-flex rounded-lg border border-olive-200 bg-white p-0.5 text-sm">
-          {SEGMENTS.map((s) => {
-            const active = s.key === view;
-            return (
-              <Link
-                key={s.key}
-                href={segHref(s.key)}
-                className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
-                  active ? "bg-olive-900 text-white" : "text-olive-700 hover:bg-olive-50"
-                }`}
-              >
-                {s.label}
-                <span className={`ml-1.5 text-xs ${active ? "text-white/70" : "text-olive-400"}`}>{s.count}</span>
-              </Link>
-            );
-          })}
+      {flash ? (
+        <div className={`mt-4 rounded-lg border px-3 py-2 text-sm ${flash.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>
+          {flash.text}
         </div>
+      ) : null}
 
-        {/* Search */}
+      <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {/* Search — left */}
         <form action="/admin/customers" className="flex gap-2">
           {view !== "all" ? <input type="hidden" name="view" value={view} /> : null}
           <input
             name="q"
             defaultValue={q}
             placeholder="Search business, name, email…"
-            className="h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none sm:w-64"
+            className="h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none sm:w-72"
           />
-          <button className="h-10 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white">Search</button>
+          <button className="h-10 shrink-0 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white">Search</button>
         </form>
+
+        {/* Filters + Add customer — right */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-lg border border-olive-200 bg-white p-0.5 text-sm">
+            {SEGMENTS.map((s) => {
+              const active = s.key === view;
+              return (
+                <Link
+                  key={s.key}
+                  href={segHref(s.key)}
+                  className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
+                    active ? "bg-olive-900 text-white" : "text-olive-700 hover:bg-olive-50"
+                  }`}
+                >
+                  {s.label}
+                  <span className={`ml-1.5 text-xs ${active ? "text-white/70" : "text-olive-400"}`}>{s.count}</span>
+                </Link>
+              );
+            })}
+          </div>
+          <AddCustomer />
+        </div>
       </div>
 
       {customers.length === 0 ? (
