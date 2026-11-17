@@ -35,6 +35,7 @@ export default async function WholesaleOrderPage({
 
   const params = await searchParams;
   const q = (firstValue(params.q) || "").trim();
+  const country = (firstValue(params.country) || "").trim();
   const cart = await readWholesaleCart();
 
   // Reorder grid — products from the customer's past order requests, most-recent
@@ -76,14 +77,15 @@ export default async function WholesaleOrderPage({
     reorderItems = pastSlugs
       .filter((s) => bySlug.has(s))
       .sort((a, b) => stat.get(b)!.lastAt - stat.get(a)!.lastAt || stat.get(b)!.freq - stat.get(a)!.freq)
-      .map((s) => toItem(bySlug.get(s)!, stat.get(s)!.lastQty, false));
+      .map((s) => toItem(bySlug.get(s)!, stat.get(s)!.lastQty, false))
+      .slice(0, 100);
 
     if (reorderItems.length) {
       const suggestions = await prisma.product.findMany({
         where: { isActive: true, wholesaleEnabled: true, slug: { notIn: pastSlugs } },
         include: { variants: { orderBy: { position: "asc" }, take: 1 } },
         orderBy: [{ isFeatured: "desc" }, { name: "asc" }],
-        take: 2,
+        take: 4,
       });
       reorderItems.push(...suggestions.map((p) => toItem(p, 1, true)));
     }
@@ -93,8 +95,9 @@ export default async function WholesaleOrderPage({
     isActive: true,
     wholesaleEnabled: true,
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(country ? { origin: country } : {}),
   };
-  const [products, total] = await Promise.all([
+  const [products, total, originRows] = await Promise.all([
     prisma.product.findMany({
       where,
       include: { variants: { orderBy: { position: "asc" }, take: 1 } },
@@ -102,7 +105,14 @@ export default async function WholesaleOrderPage({
       take: 60,
     }),
     prisma.product.count({ where }),
+    prisma.product.findMany({
+      where: { isActive: true, wholesaleEnabled: true, origin: { not: null } },
+      select: { origin: true },
+      distinct: ["origin"],
+      orderBy: { origin: "asc" },
+    }),
   ]);
+  const countries = originRows.map((r) => r.origin).filter((o): o is string => Boolean(o));
 
   const count = cartCount(cart);
 
@@ -126,11 +136,11 @@ export default async function WholesaleOrderPage({
         </Link>
       </div>
 
-      {reorderItems.length > 0 && !q ? (
+      {reorderItems.length > 0 && !q && !country ? (
         <ReorderGrid items={reorderItems} cart={cart} />
       ) : null}
 
-      <form action="/wholesale/order" className="mt-6 flex max-w-md gap-2">
+      <form action="/wholesale/order" className="mt-6 flex flex-col gap-2 sm:max-w-2xl sm:flex-row">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-olive-400" aria-hidden="true" />
           <input
@@ -140,17 +150,30 @@ export default async function WholesaleOrderPage({
             className="h-10 w-full rounded-lg border border-olive-200 pr-3 pl-9 text-sm focus:border-olive-500 focus:outline-none"
           />
         </div>
+        {countries.length > 0 ? (
+          <select
+            name="country"
+            defaultValue={country}
+            className="h-10 rounded-lg border border-olive-200 bg-white px-3 text-sm focus:border-olive-500 focus:outline-none sm:w-48"
+          >
+            <option value="">All countries</option>
+            {countries.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        ) : null}
         <button className="h-10 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white">Search</button>
       </form>
 
       <p className="mt-4 text-xs text-olive-500">
         {total.toLocaleString()} item{total === 1 ? "" : "s"}
+        {country ? ` from ${country}` : ""}
         {total > 60 ? " · showing the first 60, search to narrow" : ""}
       </p>
 
       {products.length === 0 ? (
         <div className="mt-6 rounded-xl border border-olive-100 bg-white p-10 text-center text-olive-600">
-          {q ? `No items match “${q}”.` : "No items available."}
+          {q || country ? `No items match${q ? ` “${q}”` : ""}${country ? ` from ${country}` : ""}.` : "No items available."}
         </div>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -45,8 +45,8 @@ export function SignInvoice({
             </div>
             <div className="space-y-4 p-5">
               <div>
-                <p className="mb-1.5 text-xs text-olive-500">Review the invoice below, then sign on the line.</p>
-                <iframe src={pdfUrl} title="Invoice PDF" className="h-72 w-full rounded-lg border border-olive-200 bg-olive-50/40" />
+                <p className="mb-1.5 text-xs text-olive-500">Scroll the invoice to the signature line, then sign below.</p>
+                <iframe src={pdfUrl} title="Invoice PDF" className="h-80 w-full rounded-lg border border-olive-200 bg-olive-50/40" />
                 <a href={pdfUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-olive-600 underline">
                   Can&apos;t see the PDF? Open it in a new tab
                 </a>
