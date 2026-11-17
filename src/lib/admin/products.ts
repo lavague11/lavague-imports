@@ -73,6 +73,16 @@ export async function localizeImage(url: string): Promise<string> {
  */
 export async function collectImagesFromForm(fd: FormData, count = 3): Promise<string[]> {
   const images: string[] = [];
+
+  // New single multi-file picker ("images"): the first `count` uploads win.
+  const multi = fd.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
+  for (const file of multi.slice(0, count)) {
+    const saved = await saveUploadedImage(file);
+    if (saved) images.push(saved);
+  }
+  if (images.length > 0) return images;
+
+  // Legacy per-slot fields (imageFile<i> / imageUrl<i>) — used by the edit form.
   for (let i = 0; i < count; i++) {
     const file = fd.get(`imageFile${i}`);
     if (file instanceof File && file.size > 0) {
