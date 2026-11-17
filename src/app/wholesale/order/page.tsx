@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ClipboardList, Search } from "lucide-react";
 
 import { Container } from "@/components/ui/container";
+import { ReorderGrid, type ReorderItem } from "@/components/wholesale/reorder-grid";
 import { getCustomer } from "@/lib/customer-auth";
 import { getPrisma } from "@/lib/db";
 import { cartCount, readWholesaleCart } from "@/lib/wholesale-cart";
@@ -36,23 +37,57 @@ export default async function WholesaleOrderPage({
   const q = (firstValue(params.q) || "").trim();
   const cart = await readWholesaleCart();
 
-  // "Your usual items" — products from past requests that are still orderable.
-  const past = await prisma.orderRequestLine.findMany({
+  // Reorder grid — products from the customer's past order requests, most-recent
+  // then most-frequent first, plus a couple of secondary suggestions.
+  const pastLines = await prisma.orderRequestLine.findMany({
     where: { request: { customerId: customer.id }, slug: { not: null } },
     orderBy: { createdAt: "desc" },
-    take: 300,
-    select: { slug: true, cases: true },
+    take: 500,
+    select: { slug: true, cases: true, createdAt: true },
   });
-  const lastCases = new Map<string, number>();
-  for (const l of past) if (l.slug && !lastCases.has(l.slug)) lastCases.set(l.slug, l.cases);
-  const usualProducts =
-    lastCases.size > 0
-      ? await prisma.product.findMany({
-          where: { slug: { in: [...lastCases.keys()] }, isActive: true, wholesaleEnabled: true },
-          include: { variants: { orderBy: { position: "asc" }, take: 1 } },
-          take: 12,
-        })
-      : [];
+  const stat = new Map<string, { lastQty: number; lastAt: number; freq: number }>();
+  for (const l of pastLines) {
+    if (!l.slug) continue;
+    const s = stat.get(l.slug);
+    if (!s) stat.set(l.slug, { lastQty: l.cases, lastAt: l.createdAt.getTime(), freq: 1 });
+    else s.freq += 1; // the most-recent row is seen first (desc), so lastQty/lastAt stay
+  }
+  const pastSlugs = [...stat.keys()];
+
+  let reorderItems: ReorderItem[] = [];
+  if (pastSlugs.length) {
+    const prods = await prisma.product.findMany({
+      where: { slug: { in: pastSlugs }, isActive: true, wholesaleEnabled: true },
+      include: { variants: { orderBy: { position: "asc" }, take: 1 } },
+    });
+    const toItem = (p: (typeof prods)[number], lastQty: number, suggested: boolean): ReorderItem => {
+      const v = p.variants[0];
+      const pack = v?.unitsPerCase ?? p.casePack ?? null;
+      return {
+        slug: p.slug,
+        name: p.name,
+        size: [v?.name ?? null, pack ? `${pack}/case` : null].filter(Boolean).join(" · "),
+        imageUrl: p.imageUrl,
+        lastQty,
+        suggested,
+      };
+    };
+    const bySlug = new Map(prods.map((p) => [p.slug, p]));
+    reorderItems = pastSlugs
+      .filter((s) => bySlug.has(s))
+      .sort((a, b) => stat.get(b)!.lastAt - stat.get(a)!.lastAt || stat.get(b)!.freq - stat.get(a)!.freq)
+      .map((s) => toItem(bySlug.get(s)!, stat.get(s)!.lastQty, false));
+
+    if (reorderItems.length) {
+      const suggestions = await prisma.product.findMany({
+        where: { isActive: true, wholesaleEnabled: true, slug: { notIn: pastSlugs } },
+        include: { variants: { orderBy: { position: "asc" }, take: 1 } },
+        orderBy: [{ isFeatured: "desc" }, { name: "asc" }],
+        take: 2,
+      });
+      reorderItems.push(...suggestions.map((p) => toItem(p, 1, true)));
+    }
+  }
 
   const where = {
     isActive: true,
@@ -91,35 +126,8 @@ export default async function WholesaleOrderPage({
         </Link>
       </div>
 
-      {usualProducts.length > 0 && !q ? (
-        <section className="mt-6 rounded-xl border border-olive-100 bg-olive-50/50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-olive-900">Your usual items</h2>
-            <form action="/wholesale/order/reorder" method="post">
-              <button className="rounded-full bg-olive-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-olive-800">
-                Reorder all
-              </button>
-            </form>
-          </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {usualProducts.map((p) => {
-              const last = lastCases.get(p.slug) ?? 1;
-              const inCart = cart[p.slug] ?? 0;
-              return (
-                <form key={p.id} action="/wholesale/order/add" method="post" className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-2">
-                  <input type="hidden" name="slug" value={p.slug} />
-                  <input type="hidden" name="from" value="/wholesale/order" />
-                  <span className="min-w-0 flex-1 truncate text-sm text-olive-800">{p.name}</span>
-                  <input name="cases" type="number" min={0} max={9999} defaultValue={inCart || last} className="h-8 w-14 rounded-lg border border-olive-200 px-1.5 text-sm focus:border-olive-500 focus:outline-none" />
-                  <button className="h-8 rounded-lg bg-olive-100 px-2.5 text-xs font-medium text-olive-800 hover:bg-olive-200">
-                    {inCart ? "✓" : "Add"}
-                  </button>
-                </form>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-xs text-olive-500">Last ordered quantities shown. “Reorder all” adds them to your request.</p>
-        </section>
+      {reorderItems.length > 0 && !q ? (
+        <ReorderGrid items={reorderItems} cart={cart} />
       ) : null}
 
       <form action="/wholesale/order" className="mt-6 flex max-w-md gap-2">
