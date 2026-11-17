@@ -23,6 +23,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
+  const remember = form.get("remember") === "on";
   const next = safeNext(form.get("next"));
 
   const fail = (code: string) => {
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     const admin = await prisma.adminUser.findUnique({ where: { email } });
     if (admin) {
       if (await verifyPassword(password, admin.passwordHash)) {
-        await createSession(admin.id);
+        await createSession(admin.id, remember);
         return redirectTo("/admin");
       }
       return fail("invalid");
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
       customer.passwordHash &&
       (await verifyPassword(password, customer.passwordHash))
     ) {
-      await createCustomerSession(customer.id);
+      await createCustomerSession(customer.id, remember);
       return redirectTo(next);
     }
     return fail("invalid");

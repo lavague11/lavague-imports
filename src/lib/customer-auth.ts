@@ -6,7 +6,11 @@ import { cookies } from "next/headers";
 import { requirePrisma } from "@/lib/db";
 
 const COOKIE = "lv_customer_session";
-const SESSION_DAYS = 30;
+// "Remember me" keeps them signed in for 30 days (persistent cookie). Without it,
+// the cookie is a session cookie (clears when the browser closes) and the
+// server-side session is short-lived so a leftover token can't be reused for long.
+const REMEMBER_DAYS = 30;
+const SESSION_DAYS = 1;
 
 export type CustomerRole = "CUSTOMER" | "WHOLESALE";
 export interface CustomerUser {
@@ -16,10 +20,10 @@ export interface CustomerUser {
   role: CustomerRole;
 }
 
-export async function createCustomerSession(customerId: string): Promise<void> {
+export async function createCustomerSession(customerId: string, remember = true): Promise<void> {
   const prisma = requirePrisma();
   const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 864e5);
+  const expiresAt = new Date(Date.now() + (remember ? REMEMBER_DAYS : SESSION_DAYS) * 864e5);
   await prisma.customerSession.create({ data: { token, customerId, expiresAt } });
   const store = await cookies();
   store.set(COOKIE, token, {
@@ -27,7 +31,8 @@ export async function createCustomerSession(customerId: string): Promise<void> {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: expiresAt,
+    // Persistent cookie when remembered; otherwise a session cookie (no expiry).
+    ...(remember ? { expires: expiresAt } : {}),
   });
 }
 

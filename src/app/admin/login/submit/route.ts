@@ -22,6 +22,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
+  const remember = form.get("remember") === "on";
   const next = safeNext(form.get("next"));
 
   const fail = (code: string) => {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       return fail("invalid");
     }
-    await createSession(user.id);
+    await createSession(user.id, remember);
   } catch {
     return fail("db");
   }

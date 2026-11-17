@@ -8,7 +8,10 @@ import { getGoogleUser } from "@/lib/google-session";
 import { getKey } from "@/lib/vault";
 
 const COOKIE = "lv_admin_session";
-const SESSION_DAYS = 14;
+// "Remember me" keeps staff signed in for 30 days (persistent cookie). Without it,
+// the cookie is a session cookie and the server session is short-lived.
+const REMEMBER_DAYS = 30;
+const SESSION_DAYS = 1;
 
 export type Role = "ADMIN" | "EDITOR";
 export interface SessionUser {
@@ -45,10 +48,10 @@ export function verifyPassword(password: string, stored: string): Promise<boolea
 
 /* ---- sessions ---- */
 
-export async function createSession(userId: string): Promise<void> {
+export async function createSession(userId: string, remember = true): Promise<void> {
   const prisma = requirePrisma();
   const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 864e5);
+  const expiresAt = new Date(Date.now() + (remember ? REMEMBER_DAYS : SESSION_DAYS) * 864e5);
   await prisma.adminSession.create({ data: { token, userId, expiresAt } });
   const store = await cookies();
   store.set(COOKIE, token, {
@@ -56,7 +59,8 @@ export async function createSession(userId: string): Promise<void> {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: expiresAt,
+    // Persistent cookie when remembered; otherwise a session cookie (no expiry).
+    ...(remember ? { expires: expiresAt } : {}),
   });
 }
 

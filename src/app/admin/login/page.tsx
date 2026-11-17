@@ -89,6 +89,10 @@ export default async function AdminLoginPage({
               className={fieldClass}
             />
           </div>
+          <label htmlFor="remember" className="flex items-center gap-2 text-sm text-olive-700">
+            <input id="remember" name="remember" type="checkbox" defaultChecked className="h-4 w-4 rounded border-olive-300 accent-olive-800" />
+            Keep me signed in for 30 days
+          </label>
           {errorMessage ? (
             <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
               {errorMessage}

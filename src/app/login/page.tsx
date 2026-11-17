@@ -126,6 +126,10 @@ export default async function LoginPage({
               </div>
               <input id="password" name="password" type="password" autoComplete="current-password" required className={fieldClass} />
             </div>
+            <label htmlFor="remember" className="flex items-center gap-2 text-sm text-olive-700">
+              <input id="remember" name="remember" type="checkbox" defaultChecked className="h-4 w-4 rounded border-olive-300 accent-olive-800" />
+              Keep me signed in for 30 days
+            </label>
             <button type="submit" className="h-11 w-full rounded-lg bg-olive-900 text-sm font-medium text-white hover:bg-olive-800">
               Sign in
             </button>
