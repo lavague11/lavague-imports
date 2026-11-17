@@ -35,6 +35,25 @@ async function candidates(prisma: PrismaClient, transcript: string): Promise<Can
   }));
 }
 
+// Deterministic catalog match by an item's cleaned name (fallback when Sonnet
+// returns no SKU even though the product exists). Scores by token overlap.
+async function catalogByName(prisma: PrismaClient, name: string, brand: string) {
+  const terms = searchTermsFor(`${brand} ${name}`).slice(0, 8);
+  if (terms.length === 0) return null;
+  const products = await prisma.product.findMany({
+    where: { isActive: true, OR: terms.map((t) => ({ name: { contains: t, mode: "insensitive" as const } })) },
+    select: { name: true, imageUrl: true, variants: { select: { sku: true, name: true, retailPriceCents: true }, take: 1 } },
+    take: 12,
+  });
+  if (products.length === 0) return null;
+  const scored = products
+    .map((p) => ({ p, score: terms.filter((t) => p.name.toLowerCase().includes(t)).length }))
+    .sort((a, b) => b.score - a.score);
+  if (scored[0].score < 2) return null; // need a couple of overlapping words to call it a match
+  const p = scored[0].p;
+  return { name: p.name, sku: p.variants[0]?.sku ?? "", packSize: p.variants[0]?.name ?? "", priceCents: p.variants[0]?.retailPriceCents ?? null, imageUrl: p.imageUrl };
+}
+
 async function lastPaid(prisma: PrismaClient, customerId: string, name: string): Promise<{ cents: number; date: string } | null> {
   const line = await prisma.customerInvoiceLine.findFirst({
     where: { isCredit: false, description: { contains: name, mode: "insensitive" }, invoice: { customerId, status: { not: "VOID" } } },
@@ -131,18 +150,32 @@ ${transcript}`;
 
     const bySku = new Map(cands.filter((c) => c.sku).map((c) => [c.sku, c]));
     const items = await Promise.all(
-      rawItems.map(async (it) => {
-        const sku = String(it.sku ?? "");
-        const name = String(it.name ?? "");
-        const cand = sku ? bySku.get(sku) : undefined;
+      rawItems.map(async (raw) => {
+        const it = { ...raw } as Record<string, unknown>;
+        let sku = String(it.sku ?? "");
+        const isCredit = Boolean(it.isCredit);
+        let matchName = sku ? bySku.get(sku)?.name ?? String(it.name ?? "") : String(it.name ?? "");
+        let imageUrl: string | null = sku ? bySku.get(sku)?.imageUrl ?? null : null;
         let priceCents = (it.priceCents as number | null) ?? null;
         let priceSource = String(it.priceSource ?? "none");
+
+        // Deterministic fallback: Sonnet gave no SKU but the product likely exists.
+        if (!sku && !isCredit) {
+          const fb = await catalogByName(prisma, String(it.name ?? ""), String(it.brand ?? ""));
+          if (fb) {
+            sku = fb.sku; matchName = fb.name; imageUrl = fb.imageUrl;
+            it.name = fb.name; it.sku = fb.sku; it.packSize = fb.packSize; it.matchTag = "best guess";
+            if (priceSource !== "spoken") { priceCents = fb.priceCents; priceSource = fb.priceCents != null ? "catalog" : "none"; }
+          }
+        }
+
         // Prefer this customer's last-paid price for matched, non-spoken, non-credit items.
-        if (customerId && cand && !it.isCredit && priceSource !== "spoken") {
-          const lp = await lastPaid(prisma, customerId, cand.name);
+        if (customerId && sku && !isCredit && priceSource !== "spoken") {
+          const lp = await lastPaid(prisma, customerId, matchName);
           if (lp) { priceCents = lp.cents; priceSource = "last"; }
         }
-        return { ...it, priceCents, priceSource, imageUrl: cand?.imageUrl ?? null };
+
+        return { ...it, priceCents, priceSource, imageUrl };
       }),
     );
 
