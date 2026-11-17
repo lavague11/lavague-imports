@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist";
+import { NotesDictation } from "@/components/admin/notes-dictation";
+import { PreviousItems, type InvoiceLineInput } from "@/components/admin/previous-items";
 import { VoiceOrder, type VoiceItem } from "@/components/admin/voice-order";
 
 import {
@@ -24,6 +26,7 @@ export interface InvoiceEditFormProps {
   action: string;
   cancelHref: string;
   number: string;
+  customerId: string | null;
   customerRole: "CUSTOMER" | "WHOLESALE" | null;
   issueDate: string; // yyyy-mm-dd
   dueDate: string;
@@ -81,6 +84,16 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
   const addVoiceLine = (item: VoiceItem) => {
     const row: Row = { description: item.name, qty: String(item.quantity || 1), unit: item.priceCents != null ? (item.priceCents / 100).toFixed(2) : "" };
     setRows((prev) => (prev.length === 1 && !prev[0].description.trim() && !prev[0].unit.trim() ? [row] : [...prev, row]));
+  };
+
+  // Add one or more lines at once (Previous items / Repeat last order).
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const addLines = (lines: InvoiceLineInput[]) => {
+    const mapped: Row[] = lines.map((l) => ({ description: l.description, qty: String(l.quantity || 1), unit: l.unitPriceCents ? (l.unitPriceCents / 100).toFixed(2) : "" }));
+    setRows((prev) => {
+      const base = prev.length === 1 && !prev[0].description.trim() && !prev[0].unit.trim() ? [] : prev;
+      return [...base, ...mapped];
+    });
   };
 
   const lineTotal = (r: Row) => Math.max(0, Math.round(Number(r.qty) || 0)) * dollarsToCents(r.unit);
@@ -160,6 +173,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
           </button>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <VoiceOrder onAddLine={addVoiceLine} />
+            <PreviousItems customerId={props.customerId} onAdd={addLines} />
             <InvoiceAssist getLines={assistLines} onApply={applyAssist} />
           </div>
         </div>
@@ -169,7 +183,10 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="rounded-xl border border-olive-100 bg-white p-4">
           <label className="text-xs text-olive-500">Notes (shown on the invoice)</label>
-          <textarea name="notes" defaultValue={props.notes} rows={4} className="mt-1 w-full rounded-lg border border-olive-200 px-3 py-2 text-sm focus:border-olive-500 focus:outline-none" placeholder="Payment instructions, PO details, thanks…" />
+          <div className="relative mt-1">
+            <textarea ref={notesRef} name="notes" defaultValue={props.notes} rows={4} className="w-full rounded-lg border border-olive-200 px-3 py-2 pr-11 text-sm focus:border-olive-500 focus:outline-none" placeholder="Payment instructions, PO details, thanks…" />
+            <NotesDictation targetRef={notesRef} />
+          </div>
         </div>
         <div className="rounded-xl border border-olive-100 bg-white p-4 text-sm">
           <Row label="Subtotal" value={money(subtotalCents)} />

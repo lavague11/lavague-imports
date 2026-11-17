@@ -82,16 +82,11 @@ export default async function EditInvoice({
         </div>
       ) : null}
 
-      {!c ? (
-        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          This is a blank draft. Add a customer above when you&apos;re ready — you can fill in the line items first.
-        </p>
-      ) : null}
-
       <InvoiceEditForm
         action={`/admin/invoices/${id}/save`}
         cancelHref={`/admin/invoices/${id}`}
         number={invoice.number}
+        customerId={c?.id ?? null}
         customerRole={(c?.role as "CUSTOMER" | "WHOLESALE" | undefined) ?? null}
         issueDate={toInput(invoice.issueDate)}
         dueDate={toInput(invoice.dueDate)}
