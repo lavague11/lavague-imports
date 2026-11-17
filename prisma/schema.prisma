@@ -65,6 +65,9 @@ model Product {
   /// True for products created in the admin portal (not from an imported
   /// source). The seed reset spares these so they survive a re-import.
   isCustom      Boolean  @default(false)
+  /// Created on the fly from an invoice photo/voice — hidden from the storefront
+  /// (isActive=false) until an admin reviews/approves it on the Products page.
+  needsReview   Boolean  @default(false)
   position      Int      @default(0)
 
   categoryId String

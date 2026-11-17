@@ -124,6 +124,7 @@ export default async function AdminProducts({
     { key: "missing-image", label: "Missing image", filter: "missing-image" },
     { key: "no-description", label: "No description", filter: "no-description" },
     { key: "hidden", label: "Hidden", filter: "hidden" },
+    { key: "needs-review", label: "Needs review", filter: "needs-review" },
     { key: "custom", label: "Custom", filter: "custom" },
   ];
   const tabHref = (f: string) => {

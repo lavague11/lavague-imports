@@ -245,28 +245,40 @@ export interface NewProductInput {
   /** Units per wholesale case. */
   unitsPerCase?: number | null;
   isFragile?: boolean;
+  /** Hidden from the storefront + queued for admin review (invoice photo/voice). */
+  isActive?: boolean;
+  needsReview?: boolean;
 }
 
-/** Creates an admin-owned (isCustom) product with a single variant. */
-export async function createCustomProduct(input: NewProductInput): Promise<void> {
+/** Creates an admin-owned (isCustom) product with a single variant. Returns its identity. */
+export async function createCustomProduct(
+  input: NewProductInput,
+): Promise<{ slug: string; sku: string; imageUrl: string | null }> {
   const prisma = requirePrisma();
-  const id = `custom_${input.slug}`;
+  // Ensure a unique product id/slug (photo/voice can repeat names).
+  let slug = input.slug;
+  if (await prisma.product.findUnique({ where: { id: `custom_${slug}` }, select: { id: true } })) {
+    slug = `${input.slug}-${Date.now().toString(36).slice(-4)}`;
+  }
+  const id = `custom_${slug}`;
   const images = (input.images ?? []).filter(Boolean);
+  const imageUrl = images[0] ?? input.imageUrl ?? null;
   await prisma.product.create({
     data: {
       id,
-      slug: input.slug,
+      slug,
       name: input.name,
       description: input.description,
       origin: input.origin ?? null,
       brand: input.brand ?? null,
       barcode: input.barcode ?? null,
       ribbon: input.ribbon ?? null,
-      imageUrl: images[0] ?? input.imageUrl ?? null,
+      imageUrl,
       images,
       collections: [],
       isCustom: true,
-      isActive: true,
+      isActive: input.isActive ?? true,
+      needsReview: input.needsReview ?? false,
       isFragile: input.isFragile ?? false,
       categoryId: `cat_${input.categorySlug}`,
       variants: {
@@ -281,4 +293,5 @@ export async function createCustomProduct(input: NewProductInput): Promise<void>
       },
     },
   });
+  return { slug, sku: input.sku, imageUrl };
 }

@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { AddCredit, type CreditInput } from "@/components/admin/add-credit";
 import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist";
 import { NotesDictation } from "@/components/admin/notes-dictation";
+import { PhotoToInvoice } from "@/components/admin/photo-to-invoice";
 import { PreviousItems, type InvoiceLineInput } from "@/components/admin/previous-items";
 import { VoiceOrder, type VoiceItem } from "@/components/admin/voice-order";
 
@@ -32,6 +33,7 @@ export interface InvoiceEditFormProps {
   number: string;
   customerId: string | null;
   customerRole: "CUSTOMER" | "WHOLESALE" | null;
+  categories: { slug: string; name: string }[];
   issueDate: string; // yyyy-mm-dd
   dueDate: string;
   terms: string;
@@ -242,6 +244,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
             <PreviousItems customerId={props.customerId} onAdd={addLines} />
             <AddCredit customerId={props.customerId} onAdd={addCredit} />
             <InvoiceAssist getLines={assistLines} onApply={applyAssist} />
+            <PhotoToInvoice customerId={props.customerId} categories={props.categories} onAddLine={(line) => addLines([line])} />
           </div>
         </div>
       </div>

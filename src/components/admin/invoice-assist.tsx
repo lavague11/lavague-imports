@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Camera, Check, Sparkles, Wand2, X } from "lucide-react";
+import { useState } from "react";
+import { Check, Sparkles, Wand2, X } from "lucide-react";
 
 export interface AssistRow {
   original: string;
@@ -32,7 +32,6 @@ export function InvoiceAssist({
   const [mode, setMode] = useState<"cleanup" | "photo">("cleanup");
   const [rows, setRows] = useState<AssistRow[] | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const photoRef = useRef<HTMLInputElement>(null);
 
   const handle = async (m: "cleanup" | "photo", body: FormData) => {
     setBusy(m);
@@ -65,15 +64,6 @@ export function InvoiceAssist({
     void handle("cleanup", fd);
   };
 
-  const runPhoto = (files: FileList | null) => {
-    const arr = Array.from(files ?? []).slice(0, 4);
-    if (arr.length === 0) return;
-    const fd = new FormData();
-    fd.append("mode", "photo");
-    arr.forEach((f) => fd.append("image", f));
-    void handle("photo", fd);
-  };
-
   const setRow = (i: number, patch: Partial<AssistRow>) =>
     setRows((rs) => (rs ? rs.map((r, j) => (j === i ? { ...r, ...patch } : r)) : rs));
 
@@ -93,15 +83,6 @@ export function InvoiceAssist({
         >
           <Wand2 className="h-4 w-4" /> {busy === "cleanup" ? "Working…" : "Pro clean-up"}
         </button>
-        <button
-          type="button"
-          onClick={() => photoRef.current?.click()}
-          disabled={busy !== null}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
-        >
-          <Camera className="h-4 w-4" /> {busy === "photo" ? "Reading…" : "From photo"}
-        </button>
-        <input ref={photoRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { runPhoto(e.target.files); e.target.value = ""; }} />
       </div>
       {note ? <p className="mt-1 text-right text-xs text-olive-500">{note}</p> : null}
 

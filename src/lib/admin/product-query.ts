@@ -98,6 +98,7 @@ export function buildWhereAnd(p: ProductParams): Prisma.ProductWhereInput[] {
   if (p.filter === "missing-image") and.push({ imageUrl: null });
   if (p.filter === "hidden") and.push({ isActive: false });
   if (p.filter === "custom") and.push({ isCustom: true });
+  if (p.filter === "needs-review") and.push({ needsReview: true });
   return and;
 }
 

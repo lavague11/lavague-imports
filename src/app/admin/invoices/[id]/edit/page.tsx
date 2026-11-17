@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { CustomerSearchBar, type CustomerSearchOption } from "@/components/admin/customer-search-bar";
 import { InvoiceEditForm } from "@/components/admin/invoice-edit-form";
 import { getCurrentUser } from "@/lib/auth";
+import { getCategories } from "@/lib/catalog";
 import { getPrisma } from "@/lib/db";
 
 export const metadata = {
@@ -41,7 +42,7 @@ export default async function EditInvoice({
 
   const { id } = await params;
   const sp = await searchParams;
-  const [invoice, customerRows] = await Promise.all([
+  const [invoice, customerRows, categoryRows] = await Promise.all([
     prisma.customerInvoice.findUnique({
       where: { id },
       include: { customer: true, lines: { orderBy: { id: "asc" } } },
@@ -51,7 +52,9 @@ export default async function EditInvoice({
       select: { id: true, businessName: true, name: true, email: true, phone: true },
       take: 2000,
     }),
+    getCategories(),
   ]);
+  const categories = categoryRows.map((c) => ({ slug: c.slug, name: c.name }));
   if (!invoice) notFound();
 
   const c = invoice.customer;
@@ -96,6 +99,7 @@ export default async function EditInvoice({
         number={invoice.number}
         customerId={c?.id ?? null}
         customerRole={(c?.role as "CUSTOMER" | "WHOLESALE" | undefined) ?? null}
+        categories={categories}
         issueDate={toInput(invoice.issueDate)}
         dueDate={toInput(invoice.dueDate)}
         terms={invoice.terms ?? ""}

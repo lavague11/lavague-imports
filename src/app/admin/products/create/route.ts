@@ -48,8 +48,9 @@ export async function POST(request: Request) {
   const caseStr = s(fd, "unitsPerCase");
   const caseNum = parseInt(caseStr, 10);
 
+  let created: { slug: string };
   try {
-    await createCustomProduct({
+    created = await createCustomProduct({
       name,
       slug,
       sku: s(fd, "sku") || `LV-${slug}`.toUpperCase().slice(0, 40),
@@ -70,5 +71,5 @@ export async function POST(request: Request) {
     return redirectTo("/admin/products/new?error=create");
   }
 
-  return redirectTo(`/admin/products/${slug}`);
+  return redirectTo(`/admin/products/${created.slug}`);
 }
