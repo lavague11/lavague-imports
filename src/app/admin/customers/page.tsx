@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
+import { composeAddress } from "@/lib/address";
 import { getPrisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 
@@ -140,10 +141,10 @@ export default async function AdminCustomers({
                         {c.businessName || c.name || "—"}
                       </Link>
                     </td>
-                    <td className="p-3 text-olive-700">{c.businessName && c.name ? c.name : "—"}</td>
+                    <td className="p-3 text-olive-700">{c.businessName && c.name ? c.name : c.businessName ? <MissingTag label="contact" /> : "—"}</td>
                     <td className="p-3 break-all text-olive-700">{c.email}</td>
-                    <td className="p-3 whitespace-nowrap text-olive-700">{c.phone || "—"}</td>
-                    <td className="p-3 text-olive-600">{shortLocation(c.address)}</td>
+                    <td className="p-3 whitespace-nowrap">{c.phone ? <span className="text-olive-700">{c.phone}</span> : <MissingTag label="phone" />}</td>
+                    <td className="p-3">{shortLocation(c) ? <span className="text-olive-600">{shortLocation(c)}</span> : <MissingTag label="address" />}</td>
                     <td className="p-3"><RoleBadge role={c.role} blocked={c.blocked} /></td>
                   </tr>
                 ))}
@@ -165,8 +166,8 @@ export default async function AdminCustomers({
                 </div>
                 {c.businessName && c.name ? <p className="mt-0.5 text-sm text-olive-600">{c.name}</p> : null}
                 <p className="mt-1 text-sm break-all text-olive-700">{c.email}</p>
-                {c.phone ? <p className="text-sm text-olive-700">{c.phone}</p> : null}
-                {c.address ? <p className="mt-1 text-sm text-olive-500">{c.address}</p> : null}
+                <p className="mt-1 text-sm">{c.phone ? <span className="text-olive-700">{c.phone}</span> : <MissingTag label="phone" />}</p>
+                <p className="mt-1 text-sm">{composeAddress(c) ? <span className="text-olive-500">{composeAddress(c)}</span> : <MissingTag label="address" />}</p>
               </Link>
             ))}
           </div>
@@ -180,14 +181,18 @@ export default async function AdminCustomers({
   );
 }
 
-function shortLocation(address: string | null): string {
-  if (!address) return "—";
-  // Grab "City, ST" from a "street, City, ST ZIP" string.
+function MissingTag({ label }: { label: string }) {
+  return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">Missing {label}</span>;
+}
+
+function shortLocation(c: { city?: string | null; state?: string | null; address?: string | null }): string | null {
+  if (c.city || c.state) return [c.city, c.state].filter(Boolean).join(", ");
+  const address = composeAddress(c);
+  if (!address) return null;
   const parts = address.split(",").map((s) => s.trim());
   if (parts.length >= 2) {
     const city = parts[parts.length - 2];
-    const stZip = parts[parts.length - 1];
-    const st = stZip.split(/\s+/)[0];
+    const st = parts[parts.length - 1].split(/\s+/)[0];
     return `${city}, ${st}`;
   }
   return address;

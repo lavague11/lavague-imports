@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { CircleCheckBig } from "lucide-react";
 
 import { updateCustomer } from "@/app/admin/actions";
+import { AddressFields } from "@/components/admin/address-fields";
 import { capitalizeNameOnBlur } from "@/lib/capitalize";
 import { idleFormState } from "@/lib/form";
 
@@ -14,10 +15,17 @@ export interface EditableCustomer {
   name: string | null;
   businessName: string | null;
   phone: string | null;
-  address: string | null;
   notes: string | null;
   role: "CUSTOMER" | "WHOLESALE";
   blocked: boolean;
+  street: string | null;
+  unit: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  lat: number | null;
+  lng: number | null;
+  placeId: string | null;
 }
 
 const inputClass =
@@ -94,8 +102,18 @@ export function CustomerEditForm({ customer }: { customer: EditableCustomer }) {
           <input id="phone" name="phone" defaultValue={customer.phone ?? ""} className={inputClass} />
         </div>
         <div className="sm:col-span-2">
-          <label htmlFor="address" className={labelClass}>Address</label>
-          <input id="address" name="address" defaultValue={customer.address ?? ""} className={inputClass} />
+          <AddressFields
+            initial={{
+              street: customer.street ?? "",
+              unit: customer.unit ?? "",
+              city: customer.city ?? "",
+              state: customer.state ?? "",
+              zip: customer.zip ?? "",
+              lat: customer.lat != null ? String(customer.lat) : "",
+              lng: customer.lng != null ? String(customer.lng) : "",
+              placeId: customer.placeId ?? "",
+            }}
+          />
         </div>
         <div>
           <label htmlFor="role" className={labelClass}>Role</label>

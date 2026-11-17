@@ -20,7 +20,7 @@ and verified**, what's **partial**, what's **blocked on a credential/decision**,
 | F | Google Places business autocomplete | 🔒 Blocked (Places API key) |
 | G | $500 wholesale minimum as order request | ⛔ Deferred to M (checked at quote/invoice time, not in the no-price cart) |
 | H | One admin bar (hide store header on /admin) | ✅ Done & verified (nav finalized: Dashboard·Products·Orders·Customers·More) |
-| I | Customers page (replace "In progress") | ✅ Done & verified (list+toggle+search+import, detail/edit + audit log); pricing-tier/multi-address deferred |
+| I | Customers page (replace "In progress") | ✅ Done & verified; detail redesigned as an overview (stats, invoices, orders, notes, edit drawer) |
 | J | Sample data script | ⛔ Not started (needs CRM tables) |
 | K | Remove demo admin admin@lavagueimports.com | ✅ Done & verified |
 | L | Wholesale ordering, no prices shown, reorder | ✅ Core done & verified (line sheet, cart, submit, admin orders, usual items/reorder); Suggested-5 pending |
@@ -145,6 +145,25 @@ accounts system actually in use. Admin converts a request to an invoice in M.
   popular-in-their-categories → new arrivals); it also appears in the M invoice builder.
 - **Section G** ($500 minimum as an order request) lands with **M**, since the minimum is
   evaluated when the request is quoted/invoiced — wholesale never sees cart prices.
+
+## Customer overview redesign + address + invoice foundation (this run)
+
+- **`/admin/customers/[id]` is now an overview**, not a form: header (with "Missing phone/
+  contact/address" tags, address as a Google Maps link that needs no key), five stat cards
+  (Total spent, Open balance, Invoices, Avg. order, Last order), an **Invoices** table
+  (filterable, overdue highlighted, rows open the invoice), **Order requests**, and inline
+  **Internal notes**. The edit form moved into an **Edit drawer** (with Change history).
+  Missing-field tags also show in the Customers list rows.
+- **Structured address** (migration 006): `street/unit/city/state/zip/lat/lng/placeId` on
+  Customer; the 25 imported single-line addresses were parsed into them. The edit form uses a
+  **Places-Autocomplete-ready** `AddressFields` component that reads
+  `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — **with no key it's plain manual entry, no errors**;
+  autocomplete (US) turns on automatically once the key is set. `.env.example` documents the
+  exact Google Cloud setup (enable Maps JavaScript API + Places API, restrict by referrer).
+- **CustomerInvoice/CustomerInvoiceLine** (migration 006) — the Customer-based invoice data
+  model the overview reads from; `/admin/invoices/[id]` shows a read-only invoice. This is the
+  foundation for **Section M** (PDF, e-sign, payments still to build). A removable sample
+  customer with 4 invoices demos the populated state (`scripts/seed-sample-invoices.mjs`).
 
 ## Blocked (in `docs/blocked.md`)
 

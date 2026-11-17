@@ -15,6 +15,7 @@ import {
   setProductPricing,
   type VariantPack,
 } from "@/lib/admin/products";
+import { composeAddress } from "@/lib/address";
 import { titleCaseName } from "@/lib/capitalize";
 import { requirePrisma } from "@/lib/db";
 import { type FormState } from "@/lib/form";
@@ -286,15 +287,31 @@ export async function updateCustomer(_prev: FormState, fd: FormData): Promise<Fo
   }
   const rawName = str(fd, "name");
   const rawBiz = str(fd, "businessName");
+  const toNum = (v: string) => {
+    const n = Number(v);
+    return v.trim() !== "" && Number.isFinite(n) ? n : null;
+  };
+  const addr = {
+    street: optStr(fd, "street") ?? null,
+    unit: optStr(fd, "unit") ?? null,
+    city: optStr(fd, "city") ?? null,
+    state: optStr(fd, "state") ?? null,
+    zip: optStr(fd, "zip") ?? null,
+    lat: toNum(str(fd, "lat")),
+    lng: toNum(str(fd, "lng")),
+    placeId: optStr(fd, "placeId") ?? null,
+  };
   const next = {
     email,
     name: rawName ? titleCaseName(rawName) : null,
     businessName: rawBiz ? titleCaseName(rawBiz) : null,
     phone: optStr(fd, "phone"),
-    address: optStr(fd, "address"),
     notes: optStr(fd, "notes"),
     role: (str(fd, "role") === "WHOLESALE" ? "WHOLESALE" : "CUSTOMER") as "WHOLESALE" | "CUSTOMER",
     blocked: fd.get("blocked") === "on" || fd.get("blocked") === "true",
+    ...addr,
+    // Keep the legacy single-line address in sync for anything still reading it.
+    address: composeAddress(addr),
   };
 
   const prisma = requirePrisma();
@@ -311,7 +328,7 @@ export async function updateCustomer(_prev: FormState, fd: FormData): Promise<Fo
   cmp("Name", current.name, next.name);
   cmp("Business", current.businessName, next.businessName);
   cmp("Phone", current.phone, next.phone);
-  cmp("Address", current.address, next.address);
+  cmp("Address", composeAddress(current), composeAddress(next));
   cmp("Role", current.role, next.role);
   cmp("Blocked", current.blocked ? "yes" : "no", next.blocked ? "yes" : "no");
   cmp("Notes", current.notes, next.notes);
@@ -339,4 +356,27 @@ export async function updateCustomer(_prev: FormState, fd: FormData): Promise<Fo
   revalidatePath("/admin/customers");
   revalidatePath("/account");
   return { status: "success", message: "Saved.", reference: id };
+}
+
+/** Inline save of just the internal notes from the customer overview. */
+export async function saveCustomerNotes(_prev: FormState, fd: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const id = str(fd, "id");
+  const notes = optStr(fd, "notes") ?? null;
+  if (!id) return { status: "error", message: "Missing customer id." };
+
+  const prisma = requirePrisma();
+  const current = await prisma.customer.findUnique({ where: { id }, select: { notes: true } });
+  if (!current) return { status: "error", message: "Customer not found." };
+  if ((current.notes ?? "") === (notes ?? "")) {
+    return { status: "success", message: "No changes.", reference: id };
+  }
+  await prisma.$transaction([
+    prisma.customer.update({ where: { id }, data: { notes } }),
+    prisma.customerAudit.create({
+      data: { customerId: id, actor: admin.email, summary: `Notes: “${current.notes || "—"}” → “${notes || "—"}”` },
+    }),
+  ]);
+  revalidatePath(`/admin/customers/${id}`);
+  return { status: "success", message: "Notes saved.", reference: id };
 }

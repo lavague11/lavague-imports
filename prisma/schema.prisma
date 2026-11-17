@@ -1184,7 +1184,17 @@ model Customer {
   /// Business details — set for wholesale accounts (imported or approved).
   businessName String?
   phone        String?
-  address      String?
+  /// Legacy single-line address (kept for imported rows); structured fields below.
+  address String?
+  /// Structured address — Google Places Autocomplete fills these when a key is set.
+  street  String?
+  unit    String?
+  city    String?
+  state   String?
+  zip     String?
+  lat     Float?
+  lng     Float?
+  placeId String?
   /// Admin-only notes and a soft block (can't sign in / order).
   notes   String?
   blocked Boolean @default(false)
@@ -1197,8 +1207,58 @@ model Customer {
   applications  WholesaleApplication[]
   audits        CustomerAudit[]
   orderRequests OrderRequest[]
+  invoices      CustomerInvoice[]
 
   @@index([role])
+}
+
+/// Customer-based invoice (lightweight; foundation for Section M). Distinct from
+/// the BusinessAccount-based CRM Invoice. Numbered LV-0001. "Overdue" is derived
+/// from dueDate + balance, not stored.
+enum CustomerInvoiceStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  PAID
+  VOID
+}
+
+model CustomerInvoice {
+  id         String                @id @default(cuid())
+  number     String                @unique
+  customerId String
+  customer   Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status     CustomerInvoiceStatus @default(DRAFT)
+  issueDate  DateTime              @default(now())
+  dueDate    DateTime?
+
+  subtotalCents Int @default(0)
+  discountCents Int @default(0)
+  shippingCents Int @default(0)
+  taxCents      Int @default(0)
+  totalCents    Int @default(0)
+  paidCents     Int @default(0)
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines CustomerInvoiceLine[]
+
+  @@index([customerId])
+  @@index([status])
+}
+
+model CustomerInvoiceLine {
+  id             String          @id @default(cuid())
+  invoiceId      String
+  invoice        CustomerInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description    String
+  quantity       Int             @default(1)
+  unitPriceCents Int             @default(0)
+  lineTotalCents Int             @default(0)
+
+  @@index([invoiceId])
 }
 
 /// Wholesale order request (Section L). Wholesale accounts never see prices, so
