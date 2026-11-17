@@ -53,7 +53,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
     await prisma.orderRequest.update({ where: { id }, data: { status: "QUOTED" } });
 
-    return redirectTo(`/admin/invoices/${invoice.id}/edit`);
+    return redirectTo(`/admin/invoices/${invoice.id}`);
   } catch (error) {
     console.error("[invoice] convert order failed", error);
     return redirectTo(`/admin/orders/${id}?error=invoice`);

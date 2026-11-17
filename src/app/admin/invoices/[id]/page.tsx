@@ -1,20 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Download, Pencil, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Send } from "lucide-react";
 
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { CopyLink } from "@/components/admin/copy-link";
+import { CustomerSearchBar, type CustomerSearchOption } from "@/components/admin/customer-search-bar";
+import { InvoiceEditForm } from "@/components/admin/invoice-edit-form";
 import { PaymentPhotoField } from "@/components/admin/payment-photo";
 import { PhotoUpload } from "@/components/admin/photo-upload";
 import { getCurrentUser } from "@/lib/auth";
-import { composeAddress } from "@/lib/address";
+import { getCategories } from "@/lib/catalog";
 import { getPrisma } from "@/lib/db";
-import {
-  invoiceDisplay,
-  paymentMethodLabel,
-  PAYMENT_METHODS,
-  WHOLESALE_MINIMUM_CENTS,
-} from "@/lib/invoice";
+import { invoiceDisplay, paymentMethodLabel, PAYMENT_METHODS } from "@/lib/invoice";
 import { photoKindLabel, PHOTO_KIND_BADGE } from "@/lib/invoice-photo-constants";
 import { formatPrice } from "@/lib/utils";
 
@@ -27,6 +24,8 @@ const firstValue = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0
 const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const dateTimeFmt = (d: Date) => d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 const today = () => new Date().toISOString().slice(0, 10);
+const toInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
+const dollarsOrBlank = (cents: number) => (cents > 0 ? (cents / 100).toFixed(2) : "");
 
 const FLASH: Record<string, { ok?: boolean; text: string }> = {
   "sent:1": { ok: true, text: "Invoice emailed to the customer." },
@@ -48,9 +47,16 @@ const FLASH: Record<string, { ok?: boolean; text: string }> = {
   "error:payment": { text: "Couldn't record the payment — try again." },
   "error:deliver": { text: "Couldn't update delivery — try again." },
   "error:save": { text: "Couldn't save the invoice — try again." },
+  "error:number": { text: "That invoice number is already in use. Pick another." },
+  "customer:set": { ok: true, text: "Customer assigned." },
+  "customer:created": { ok: true, text: "New customer created and assigned." },
+  "customer:cleared": { ok: true, text: "Customer removed." },
 };
 
-export default async function InvoiceDetail({
+// Single invoice page: header + actions, customer search, the full editor (lines,
+// terms, sales rep, notes, totals), then payments, delivery and photos. The old
+// /edit route redirects here.
+export default async function InvoicePage({
   params,
   searchParams,
 }: {
@@ -66,33 +72,45 @@ export default async function InvoiceDetail({
 
   const { id } = await params;
   const sp = await searchParams;
-  const invoice = await prisma.customerInvoice.findUnique({
-    where: { id },
-    include: {
-      customer: true,
-      lines: { orderBy: { id: "asc" } },
-      payments: { orderBy: { receivedAt: "desc" } },
-      photos: { orderBy: { createdAt: "desc" } },
-      orderRequest: { select: { id: true, reference: true } },
-    },
-  });
+  const [invoice, customerRows, categoryRows] = await Promise.all([
+    prisma.customerInvoice.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        lines: { orderBy: { id: "asc" } },
+        payments: { orderBy: { receivedAt: "desc" } },
+        photos: { orderBy: { createdAt: "desc" } },
+        orderRequest: { select: { id: true, reference: true } },
+      },
+    }),
+    prisma.customer.findMany({
+      orderBy: [{ businessName: "asc" }, { name: "asc" }],
+      select: { id: true, businessName: true, name: true, email: true, phone: true },
+      take: 2000,
+    }),
+    getCategories(),
+  ]);
   if (!invoice) notFound();
 
   const c = invoice.customer;
-  const now = new Date();
-  const disp = invoiceDisplay(invoice, now);
-  const balance = invoice.totalCents - invoice.paidCents;
-  const creditsCents = Math.abs(invoice.lines.filter((l) => l.isCredit).reduce((s, l) => s + l.lineTotalCents, 0));
-  const addr = c ? composeAddress(c) : null;
-  const customerName = c ? c.businessName || c.name || c.email : "No customer yet";
+  const customerName = c ? c.businessName || c.name || c.email : null;
+  const current = c ? { id: c.id, label: customerName as string } : null;
+  const customers: CustomerSearchOption[] = customerRows.map((r) => ({
+    id: r.id,
+    label: r.businessName || r.name || r.email,
+    sub: r.businessName && (r.name || r.email) ? r.name || r.email : r.email !== (r.businessName || r.name) ? r.email : "",
+    phone: r.phone ?? "",
+  }));
+  const categories = categoryRows.map((cat) => ({ slug: cat.slug, name: cat.name }));
 
-  const flashKey = ["sent", "paid", "delivered", "voided", "unvoided", "photo", "error"]
+  const disp = invoiceDisplay(invoice, new Date());
+  const balance = invoice.totalCents - invoice.paidCents;
+  const isVoid = invoice.status === "VOID";
+
+  const flashKey = ["sent", "paid", "delivered", "voided", "unvoided", "photo", "error", "customer"]
     .map((k) => (sp[k] ? `${k}:${firstValue(sp[k])}` : null))
     .find(Boolean);
   const flash = flashKey ? FLASH[flashKey] : undefined;
-
-  const isVoid = invoice.status === "VOID";
-  const belowMin = c?.role === "WHOLESALE" && invoice.subtotalCents > 0 && invoice.subtotalCents < WHOLESALE_MINIMUM_CENTS;
 
   const btn = "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium";
 
@@ -108,65 +126,50 @@ export default async function InvoiceDetail({
         </div>
       ) : null}
 
-      {/* Header */}
+      {/* Header: customer name big, invoice number small/grey, status chip, actions */}
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-display text-2xl text-olive-900">{invoice.number}</h1>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${disp.badge}`}>{disp.label}</span>
-          </div>
+          <h1 className="font-display text-2xl text-olive-900">
+            {customerName ?? "New invoice"}
+            <span className="ml-2 align-middle text-base font-normal text-olive-400">{invoice.number}</span>
+            <span className={`ml-2 inline-block align-middle rounded-full px-2 py-0.5 text-xs font-medium ${disp.badge}`}>{disp.label}</span>
+          </h1>
           <p className="mt-1 text-sm text-olive-600">
-            {c ? (
-              <Link href={`/admin/customers/${c.id}`} className="font-medium text-olive-800 hover:underline">{customerName}</Link>
-            ) : (
-              <Link href={`/admin/invoices/${id}/edit`} className="font-medium text-amber-700 hover:underline">No customer yet — add one</Link>
-            )}
-            {" · "}Issued {dateFmt(invoice.issueDate)}{invoice.dueDate ? ` · due ${dateFmt(invoice.dueDate)}` : ""}
+            Issued {dateFmt(invoice.issueDate)}{invoice.dueDate ? ` · due ${dateFmt(invoice.dueDate)}` : ""}
+            {invoice.deliveredAt ? ` · delivered ${dateFmt(invoice.deliveredAt)}` : ""}
             {invoice.orderRequest ? <> · from <Link href={`/admin/orders/${invoice.orderRequest.id}`} className="hover:underline">{invoice.orderRequest.reference}</Link></> : null}
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <a href={`/admin/invoices/${id}/pdf`} target="_blank" rel="noreferrer" className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>
+            <Download className="h-4 w-4" /> PDF
+          </a>
+          {!isVoid && c ? (
+            <form method="post" action={`/admin/invoices/${id}/send`}>
+              <button className={`${btn} bg-olive-900 text-white hover:bg-olive-800`}>
+                <Send className="h-4 w-4" /> {invoice.sentAt ? "Resend" : "Send"}
+              </button>
+            </form>
+          ) : null}
+          {isVoid ? (
+            <form method="post" action={`/admin/invoices/${id}/void`}>
+              <input type="hidden" name="unvoid" value="1" />
+              <button className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>Restore</button>
+            </form>
+          ) : (
+            <form method="post" action={`/admin/invoices/${id}/void`}>
+              <ConfirmSubmit message={`Void ${invoice.number}? It stays on the books as voided and can be restored.`} className={`${btn} border border-red-200 text-red-600 hover:bg-red-50`}>
+                Void
+              </ConfirmSubmit>
+            </form>
+          )}
+        </div>
       </div>
 
-      {/* Action bar */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {!isVoid ? (
-          <Link href={`/admin/invoices/${id}/edit`} className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>
-            <Pencil className="h-4 w-4" /> Edit
-          </Link>
-        ) : null}
-        <a href={`/admin/invoices/${id}/pdf`} target="_blank" rel="noreferrer" className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>
-          <Download className="h-4 w-4" /> PDF
-        </a>
-        {!isVoid && c ? (
-          <form method="post" action={`/admin/invoices/${id}/send`}>
-            <button className={`${btn} bg-olive-900 text-white hover:bg-olive-800`}>
-              <Send className="h-4 w-4" /> {invoice.sentAt ? "Resend" : "Send to customer"}
-            </button>
-          </form>
-        ) : !isVoid ? (
-          <Link href={`/admin/invoices/${id}/edit`} className={`${btn} border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100`}>
-            <Send className="h-4 w-4" /> Add a customer to send
-          </Link>
-        ) : null}
-        {isVoid ? (
-          <form method="post" action={`/admin/invoices/${id}/void`}>
-            <input type="hidden" name="unvoid" value="1" />
-            <button className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>Restore</button>
-          </form>
-        ) : (
-          <form method="post" action={`/admin/invoices/${id}/void`}>
-            <ConfirmSubmit message={`Void ${invoice.number}? It stays on the books as voided and can be restored.`} className={`${btn} border border-red-200 text-red-600 hover:bg-red-50`}>
-              Void
-            </ConfirmSubmit>
-          </form>
-        )}
+      {/* Customer search */}
+      <div className="mt-3">
+        <CustomerSearchBar invoiceId={id} current={current} customers={customers} />
       </div>
-
-      {belowMin ? (
-        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Below the ${WHOLESALE_MINIMUM_CENTS / 100} wholesale minimum (subtotal {formatPrice(invoice.subtotalCents)}).
-        </p>
-      ) : null}
 
       {/* Customer link */}
       {invoice.publicToken ? (
@@ -177,64 +180,31 @@ export default async function InvoiceDetail({
         </div>
       ) : null}
 
-      {/* Bill to + line items */}
-      <div className="mt-4 rounded-xl border border-olive-100 bg-white p-5">
-        <div className="text-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-olive-400">Bill to</p>
-          {c ? (
-            <>
-              <p className="mt-1 font-medium text-olive-900">{customerName}</p>
-              {c.name && c.businessName ? <p className="text-olive-600">{c.name}</p> : null}
-              <p className="text-olive-600">{c.email}</p>
-              {addr ? <p className="text-olive-500">{addr}</p> : null}
-            </>
-          ) : (
-            <p className="mt-1 text-amber-700">No customer yet. <Link href={`/admin/invoices/${id}/edit`} className="underline">Add one in the editor</Link>.</p>
-          )}
-          {invoice.salesRep ? <p className="mt-1 text-olive-500">Sales rep: {invoice.salesRep}</p> : null}
-          {invoice.terms ? <p className="text-olive-500">Terms: {invoice.terms}</p> : null}
-        </div>
-
-        <table className="mt-5 w-full text-sm">
-          <thead className="border-b border-olive-100 text-left text-olive-500">
-            <tr>
-              <th className="py-2">Description</th>
-              <th className="py-2 text-right">Qty</th>
-              <th className="py-2 text-right">Unit</th>
-              <th className="py-2 text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoice.lines.length === 0 ? (
-              <tr><td colSpan={4} className="py-6 text-center text-olive-400">No line items yet — <Link href={`/admin/invoices/${id}/edit`} className="underline">add some</Link >.</td></tr>
-            ) : invoice.lines.map((l) => (
-              <tr key={l.id} className={`border-b border-olive-50 ${l.isCredit ? "bg-amber-50/40" : ""}`}>
-                <td className="py-2 text-olive-800">{l.description}{l.isCredit ? <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Credit</span> : null}</td>
-                <td className="py-2 text-right text-olive-600">{l.quantity}</td>
-                <td className="py-2 text-right text-olive-600">{l.isCredit ? `−${formatPrice(Math.abs(l.unitPriceCents))}` : formatPrice(l.unitPriceCents)}</td>
-                <td className={`py-2 text-right ${l.isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{l.isCredit ? `−${formatPrice(Math.abs(l.lineTotalCents))}` : formatPrice(l.lineTotalCents)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className="mt-4 ml-auto max-w-xs space-y-1 text-sm">
-          <Amount label="Subtotal" value={formatPrice(invoice.subtotalCents)} />
-          {invoice.discountCents > 0 ? <Amount label="Discount" value={`−${formatPrice(invoice.discountCents)}`} /> : null}
-          {invoice.shippingCents > 0 ? <Amount label="Delivery" value={formatPrice(invoice.shippingCents)} /> : null}
-          {invoice.taxCents > 0 ? <Amount label="Tax" value={formatPrice(invoice.taxCents)} /> : null}
-          {creditsCents > 0 ? <Amount label="Credits" value={`−${formatPrice(creditsCents)}`} /> : null}
-          <Amount label="Total" value={formatPrice(invoice.totalCents)} bold />
-          {invoice.paidCents > 0 ? <Amount label="Paid" value={`−${formatPrice(invoice.paidCents)}`} /> : null}
-          <Amount label="Balance due" value={formatPrice(Math.max(0, balance))} bold danger={balance > 0} />
-        </div>
-
-        {invoice.notes ? <p className="mt-4 border-t border-olive-100 pt-3 text-sm text-olive-600 whitespace-pre-wrap">{invoice.notes}</p> : null}
-      </div>
+      {/* The editor (lines, terms, sales rep, notes, totals) */}
+      <InvoiceEditForm
+        action={`/admin/invoices/${id}/save`}
+        cancelHref="/admin/invoices"
+        number={invoice.number}
+        customerId={c?.id ?? null}
+        customerRole={(c?.role as "CUSTOMER" | "WHOLESALE" | undefined) ?? null}
+        categories={categories}
+        issueDate={toInput(invoice.issueDate)}
+        dueDate={toInput(invoice.dueDate)}
+        terms={invoice.terms ?? ""}
+        salesRep={invoice.salesRep ?? ""}
+        notes={invoice.notes ?? ""}
+        discount={dollarsOrBlank(invoice.discountCents)}
+        shipping={dollarsOrBlank(invoice.shippingCents)}
+        tax={dollarsOrBlank(invoice.taxCents)}
+        lines={invoice.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents, isCredit: l.isCredit, creditReason: l.creditReason }))}
+      />
 
       {/* Payments */}
       <section className="mt-6">
-        <h2 className="font-display text-lg text-olive-900">Payments</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-lg text-olive-900">Payments</h2>
+          <p className="text-sm text-olive-600">Paid {formatPrice(invoice.paidCents)} · <span className={balance > 0 ? "font-semibold text-red-700" : "text-olive-500"}>Balance {formatPrice(Math.max(0, balance))}</span></p>
+        </div>
         {invoice.payments.length === 0 ? (
           <p className="mt-2 text-sm text-olive-500">No payments recorded yet.</p>
         ) : (
@@ -246,7 +216,7 @@ export default async function InvoiceDetail({
                     <td className="p-3 whitespace-nowrap text-olive-600">{dateFmt(p.receivedAt)}</td>
                     <td className="p-3 text-olive-700">{paymentMethodLabel(p.method)}{p.reference ? ` · ${p.reference}` : ""}</td>
                     <td className="p-3 text-olive-400">{p.note ?? ""}</td>
-                    <td className="p-3 text-right font-medium text-olive-900">{formatPrice(p.amountCents)}</td>
+                    <td className="p-3 text-right font-medium text-olive-900">−{formatPrice(p.amountCents)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -285,7 +255,6 @@ export default async function InvoiceDetail({
               <input name="note" placeholder="Optional note" className="h-10 flex-1 rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none" />
               <button className="h-10 shrink-0 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white hover:bg-olive-800">Record</button>
             </div>
-            <p className="mt-2 text-xs text-olive-400">Attach a photo of the check or receipt (optional) — it&apos;s saved to this invoice. Online card payments (Stripe) are a separate integration.</p>
           </form>
         ) : null}
       </section>
@@ -363,7 +332,7 @@ export default async function InvoiceDetail({
                   <form method="post" action={`/admin/invoices/${id}/photo/delete`} className="shrink-0">
                     <input type="hidden" name="photoId" value={p.id} />
                     <ConfirmSubmit message="Delete this photo?" className="text-olive-300 hover:text-red-600">
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="text-xs">✕</span>
                     </ConfirmSubmit>
                   </form>
                 </div>
@@ -374,15 +343,6 @@ export default async function InvoiceDetail({
 
         <PhotoUpload action={`/admin/invoices/${id}/photo`} />
       </section>
-    </div>
-  );
-}
-
-function Amount({ label, value, bold, danger }: { label: string; value: string; bold?: boolean; danger?: boolean }) {
-  return (
-    <div className={`flex justify-between ${bold ? "font-semibold" : ""} ${danger ? "text-red-700" : bold ? "text-olive-900" : "text-olive-600"}`}>
-      <span>{label}</span>
-      <span>{value}</span>
     </div>
   );
 }

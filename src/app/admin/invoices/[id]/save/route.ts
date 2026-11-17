@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         where: { number: nextNumber, NOT: { id } },
         select: { id: true },
       });
-      if (taken) return redirectTo(`/admin/invoices/${id}/edit?error=number`);
+      if (taken) return redirectTo(`/admin/invoices/${id}?error=number`);
       number = nextNumber;
     }
 
@@ -96,6 +96,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return redirectTo(`/admin/invoices/${id}`);
   } catch (error) {
     console.error("[invoice] save failed", error);
-    return redirectTo(`/admin/invoices/${id}/edit?error=save`);
+    return redirectTo(`/admin/invoices/${id}?error=save`);
   }
 }

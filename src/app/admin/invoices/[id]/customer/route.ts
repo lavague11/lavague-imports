@@ -39,22 +39,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (mode === "unassign") {
       await prisma.customerInvoice.update({ where: { id }, data: { customerId: null } });
-      return redirectTo(`/admin/invoices/${id}/edit?customer=cleared`);
+      return redirectTo(`/admin/invoices/${id}?customer=cleared`);
     }
 
     if (mode === "existing") {
       const customerId = clean(fd.get("customerId"));
-      if (!customerId) return redirectTo(`/admin/invoices/${id}/edit?error=customer`);
+      if (!customerId) return redirectTo(`/admin/invoices/${id}?error=customer`);
       const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { id: true } });
-      if (!customer) return redirectTo(`/admin/invoices/${id}/edit?error=customer`);
+      if (!customer) return redirectTo(`/admin/invoices/${id}?error=customer`);
       await prisma.customerInvoice.update({ where: { id }, data: { customerId } });
-      return redirectTo(`/admin/invoices/${id}/edit?customer=set`);
+      return redirectTo(`/admin/invoices/${id}?customer=set`);
     }
 
     if (mode === "new") {
       const businessName = clean(fd.get("businessName"));
       const name = orNull(fd.get("name"));
-      if (!businessName && !name) return redirectTo(`/admin/invoices/${id}/edit?error=customer`);
+      if (!businessName && !name) return redirectTo(`/admin/invoices/${id}?error=customer`);
 
       // Email is unique + required by the schema. Use the real one if free,
       // otherwise a clearly-fake placeholder (same convention as the importer).
@@ -88,12 +88,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         select: { id: true },
       });
       await prisma.customerInvoice.update({ where: { id }, data: { customerId: created.id } });
-      return redirectTo(`/admin/invoices/${id}/edit?customer=created`);
+      return redirectTo(`/admin/invoices/${id}?customer=created`);
     }
 
-    return redirectTo(`/admin/invoices/${id}/edit`);
+    return redirectTo(`/admin/invoices/${id}`);
   } catch (error) {
     console.error("[invoice] assign customer failed", error);
-    return redirectTo(`/admin/invoices/${id}/edit?error=customer`);
+    return redirectTo(`/admin/invoices/${id}?error=customer`);
   }
 }

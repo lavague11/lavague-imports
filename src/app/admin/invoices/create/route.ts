@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       data: { number, customerId: linkedCustomerId ?? null, status: "DRAFT" },
       select: { id: true },
     });
-    return redirectTo(`/admin/invoices/${invoice.id}/edit`);
+    return redirectTo(`/admin/invoices/${invoice.id}`);
   } catch (error) {
     console.error("[invoice] create failed", error);
     return redirectTo("/admin/invoices?error=create");
