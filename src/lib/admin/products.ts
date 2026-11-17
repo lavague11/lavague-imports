@@ -234,6 +234,8 @@ export interface NewProductInput {
   categorySlug: string;
   description: string;
   origin?: string | null;
+  brand?: string | null;
+  barcode?: string | null;
   ribbon?: string | null;
   imageUrl?: string | null;
   images?: string[];
@@ -257,6 +259,8 @@ export async function createCustomProduct(input: NewProductInput): Promise<void>
       name: input.name,
       description: input.description,
       origin: input.origin ?? null,
+      brand: input.brand ?? null,
+      barcode: input.barcode ?? null,
       ribbon: input.ribbon ?? null,
       imageUrl: images[0] ?? input.imageUrl ?? null,
       images,

@@ -43,19 +43,25 @@ export async function POST(request: Request) {
   const categories = await getCategories();
   const catList = categories.map((c) => `${c.slug} (${c.name})`).join(", ");
 
+  const barcodeHint = String(fd.get("barcode") ?? "").replace(/[^0-9]/g, "");
+
   const prompt = `You are cataloguing a specialty North African / Middle Eastern grocery product from a photo for an importer. Identify the product and return ONLY a JSON object (no prose, no markdown fences) with exactly these fields:
 {
   "name": string,                // product name, include the brand if visible
+  "brand": string,               // brand/manufacturer only, "" if not visible
   "categorySlug": string,        // best match from these slugs, else "": ${catList}
   "origin": string,              // country of origin, "" if unknown
   "unitSizeAmount": string,      // numeric size only, e.g. "70", "1", "500"; "" if unknown
   "unitSizeUnit": string,        // one of: g, kg, ml, l, oz, lb, ct, piece; "" if unknown
-  "unitsPerCase": number|null,   // units per case if printed, else null
+  "piecesPerCase": number|null,  // pieces/units per case ONLY if a count is printed on the pack (e.g. "x12", "24 pcs"); else null
+  "piecesPerCaseGuess": number|null, // if no count is printed, your best-guess case count; null if you truly cannot estimate
+  "suggestedSku": string,        // short uppercase SKU in BRAND-PRODUCT-SIZE style, e.g. "SULTAN-HARISSA-200G"; always give a best effort
   "ribbon": string,              // short badge like "Best Seller" only if obvious, else ""
   "description": string,         // 1-2 appealing sentences for the storefront
   "fragile": boolean,            // true if the packaging is glass or otherwise breakable
   "confidence": number           // 0 to 1, how confident you are in the identification
-}`;
+}
+Never present a guess as a certainty: put a printed case count in "piecesPerCase" and an estimate in "piecesPerCaseGuess", never both.${barcodeHint ? ` The product's scanned barcode is ${barcodeHint}; you may use it for context but do not put it in the SKU.` : ""}`;
 
   try {
     const client = new Anthropic({ apiKey });

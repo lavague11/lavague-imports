@@ -56,6 +56,8 @@ export async function POST(request: Request) {
       categorySlug,
       description: s(fd, "description") || `${name}.`,
       origin: optS(fd, "origin"),
+      brand: optS(fd, "brand"),
+      barcode: s(fd, "barcode").replace(/[^0-9]/g, "") || null,
       ribbon: optS(fd, "ribbon"),
       images,
       priceCents: priceStr ? Math.round(parseFloat(priceStr) * 100) : null,

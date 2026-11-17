@@ -36,6 +36,8 @@ model Product {
   /// Country or region of origin, e.g. "Morocco", "Egypt".
   origin        String?
   brand         String?
+  /// EAN-13 / UPC barcode (digits only). Set when scanned or looked up.
+  barcode       String?
   imageUrl      String?
   /// Up to three product photos. The first mirrors imageUrl (the card/primary
   /// shot); the rest form the detail-page gallery.
@@ -98,6 +100,7 @@ model Product {
   @@index([categoryId])
   @@index([isFeatured])
   @@index([wholesaleEnabled])
+  @@index([barcode])
 }
 
 /// A purchasable size/pack of a product. Prices are stored in cents to avoid
