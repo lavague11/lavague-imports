@@ -104,6 +104,14 @@ export const KNOWN_KEYS: KnownKey[] = [
     getUrl: "https://console.anthropic.com/settings/keys",
     group: "AI",
   },
+  {
+    name: "OPENAI_API_KEY",
+    label: "OpenAI (image enhance)",
+    description: "Powers the two-tier \"Enhance photo\" clean-up on the new-product form (gpt-image). Server-side only.",
+    kind: "secret",
+    getUrl: "https://platform.openai.com/api-keys",
+    group: "AI",
+  },
 ];
 
 const KNOWN_BY_NAME = new Map(KNOWN_KEYS.map((k) => [k.name, k]));

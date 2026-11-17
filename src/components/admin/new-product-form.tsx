@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Camera, Check, ExternalLink, ScanBarcode, Sparkles, X } from "lucide-react";
+import { Camera, Check, ExternalLink, ScanBarcode, Sparkles, Wand2, X } from "lucide-react";
 
 import { BarcodeScanner } from "@/components/admin/barcode-scanner";
 import { UNIT_OPTIONS } from "@/lib/units";
@@ -106,6 +106,16 @@ export function NewProductForm({
   const [catalogHit, setCatalogHit] = useState<{ slug: string; name: string } | null>(null);
   const [lookupNote, setLookupNote] = useState<string | null>(null);
 
+  // Photo enhance (OpenAI). We always keep the original file and only swap the
+  // enhanced one in on "Keep".
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [extraFiles, setExtraFiles] = useState<File[]>([]);
+  const [enhancing, setEnhancing] = useState<null | "flare" | "sunburst">(null);
+  const [enhanced, setEnhanced] = useState<{ url: string; tier: string } | null>(null);
+  const [enhanceNote, setEnhanceNote] = useState<string | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState("");
+
   // Apply a value to a row only if it beats what's already there (by source precedence).
   const applyToRows = useCallback((patch: { key: RowKey; value: string; source: Source }[]) => {
     setRows((prev) => {
@@ -170,7 +180,52 @@ export function NewProductForm({
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     setPreviews(files.slice(0, 3).map((f) => URL.createObjectURL(f)));
+    setOriginalFile(files[0] ?? null);
+    setExtraFiles(files.slice(1, 3));
+    setEnhanced(null);
+    setEnhanceNote(null);
     if (files[0]) void identify(files[0]);
+  };
+
+  // ---- Photo enhance (OpenAI, two tiers) ----
+  const runEnhance = async (tier: "flare" | "sunburst", fb?: string) => {
+    if (!originalFile) return;
+    setEnhancing(tier);
+    setEnhanceNote(null);
+    setEnhanced(null);
+    try {
+      const fd = new FormData();
+      fd.append("image", originalFile); // always the ORIGINAL
+      fd.append("tier", tier);
+      if (fb) fd.append("feedback", fb);
+      const res = await fetch("/admin/products/enhance", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.configured === false) setEnhanceNote("Photo enhance needs an OPENAI_API_KEY — add it under /developers to turn this on.");
+      else if (data.image) setEnhanced({ url: data.image, tier });
+      else setEnhanceNote("Couldn't enhance the photo — try again.");
+    } catch {
+      setEnhanceNote("Couldn't reach the enhancer — try again.");
+    } finally {
+      setEnhancing(null);
+    }
+  };
+
+  const dataUrlToFile = async (url: string, name: string): Promise<File> => {
+    const blob = await (await fetch(url)).blob();
+    return new File([blob], name, { type: blob.type || "image/png" });
+  };
+
+  // "Keep": enhanced becomes the main product photo; the original is retained as a gallery image.
+  const keepEnhanced = async () => {
+    if (!enhanced || !fileRef.current) return;
+    const enhancedFile = await dataUrlToFile(enhanced.url, "enhanced.png");
+    const keepFiles = [enhancedFile, ...(originalFile ? [originalFile] : []), ...extraFiles].slice(0, 3);
+    const dt = new DataTransfer();
+    keepFiles.forEach((f) => dt.items.add(f));
+    fileRef.current.files = dt.files;
+    setPreviews(keepFiles.map((f) => URL.createObjectURL(f)));
+    setEnhanced(null);
+    setEnhanceNote("Enhanced photo saved as the main image. Original kept in the gallery.");
   };
 
   const identify = async (file: File) => {
@@ -300,6 +355,52 @@ export function NewProductForm({
           </div>
         ) : null}
         {aiNote ? <p className="mt-2 text-xs text-olive-500">{aiNote}</p> : null}
+
+        {/* Enhance photo (two tiers, OpenAI) */}
+        {originalFile ? (
+          <div className="mt-3 rounded-lg border border-olive-100 bg-olive-50/40 p-3">
+            {!enhanced ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void runEnhance("flare")}
+                  disabled={enhancing !== null}
+                  className="inline-flex items-center gap-2 rounded-lg border border-olive-300 bg-white px-3 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
+                >
+                  <Wand2 className="h-4 w-4" /> {enhancing === "flare" ? "Enhancing…" : "Enhance photo"}
+                </button>
+                <span className="text-xs text-olive-500">Clean white studio background, sharp focus — your product kept exactly as-is.</span>
+              </div>
+            ) : (
+              <div>
+                <p className="mb-2 text-xs font-medium text-olive-600">
+                  Enhanced ({enhanced.tier === "sunburst" ? "high quality" : "quick clean-up"})
+                </p>
+                <div className="flex flex-wrap items-start gap-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={enhanced.url} alt="Enhanced product" className="h-40 w-40 rounded-lg border border-olive-200 bg-white object-contain" />
+                  <div className="flex flex-col gap-2">
+                    <button type="button" onClick={() => void keepEnhanced()} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-olive-900 px-4 py-2 text-sm font-medium text-white hover:bg-olive-800">
+                      <Check className="h-4 w-4" /> Keep
+                    </button>
+                    <button type="button" onClick={() => { setEnhanced(null); setEnhanceNote(null); }} className="rounded-lg border border-olive-200 bg-white px-4 py-2 text-sm text-olive-700 hover:bg-olive-50">
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowFeedback(true)}
+                      disabled={enhancing !== null}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-olive-300 bg-white px-4 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
+                    >
+                      <Wand2 className="h-4 w-4" /> {enhancing === "sunburst" ? "Working…" : "Make it better"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {enhanceNote ? <p className="mt-2 text-xs text-olive-500">{enhanceNote}</p> : null}
+          </div>
+        ) : null}
       </div>
 
       {/* Barcode row (USB scanner types here; Enter looks it up) */}
@@ -414,6 +515,37 @@ export function NewProductForm({
       <button type="submit" className="h-11 rounded-lg bg-olive-900 px-6 text-sm font-medium text-white hover:bg-olive-800">
         Create product
       </button>
+
+      {/* "Make it better" — what's wrong with it? */}
+      {showFeedback ? (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowFeedback(false)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg text-olive-900">What&apos;s wrong with it?</h3>
+            <p className="mt-1 text-xs text-olive-500">A quick note — we&apos;ll redo it at high quality from your original photo.</p>
+            <textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder="e.g. label is blurry, background still grey"
+              className="mt-3 w-full rounded-lg border border-olive-200 px-3 py-2 text-sm focus:border-olive-500 focus:outline-none"
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowFeedback(false); void runEnhance("sunburst", feedback.trim()); }}
+                disabled={!feedback.trim()}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-olive-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-olive-800 disabled:opacity-50"
+              >
+                <Wand2 className="h-4 w-4" /> Make it better
+              </button>
+              <button type="button" onClick={() => setShowFeedback(false)} className="rounded-lg border border-olive-200 px-4 py-2.5 text-sm text-olive-700 hover:bg-olive-50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Camera scanner */}
       {scanning ? (
