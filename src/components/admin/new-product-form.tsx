@@ -192,7 +192,8 @@ export function NewProductForm({
     if (!originalFile) return;
     setEnhancing(tier);
     setEnhanceNote(null);
-    setEnhanced(null);
+    // Keep any current enhanced image visible (with a loading overlay) while we
+    // regenerate, so the full-size pop-up doesn't flash closed on "Make it better".
     try {
       const fd = new FormData();
       fd.append("image", originalFile); // always the ORIGINAL
@@ -356,48 +357,20 @@ export function NewProductForm({
         ) : null}
         {aiNote ? <p className="mt-2 text-xs text-olive-500">{aiNote}</p> : null}
 
-        {/* Enhance photo (two tiers, OpenAI) */}
+        {/* Enhance photo (two tiers, OpenAI) — result opens in a full-size pop-up */}
         {originalFile ? (
           <div className="mt-3 rounded-lg border border-olive-100 bg-olive-50/40 p-3">
-            {!enhanced ? (
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void runEnhance("flare")}
-                  disabled={enhancing !== null}
-                  className="inline-flex items-center gap-2 rounded-lg border border-olive-300 bg-white px-3 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
-                >
-                  <Wand2 className="h-4 w-4" /> {enhancing === "flare" ? "Enhancing…" : "Enhance photo"}
-                </button>
-                <span className="text-xs text-olive-500">Clean white studio background, sharp focus — your product kept exactly as-is.</span>
-              </div>
-            ) : (
-              <div>
-                <p className="mb-2 text-xs font-medium text-olive-600">
-                  Enhanced ({enhanced.tier === "sunburst" ? "high quality" : "quick clean-up"})
-                </p>
-                <div className="flex flex-wrap items-start gap-4">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={enhanced.url} alt="Enhanced product" className="h-40 w-40 rounded-lg border border-olive-200 bg-white object-contain" />
-                  <div className="flex flex-col gap-2">
-                    <button type="button" onClick={() => void keepEnhanced()} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-olive-900 px-4 py-2 text-sm font-medium text-white hover:bg-olive-800">
-                      <Check className="h-4 w-4" /> Keep
-                    </button>
-                    <button type="button" onClick={() => { setEnhanced(null); setEnhanceNote(null); }} className="rounded-lg border border-olive-200 bg-white px-4 py-2 text-sm text-olive-700 hover:bg-olive-50">
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowFeedback(true)}
-                      disabled={enhancing !== null}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-olive-300 bg-white px-4 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
-                    >
-                      <Wand2 className="h-4 w-4" /> {enhancing === "sunburst" ? "Working…" : "Make it better"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void runEnhance("flare")}
+                disabled={enhancing !== null}
+                className="inline-flex items-center gap-2 rounded-lg border border-olive-300 bg-white px-3 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
+              >
+                <Wand2 className="h-4 w-4" /> {enhancing === "flare" ? "Enhancing…" : "Enhance photo"}
+              </button>
+              <span className="text-xs text-olive-500">Clean white studio background, sharp focus — your product kept exactly as-is.</span>
+            </div>
             {enhanceNote ? <p className="mt-2 text-xs text-olive-500">{enhanceNote}</p> : null}
           </div>
         ) : null}
@@ -516,9 +489,43 @@ export function NewProductForm({
         Create product
       </button>
 
+      {/* Full-size enhanced result pop-up, options underneath */}
+      {enhanced ? (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/70 p-4 sm:p-8" onClick={() => { if (!enhancing) setEnhanced(null); }}>
+          <div className="flex w-full max-w-3xl flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-2 flex w-full items-center justify-between text-white/90">
+              <span className="text-sm font-medium">Enhanced · {enhanced.tier === "sunburst" ? "high quality" : "quick clean-up"}</span>
+              <button type="button" onClick={() => setEnhanced(null)} disabled={enhancing !== null} aria-label="Close" className="text-white/70 hover:text-white disabled:opacity-40">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="relative w-full overflow-hidden rounded-xl bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={enhanced.url} alt="Enhanced product" className="mx-auto max-h-[70vh] w-auto max-w-full object-contain" />
+              {enhancing ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/75 text-sm font-medium text-olive-800">
+                  <Sparkles className="mr-2 h-5 w-5 animate-pulse" /> Enhancing at high quality…
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <button type="button" onClick={() => void keepEnhanced()} disabled={enhancing !== null} className="inline-flex items-center gap-1.5 rounded-lg bg-olive-900 px-6 py-2.5 text-sm font-medium text-white hover:bg-olive-800 disabled:opacity-50">
+                <Check className="h-4 w-4" /> Keep
+              </button>
+              <button type="button" onClick={() => setEnhanced(null)} disabled={enhancing !== null} className="rounded-lg border border-white/40 bg-white/10 px-6 py-2.5 text-sm font-medium text-white hover:bg-white/20 disabled:opacity-50">
+                Cancel
+              </button>
+              <button type="button" onClick={() => setShowFeedback(true)} disabled={enhancing !== null} className="inline-flex items-center gap-1.5 rounded-lg border border-white/40 bg-white/10 px-6 py-2.5 text-sm font-medium text-white hover:bg-white/20 disabled:opacity-50">
+                <Wand2 className="h-4 w-4" /> {enhancing === "sunburst" ? "Working…" : "Make it better"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* "Make it better" — what's wrong with it? */}
       {showFeedback ? (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowFeedback(false)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowFeedback(false)}>
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-display text-lg text-olive-900">What&apos;s wrong with it?</h3>
             <p className="mt-1 text-xs text-olive-500">A quick note — we&apos;ll redo it at high quality from your original photo.</p>
