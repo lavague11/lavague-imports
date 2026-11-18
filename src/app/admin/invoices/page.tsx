@@ -39,6 +39,7 @@ export default async function AdminInvoices({
   const bulk = firstValue(sp.bulk);
   const bulkN = firstValue(sp.n);
   const bulkSkipped = firstValue(sp.skipped);
+  const initialTab = firstValue(sp.tab);
 
   const all = await prisma.customerInvoice.findMany({
     orderBy: { createdAt: "desc" },
@@ -111,7 +112,7 @@ export default async function AdminInvoices({
       </div>
 
       <div className="mt-5">
-        <InvoicesTable rows={rows} />
+        <InvoicesTable rows={rows} initialTab={initialTab} />
       </div>
     </div>
   );

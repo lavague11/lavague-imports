@@ -39,9 +39,9 @@ const SORTS = [
   { key: "amount-low", label: "Amount: low → high" },
 ];
 
-export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
+export function InvoicesTable({ rows, initialTab }: { rows: InvoiceRow[]; initialTab?: string }) {
   const [q, setQ] = useState("");
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useState(initialTab && TABS.some((t) => t.key === initialTab) ? initialTab : "all");
   const [sort, setSort] = useState("newest");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
