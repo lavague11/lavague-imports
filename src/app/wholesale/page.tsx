@@ -5,7 +5,7 @@ import { FileText, Handshake, PhoneCall, Truck } from "lucide-react";
 import { WholesaleForm } from "@/components/forms/wholesale-form";
 import { buttonClasses } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
-import { fullAddress, site } from "@/lib/site";
+import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Wholesale",
@@ -75,10 +75,10 @@ export default function WholesalePage() {
                 Apply for an account
               </Link>
               <Link
-                href="/wholesale/line-sheet"
+                href="#apply"
                 className={buttonClasses({ variant: "secondary", size: "lg" })}
               >
-                View the line sheet
+                Request a catalog
               </Link>
             </div>
           </div>
@@ -152,11 +152,6 @@ export default function WholesalePage() {
               <h2 className="mt-2 text-3xl text-olive-900 sm:text-4xl">
                 Open a wholesale account
               </h2>
-              <p className="mx-auto mt-4 max-w-xl leading-relaxed text-olive-700">
-                Approved accounts get case pricing, allocation ahead of seasonal
-                demand, and a standing delivery slot. Deliveries run from{" "}
-                {fullAddress}.
-              </p>
             </div>
 
             <div className="mt-10">

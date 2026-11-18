@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { CircleCheckBig } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { capitalizeNameOnBlur } from "@/lib/capitalize";
 import { idleFormState } from "@/lib/form";
+import { attachAutocomplete, hasPlacesKey, type PlaceResult } from "@/lib/google-places";
 import { site } from "@/lib/site";
 import {
   BUSINESS_TYPES,
@@ -24,6 +25,30 @@ export function WholesaleForm() {
 
   const errorFor = (field: string) =>
     state.status === "error" ? state.fieldErrors?.[field] : undefined;
+
+  // Google Places autocomplete on the Business name (search a business) and
+  // Street address (search an address) fields — fills the delivery address when
+  // a suggestion is picked. No-op without NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.
+  useEffect(() => {
+    if (!hasPlacesKey) return;
+    const setVal = (id: string, v: string) => {
+      const el = document.getElementById(id) as HTMLInputElement | null;
+      if (el && v) el.value = v;
+    };
+    const fillAddress = (p: PlaceResult) => {
+      setVal("addressLine1", p.street);
+      setVal("addressLine2", p.unit);
+      setVal("city", p.city);
+      setVal("state", p.state);
+      setVal("postalCode", p.zip);
+    };
+    const business = document.getElementById("businessName") as HTMLInputElement | null;
+    const street = document.getElementById("addressLine1") as HTMLInputElement | null;
+    const cleanups: Array<() => void> = [];
+    if (business) cleanups.push(attachAutocomplete(business, "establishment", fillAddress));
+    if (street) cleanups.push(attachAutocomplete(street, "address", fillAddress));
+    return () => cleanups.forEach((c) => c());
+  }, []);
 
   if (state.status === "success") {
     return (
@@ -63,6 +88,7 @@ export function WholesaleForm() {
               id="businessName"
               name="businessName"
               autoComplete="organization"
+              placeholder={hasPlacesKey ? "Start typing your business…" : undefined}
               onBlur={capitalizeNameOnBlur}
               required
             />
@@ -138,6 +164,7 @@ export function WholesaleForm() {
             id="addressLine1"
             name="addressLine1"
             autoComplete="address-line1"
+            placeholder={hasPlacesKey ? "Start typing an address…" : undefined}
             required
           />
         </Field>
