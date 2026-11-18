@@ -46,15 +46,18 @@ const DANGER = rgb(0.72, 0.18, 0.18);
 const fmtDate = (d: Date) =>
   d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-/** Builds a clean one-page PDF invoice. No external service required. */
+/** Builds a clean, paginated PDF invoice. No external service required. */
 export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const page = doc.addPage([612, 792]); // US Letter
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const { width, height } = page.getSize();
+  const width = 612, height = 792; // US Letter
   const M = 50;
   const right = width - M;
+  const FOOT_TOP = 70; // nothing but the footer is drawn below this
+
+  let page = doc.addPage([width, height]);
+  let y = height - M;
 
   // Helvetica uses WinAnsi (CP1252); map common punctuation to ASCII and drop
   // anything outside Latin-1 so a stray glyph can't 500 the whole PDF.
@@ -85,7 +88,30 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
     text(s, xRight - f.widthOfTextAtSize(sanitize(s), size), y, opts);
   };
 
-  let y = height - M;
+  // Table columns + footer (drawn on every page).
+  const colQty = 360;
+  const colUnit = 455;
+  const colAmt = right;
+  const drawFooter = () => {
+    page.drawLine({ start: { x: M, y: 70 }, end: { x: right, y: 70 }, thickness: 0.5, color: LINE });
+    text(`${site.name}`, M, 56, { size: 8, color: MUTED });
+    textR(`${site.email}`, right, 56, { size: 8, color: MUTED });
+    text("Remit by check or ACH. Thank you for your business.", M, 44, { size: 8, color: MUTED });
+  };
+  const newPage = () => {
+    page = doc.addPage([width, height]);
+    drawFooter();
+    y = height - M;
+  };
+  const drawTableHead = () => {
+    page.drawRectangle({ x: M, y: y - 4, width: right - M, height: 20, color: rgb(0.96, 0.96, 0.93) });
+    text("DESCRIPTION", M + 6, y + 2, { size: 8, font: bold, color: MUTED });
+    textR("QTY", colQty, y + 2, { size: 8, font: bold, color: MUTED });
+    textR("UNIT", colUnit, y + 2, { size: 8, font: bold, color: MUTED });
+    textR("AMOUNT", colAmt, y + 2, { size: 8, font: bold, color: MUTED });
+    y -= 22;
+  };
+  drawFooter(); // first page
 
   // Header: brand (left) / INVOICE (right)
   text("LA VAGUE IMPORTS", M, y, { size: 18, font: bold });
@@ -128,18 +154,10 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
 
   y = Math.min(by, my) - 18;
 
-  // Line-item table
-  const colQty = 360;
-  const colUnit = 455;
-  const colAmt = right;
-  page.drawRectangle({ x: M, y: y - 4, width: right - M, height: 20, color: rgb(0.96, 0.96, 0.93) });
-  text("DESCRIPTION", M + 6, y + 2, { size: 8, font: bold, color: MUTED });
-  textR("QTY", colQty, y + 2, { size: 8, font: bold, color: MUTED });
-  textR("UNIT", colUnit, y + 2, { size: 8, font: bold, color: MUTED });
-  textR("AMOUNT", colAmt, y + 2, { size: 8, font: bold, color: MUTED });
-  y -= 22;
-
+  // Line-item table (paginates — repeats the header on each new page).
+  drawTableHead();
   for (const l of inv.lines) {
+    if (y < FOOT_TOP + 24) { newPage(); drawTableHead(); }
     const desc = l.description.length > 58 ? l.description.slice(0, 57) + "…" : l.description;
     text(desc, M + 6, y, { size: 10, color: l.isCredit ? MUTED : OLIVE });
     textR(String(l.quantity), colQty, y, { size: 10, color: MUTED });
@@ -150,7 +168,10 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
     y -= 12;
   }
 
-  // Totals (right column)
+  // Totals (right column). Keep the whole block together on one page.
+  const creditRows = inv.lines.some((l) => l.isCredit) ? 1 : 0;
+  const totalsHeight = (4 + creditRows + (inv.paidCents > 0 ? 1 : 0)) * 16 + 30;
+  if (y - totalsHeight < FOOT_TOP + 10) newPage();
   y -= 6;
   const totalRow = (label: string, value: string, opts: { bold?: boolean; danger?: boolean } = {}) => {
     const f = opts.bold ? bold : font;
@@ -174,17 +195,21 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
 
   // Notes
   if (inv.notes) {
+    const noteLines = wrap(inv.notes, 95);
+    if (y - (28 + noteLines.length * 12) < FOOT_TOP + 10) newPage();
     y -= 14;
     text("NOTES", M, y, { size: 8, font: bold, color: MUTED });
     y -= 14;
-    for (const chunk of wrap(inv.notes, 95)) {
+    for (const chunk of noteLines) {
       text(chunk, M, y, { size: 9, color: MUTED });
       y -= 12;
     }
   }
 
-  // Signature block — a signature line + date line near the bottom of the page.
-  const lineY = 140;
+  // Signature block — flows after the content; moves to a new page if it won't fit.
+  if (y - 60 < FOOT_TOP + 10) newPage();
+  y -= 30;
+  const lineY = y;
   page.drawLine({ start: { x: M, y: lineY }, end: { x: 260, y: lineY }, thickness: 0.8, color: LINE });
   text("Signature", M, lineY - 12, { size: 8, font: bold, color: MUTED });
   page.drawLine({ start: { x: 320, y: lineY }, end: { x: right, y: lineY }, thickness: 0.8, color: LINE });
@@ -207,13 +232,6 @@ export async function buildInvoicePdf(inv: InvoicePdfData): Promise<Uint8Array> 
     text(fmtDate(inv.signedAt), 324, lineY + 6, { size: 10 });
     text(`Accepted electronically by ${inv.signerName} on ${fmtDate(inv.signedAt)}.`, M, lineY - 26, { size: 8, color: MUTED });
   }
-
-  // Footer
-  const foot = 56;
-  page.drawLine({ start: { x: M, y: foot + 14 }, end: { x: right, y: foot + 14 }, thickness: 0.5, color: LINE });
-  text(`${site.name}`, M, foot, { size: 8, color: MUTED });
-  textR(`${site.email}`, right, foot, { size: 8, color: MUTED });
-  text("Remit by check or ACH. Thank you for your business.", M, foot - 12, { size: 8, color: MUTED });
 
   return doc.save();
 }

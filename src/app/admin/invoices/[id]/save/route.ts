@@ -49,6 +49,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const lines = parseLines(fd);
+
+    // Preserve imported provenance (sku/itemCode/…) across an edit: the editor
+    // doesn't carry these fields, so re-attach them to the recreated lines by
+    // matching on the (unchanged) description.
+    const existing = await prisma.customerInvoiceLine.findMany({
+      where: { invoiceId: id },
+      select: { description: true, itemCode: true, originalName: true, cleanName: true, sku: true, brand: true },
+    });
+    const provByDesc = new Map<string, { itemCode: string | null; originalName: string | null; cleanName: string | null; sku: string | null; brand: string | null }[]>();
+    for (const el of existing) {
+      const k = el.description.trim().toLowerCase();
+      if (!provByDesc.has(k)) provByDesc.set(k, []);
+      provByDesc.get(k)!.push({ itemCode: el.itemCode, originalName: el.originalName, cleanName: el.cleanName, sku: el.sku, brand: el.brand });
+    }
+    const provFor = (desc: string) => {
+      const q = provByDesc.get(desc.trim().toLowerCase());
+      return q && q.length ? q.shift()! : { itemCode: null, originalName: null, cleanName: null, sku: null, brand: null };
+    };
+
     const discountCents = dollarsToCents(String(fd.get("discount") ?? ""));
     const shippingCents = dollarsToCents(String(fd.get("shipping") ?? ""));
     const taxCents = dollarsToCents(String(fd.get("tax") ?? ""));
@@ -87,6 +106,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               lineTotalCents: l.lineTotalCents,
               isCredit: l.isCredit,
               creditReason: l.creditReason,
+              ...provFor(l.description),
             })),
           },
         },
