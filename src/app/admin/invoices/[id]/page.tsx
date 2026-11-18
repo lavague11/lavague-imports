@@ -131,7 +131,8 @@ export default async function InvoicePage({
         <div>
           <h1 className="font-display text-2xl text-olive-900">
             {customerName ?? "New invoice"}
-            <span className="ml-2 align-middle text-base font-normal text-olive-400">{invoice.number}</span>
+            <span className="ml-2 align-middle text-base font-normal text-olive-500">{invoice.externalNumber ?? invoice.number}</span>
+            {invoice.externalNumber ? <span className="ml-1 align-middle text-xs font-normal text-olive-400">({invoice.number})</span> : null}
             <span className={`ml-2 inline-block align-middle rounded-full px-2 py-0.5 text-xs font-medium ${disp.badge}`}>{disp.label}</span>
           </h1>
           <p className="mt-1 text-sm text-olive-600">

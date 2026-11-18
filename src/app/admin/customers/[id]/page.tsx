@@ -225,7 +225,10 @@ export default async function CustomerOverview({
                   const overdue = i.disp.key === "overdue";
                   return (
                     <tr key={i.id} className={`border-b border-olive-50 last:border-0 hover:bg-olive-50/40 ${overdue ? "bg-red-50/40" : ""}`}>
-                      <td className="p-3 font-medium"><Link href={`/admin/invoices/${i.id}`} className="text-olive-900 hover:underline">{i.number}</Link></td>
+                      <td className="p-3 font-medium">
+                        <Link href={`/admin/invoices/${i.id}`} className="text-olive-900 hover:underline">{i.externalNumber ?? i.number}</Link>
+                        {i.externalNumber ? <span className="ml-1 text-xs font-normal text-olive-400">({i.number})</span> : null}
+                      </td>
                       <td className="p-3 whitespace-nowrap text-olive-600">{dateFmt(i.issueDate)}</td>
                       <td className="p-3 text-right text-olive-800">{formatPrice(i.totalCents)}</td>
                       <td className={`p-3 text-right ${balance > 0 ? "font-medium text-olive-900" : "text-olive-400"}`}>{balance > 0 ? formatPrice(balance) : "—"}</td>
