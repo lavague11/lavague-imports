@@ -279,9 +279,16 @@ export default async function AdminDashboard({
       </div>
 
       {view === "wholesale" ? (
-        <div className="mt-4">
-          <DateRangePicker current={rangeKey} from={firstValue(sp.from)} to={firstValue(sp.to)} />
-        </div>
+        <>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <DateRangePicker current={rangeKey} from={firstValue(sp.from)} to={firstValue(sp.to)} />
+            <div className="flex flex-wrap gap-2 text-sm">
+              <Link href="/admin/invoices" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Record payment</Link>
+              <Link href="/admin/products/new" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Add product</Link>
+              <Link href="/admin/customers" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Add customer</Link>
+            </div>
+          </div>
+        </>
       ) : null}
 
       {view === "wholesale" ? (
