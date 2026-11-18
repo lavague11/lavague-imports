@@ -202,6 +202,16 @@ export async function quickUpdateProduct(fd: FormData): Promise<void> {
   revalidatePath("/shop");
 }
 
+/** Set the optional monthly revenue goal (DASHBOARD §1b), stored in NumberSeries. */
+export async function setMonthlyGoal(fd: FormData): Promise<void> {
+  await requireUser();
+  const dollars = parseFloat(str(fd, "goal"));
+  const cents = Number.isFinite(dollars) && dollars >= 0 ? Math.round(dollars * 100) : 0;
+  const prisma = requirePrisma();
+  await prisma.numberSeries.upsert({ where: { key: "monthly_revenue_goal_cents" }, update: { value: cents }, create: { key: "monthly_revenue_goal_cents", value: cents } });
+  revalidatePath("/admin");
+}
+
 export async function bulkSetActive(fd: FormData): Promise<void> {
   const user = await requireUser();
   const slugs = fd.getAll("slug").filter((s): s is string => typeof s === "string");

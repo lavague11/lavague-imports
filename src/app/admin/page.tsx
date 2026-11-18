@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { FilePlus2, Phone, MessageSquare, Bell, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 import { DateRangePicker } from "@/components/admin/date-range-picker";
+import { GoalCard } from "@/components/admin/goal-card";
 import { SalesTrendChart } from "@/components/admin/sales-trend-chart";
 import { getCurrentUser } from "@/lib/auth";
 import { rangeWindow } from "@/lib/admin/range";
@@ -98,6 +99,7 @@ export default async function AdminDashboard({
     recentInvoices, recentPayments, newCustomers,
     missingImage, custom, overrides, drafts,
     trendCur, trendPrev, linesCur, linesPrev, topCustAgg, allCustInv, repAgg, dtpPayments, availWatch,
+    monthRevAgg, goalRow,
   ] = await Promise.all([
     prisma.customerInvoice.findMany({
       where: { ...liveWhere, totalCents: { gt: prisma.customerInvoice.fields.paidCents } },
@@ -125,7 +127,11 @@ export default async function AdminDashboard({
     prisma.customerInvoice.groupBy({ by: ["salesRep"], where: { salesRep: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, _sum: { totalCents: true }, _count: { _all: true } }),
     prisma.customerPayment.findMany({ select: { receivedAt: true, invoice: { select: { issueDate: true } } } }),
     prisma.product.findMany({ where: { availability: { in: ["LIMITED", "UNAVAILABLE"] } }, orderBy: [{ availability: "desc" }, { name: "asc" }], take: 12, select: { slug: true, name: true, supplier: true, leadTimeDays: true, availability: true } }),
+    prisma.customerInvoice.aggregate({ _sum: { totalCents: true }, where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } } }),
+    prisma.numberSeries.findUnique({ where: { key: "monthly_revenue_goal_cents" }, select: { value: true } }),
   ]);
+  const monthRevenue = monthRevAgg._sum.totalCents ?? 0;
+  const monthlyGoal = goalRow?.value ?? 0;
 
   // A/R from the open invoices.
   const outstanding = openInvoices.reduce((s, i) => s + (i.totalCents - i.paidCents), 0);
@@ -291,8 +297,9 @@ export default async function AdminDashboard({
             ))}
           </div>
 
-          {/* Sales trend */}
-          <div className="mt-6">
+          {/* Goal + sales trend */}
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_2fr]">
+            <GoalCard current={monthRevenue} goal={monthlyGoal} />
             <SalesTrendChart points={trendPoints} periodLabel={win.label} />
           </div>
 
