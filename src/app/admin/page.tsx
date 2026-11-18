@@ -97,7 +97,7 @@ export default async function AdminDashboard({
     orderRequests, needsReviewCount,
     recentInvoices, recentPayments, newCustomers,
     missingImage, custom, overrides, drafts,
-    trendCur, trendPrev, linesCur, linesPrev, topCustAgg, allCustInv, repAgg,
+    trendCur, trendPrev, linesCur, linesPrev, topCustAgg, allCustInv, repAgg, dtpPayments,
   ] = await Promise.all([
     prisma.customerInvoice.findMany({
       where: { ...liveWhere, totalCents: { gt: prisma.customerInvoice.fields.paidCents } },
@@ -123,7 +123,38 @@ export default async function AdminDashboard({
     prisma.customerInvoice.groupBy({ by: ["customerId"], where: { customerId: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, _sum: { totalCents: true } }),
     prisma.customerInvoice.findMany({ where: { customerId: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] } }, select: { customerId: true, issueDate: true } }),
     prisma.customerInvoice.groupBy({ by: ["salesRep"], where: { salesRep: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, _sum: { totalCents: true }, _count: { _all: true } }),
+    prisma.customerPayment.findMany({ select: { receivedAt: true, invoice: { select: { issueDate: true } } } }),
   ]);
+
+  // A/R from the open invoices.
+  const outstanding = openInvoices.reduce((s, i) => s + (i.totalCents - i.paidCents), 0);
+  const overdueList = openInvoices
+    .filter((i) => i.dueDate && i.dueDate < now)
+    .sort((a, b) => a.dueDate!.getTime() - b.dueDate!.getTime());
+  const overdue = overdueList.reduce((s, i) => s + (i.totalCents - i.paidCents), 0);
+  const aging = { b1: 0, b2: 0, b3: 0 };
+  for (const i of overdueList) {
+    const dl = daysLate(i.dueDate!, now);
+    const bal = i.totalCents - i.paidCents;
+    if (dl <= 30) aging.b1 += bal; else if (dl <= 60) aging.b2 += bal; else aging.b3 += bal;
+  }
+
+  // Collections — full A/R aging (adds the "current" bucket), avg days to pay,
+  // and the biggest open balances.
+  let arCurrent = 0;
+  for (const i of openInvoices) { const bal = i.totalCents - i.paidCents; if (!i.dueDate || i.dueDate >= now) arCurrent += bal; }
+  const arBuckets = [
+    { label: "Current", v: arCurrent, cls: "bg-emerald-400" },
+    { label: "1–30", v: aging.b1, cls: "bg-amber-300" },
+    { label: "31–60", v: aging.b2, cls: "bg-orange-400" },
+    { label: "61+", v: aging.b3, cls: "bg-red-500" },
+  ];
+  const arTotal = Math.max(1, arCurrent + aging.b1 + aging.b2 + aging.b3);
+  const dtpDays = dtpPayments
+    .map((p) => (p.invoice ? (p.receivedAt.getTime() - p.invoice.issueDate.getTime()) / day : null))
+    .filter((d): d is number => d != null && d >= 0);
+  const avgDaysToPay = dtpDays.length ? Math.round(dtpDays.reduce((s, d) => s + d, 0) / dtpDays.length) : null;
+  const biggestBalances = [...openInvoices].sort((a, b) => (b.totalCents - b.paidCents) - (a.totalCents - a.paidCents)).slice(0, 6);
 
   const reps = repAgg
     .filter((r) => r.salesRep && r.salesRep.trim())
@@ -200,18 +231,6 @@ export default async function AdminDashboard({
   };
   const trendPoints = curVals.map((v, i) => ({ label: fmtBucket(i), value: v, prev: prevVals[i] ?? 0 }));
 
-  // Money + aging from the open invoices.
-  const outstanding = openInvoices.reduce((s, i) => s + (i.totalCents - i.paidCents), 0);
-  const overdueList = openInvoices
-    .filter((i) => i.dueDate && i.dueDate < now)
-    .sort((a, b) => (a.dueDate!.getTime() - b.dueDate!.getTime()));
-  const overdue = overdueList.reduce((s, i) => s + (i.totalCents - i.paidCents), 0);
-  const aging = { b1: 0, b2: 0, b3: 0 };
-  for (const i of overdueList) {
-    const dl = daysLate(i.dueDate!, now);
-    const bal = i.totalCents - i.paidCents;
-    if (dl <= 30) aging.b1 += bal; else if (dl <= 60) aging.b2 += bal; else aging.b3 += bal;
-  }
   const collected = collectedCur._sum.amountCents ?? 0;
   const collectedPrevVal = collectedPrev._sum.amountCents ?? 0;
   const collectedPct = pct(collected, collectedPrevVal);
@@ -378,6 +397,48 @@ export default async function AdminDashboard({
                       <span className="font-semibold">{needsReviewCount}</span> product{needsReviewCount === 1 ? "" : "s"} marked “Needs review” →
                     </Link>
                   ) : null}
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {/* Collections */}
+          {outstanding > 0 ? (
+            <section className="mt-6">
+              <h2 className="mb-2 font-display text-lg text-olive-900">Collections</h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-olive-100 bg-white p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-olive-800">A/R aging</span>
+                    <span className="text-olive-500">avg {avgDaysToPay ?? "—"} days to get paid</span>
+                  </div>
+                  <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-olive-50">
+                    {arBuckets.map((b) => (b.v > 0 ? <div key={b.label} className={b.cls} style={{ width: `${(b.v / arTotal) * 100}%` }} title={`${b.label}: ${formatPrice(b.v)}`} /> : null))}
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
+                    {arBuckets.map((b) => (
+                      <span key={b.label} className="inline-flex items-center gap-1.5 text-olive-600">
+                        <span className={`inline-block h-2 w-2 rounded-full ${b.cls}`} /> {b.label} {formatPrice(b.v)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-olive-100 bg-white">
+                  <p className="border-b border-olive-50 px-4 py-2.5 text-sm font-medium text-olive-800">Biggest balances</p>
+                  <ul className="divide-y divide-olive-50">
+                    {biggestBalances.map((i) => {
+                      const bal = i.totalCents - i.paidCents;
+                      const late = i.dueDate && i.dueDate < now ? `${daysLate(i.dueDate, now)}d late` : "current";
+                      return (
+                        <li key={i.id} className="px-4 py-2">
+                          <Link href={`/admin/invoices/${i.id}`} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="min-w-0"><span className="truncate font-medium text-olive-900">{custName(i.customer)}</span> <span className="text-xs text-olive-400">· {late}</span></span>
+                            <span className="shrink-0 font-medium text-olive-900">{formatPrice(bal)}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               </div>
             </section>
