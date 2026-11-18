@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 
 import { AddCredit, type CreditInput } from "@/components/admin/add-credit";
 import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist";
@@ -71,6 +71,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     const days = termsDueDays(terms);
     return days != null && issueDate ? addDays(issueDate, days) : issueDate || "";
   }, [terms, issueDate]);
+  const [detailsOpen, setDetailsOpen] = useState(true);
   const [discount, setDiscount] = useState(props.discount);
   const [shipping, setShipping] = useState(props.shipping);
   const [tax, setTax] = useState(props.tax);
@@ -175,7 +176,22 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
 
   return (
     <form method="post" action={props.action} onSubmit={onSubmit} className="mt-4 space-y-5">
-      <div className="rounded-xl border border-olive-100 bg-white p-4">
+      <div className="rounded-xl border border-olive-100 bg-white">
+        <button
+          type="button"
+          onClick={() => setDetailsOpen((o) => !o)}
+          aria-expanded={detailsOpen}
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+        >
+          <span className="text-sm font-medium text-olive-800">Invoice details</span>
+          <span className="flex min-w-0 items-center gap-2 text-xs text-olive-500">
+            {!detailsOpen ? (
+              <span className="truncate">{props.number || "—"} · {terms}{(props.salesRep || "Waleed") ? ` · ${props.salesRep || "Waleed"}` : ""}</span>
+            ) : null}
+            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+        <div className={`${detailsOpen ? "block" : "hidden"} border-t border-olive-100 p-4`}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="text-xs text-olive-500">Invoice number</label>
@@ -204,6 +220,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
               {SALES_REPS.map((r) => <option key={r} value={r} />)}
             </datalist>
           </div>
+        </div>
         </div>
       </div>
 
