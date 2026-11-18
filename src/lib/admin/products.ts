@@ -287,6 +287,14 @@ export async function setProductPricing(
   });
 }
 
+/** Bulk-set (or clear) the brand on the given products. Live product only;
+ *  blank clears it back to "No brand". */
+export async function setProductsBrand(slugs: string[], brand: string | null): Promise<void> {
+  if (!slugs.length) return;
+  const prisma = requirePrisma();
+  await prisma.product.updateMany({ where: { slug: { in: slugs } }, data: { brand: brand && brand.trim() ? brand.trim() : null } });
+}
+
 export async function setActive(slugs: string[], isActive: boolean, updatedById?: string): Promise<void> {
   const prisma = requirePrisma();
   await prisma.product.updateMany({ where: { slug: { in: slugs } }, data: { isActive } });

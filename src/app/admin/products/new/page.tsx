@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { ProductForm } from "@/components/admin/product-form";
 import { getCurrentUser } from "@/lib/auth";
-import { getCategories } from "@/lib/catalog";
+import { getBrandNames, getCategories } from "@/lib/catalog";
 import { COUNTRY_ISO } from "@/lib/countries";
 
 export default async function AdminNewProduct({
@@ -13,7 +13,7 @@ export default async function AdminNewProduct({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/admin/login");
-  const categories = await getCategories();
+  const [categories, brands] = await Promise.all([getCategories(), getBrandNames()]);
   const params = await searchParams;
   const errorCode = typeof params.error === "string" ? params.error : null;
 
@@ -30,6 +30,7 @@ export default async function AdminNewProduct({
         mode="new"
         categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
         countries={Object.keys(COUNTRY_ISO).sort()}
+        brands={brands}
         errorCode={errorCode}
       />
     </div>

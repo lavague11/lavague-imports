@@ -118,6 +118,21 @@ export function getCollectionFilters(): CollectionFilter[] {
   return seedCollectionFilters;
 }
 
+/** Distinct, non-empty brand names (for the brand type-ahead). */
+export async function getBrandNames(): Promise<string[]> {
+  const prisma = getPrisma();
+  if (!prisma) return [];
+  try {
+    const rows = await prisma.product.groupBy({ by: ["brand"], _count: { _all: true } });
+    return rows
+      .filter((r) => r.brand && r.brand.trim())
+      .sort((a, b) => b._count._all - a._count._all)
+      .map((r) => r.brand as string);
+  } catch (error) {
+    return onDbError("getBrandNames", error) ?? [];
+  }
+}
+
 export function collectionNameForSlug(slug: string): string | undefined {
   return seedCollectionFilters.find((c) => c.slug === slug)?.name;
 }

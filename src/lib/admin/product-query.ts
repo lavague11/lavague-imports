@@ -27,6 +27,7 @@ export interface ProductParams {
   sources: string[];
   cats: string[];
   origins: string[];
+  brands: string[];
   statuses: string[];
   price: string;
   priceMin: number;
@@ -46,6 +47,7 @@ export function parseProductParams(params: Raw): ProductParams {
     sources: asList(params.source),
     cats: asList(params.category),
     origins: asList(params.origin),
+    brands: asList(params.brand),
     statuses: asList(params.status),
     price: firstValue(params.price) ?? "",
     priceMin: Number(firstValue(params.priceMin)),
@@ -71,6 +73,13 @@ export function buildWhereAnd(p: ProductParams): Prisma.ProductWhereInput[] {
     and.push({ OR: or });
   }
   if (p.cats.length) and.push({ category: { slug: { in: p.cats } } });
+  if (p.brands.length) {
+    const named = p.brands.filter((b) => b !== MISSING);
+    const or: Prisma.ProductWhereInput[] = [];
+    if (named.length) or.push({ brand: { in: named } });
+    if (p.brands.includes(MISSING)) or.push({ OR: [{ brand: null }, { brand: "" }] });
+    and.push({ OR: or });
+  }
   if (p.origins.length) {
     const named = p.origins.filter((o) => o !== MISSING);
     const or: Prisma.ProductWhereInput[] = [];

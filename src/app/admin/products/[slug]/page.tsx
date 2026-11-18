@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { ProductForm } from "@/components/admin/product-form";
 import { getCurrentUser } from "@/lib/auth";
-import { getCategories, sourceLabel } from "@/lib/catalog";
+import { getBrandNames, getCategories, sourceLabel } from "@/lib/catalog";
 import { COUNTRY_ISO } from "@/lib/countries";
 import { getPrisma } from "@/lib/db";
 
@@ -18,12 +18,13 @@ export default async function AdminEditProduct({
   if (!prisma) return <p className="text-olive-700">Database not connected — see the dashboard.</p>;
 
   const { slug } = await params;
-  const [product, categories] = await Promise.all([
+  const [product, categories, brands] = await Promise.all([
     prisma.product.findUnique({
       where: { slug },
       include: { category: true, variants: { orderBy: { position: "asc" } } },
     }),
     getCategories(),
+    getBrandNames(),
   ]);
   if (!product) notFound();
 
@@ -73,6 +74,7 @@ export default async function AdminEditProduct({
           }}
           categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
           countries={countries}
+          brands={brands}
         />
       </div>
     </div>

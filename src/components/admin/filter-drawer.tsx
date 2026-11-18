@@ -11,6 +11,7 @@ interface Props {
   categoryOptions: FilterOption[];
   originOptions: FilterOption[];
   statusOptions: FilterOption[];
+  brandOptions: FilterOption[];
   quickOptions: FilterOption[];
 }
 
@@ -65,7 +66,7 @@ const SORTS = [
  * mobile, where the tiny header funnels are hard to tap. Apply writes every
  * choice to the URL at once and resets to page 1.
  */
-export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, statusOptions, quickOptions }: Props) {
+export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, statusOptions, brandOptions, quickOptions }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   const [open, setOpen] = useState(false);
@@ -75,6 +76,7 @@ export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, st
   const [source, setSource] = useState<Set<string>>(listOf("source"));
   const [category, setCategory] = useState<Set<string>>(listOf("category"));
   const [origin, setOrigin] = useState<Set<string>>(listOf("origin"));
+  const [brand, setBrand] = useState<Set<string>>(listOf("brand"));
   const [status, setStatus] = useState<Set<string>>(listOf("status"));
   const curPrice = sp.get("price") || "any";
   const [price, setPrice] = useState(curPrice.startsWith("range") ? "range" : curPrice);
@@ -84,7 +86,7 @@ export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, st
 
   const activeCount =
     (sp.get("filter") ? 1 : 0) +
-    listOf("source").size + listOf("category").size + listOf("origin").size + listOf("status").size + (sp.get("price") ? 1 : 0);
+    listOf("source").size + listOf("category").size + listOf("origin").size + listOf("brand").size + listOf("status").size + (sp.get("price") ? 1 : 0);
 
   // Re-sync draft from the URL whenever the drawer is opened.
   const openDrawer = () => {
@@ -92,6 +94,7 @@ export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, st
     setSource(listOf("source"));
     setCategory(listOf("category"));
     setOrigin(listOf("origin"));
+    setBrand(listOf("brand"));
     setStatus(listOf("status"));
     const cp = sp.get("price") || "any";
     setPrice(cp.startsWith("range") ? "range" : cp);
@@ -116,6 +119,7 @@ export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, st
     put("source", source);
     put("category", category);
     put("origin", origin);
+    put("brand", brand);
     put("status", status);
     p.delete("priceMin");
     p.delete("priceMax");
@@ -208,6 +212,7 @@ export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, st
               <FilterSection title="Source" options={sourceOptions} selected={source} onToggle={(v) => setMulti(setSource, source, v)} />
               <FilterSection title="Category" options={categoryOptions} selected={category} onToggle={(v) => setMulti(setCategory, category, v)} />
               <FilterSection title="Origin" options={originOptions} selected={origin} onToggle={(v) => setMulti(setOrigin, origin, v)} />
+              <FilterSection title="Brand" options={brandOptions} selected={brand} onToggle={(v) => setMulti(setBrand, brand, v)} />
               <FilterSection title="Status" options={statusOptions} selected={status} onToggle={(v) => setMulti(setStatus, status, v)} />
 
               <div className="border-t border-olive-100 py-3">

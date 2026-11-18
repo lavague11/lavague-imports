@@ -15,6 +15,7 @@ import {
   saveProductEdits,
   setActive,
   setProductPricing,
+  setProductsBrand,
   type VariantPack,
 } from "@/lib/admin/products";
 import { composeAddress } from "@/lib/address";
@@ -175,7 +176,14 @@ export async function quickUpdateProduct(fd: FormData): Promise<void> {
 export async function bulkSetActive(fd: FormData): Promise<void> {
   const user = await requireUser();
   const slugs = fd.getAll("slug").filter((s): s is string => typeof s === "string");
-  const isActive = fd.get("action") === "show";
+  const action = fd.get("action");
+  if (action === "setBrand") {
+    if (slugs.length) await setProductsBrand(slugs, str(fd, "brand"));
+    revalidatePath("/admin/products");
+    revalidatePath("/shop");
+    return;
+  }
+  const isActive = action === "show";
   if (slugs.length) await setActive(slugs, isActive, user.id);
   revalidatePath("/admin/products");
   revalidatePath("/shop");

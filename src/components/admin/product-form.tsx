@@ -131,12 +131,14 @@ export function ProductForm({
   product,
   categories,
   countries,
+  brands = [],
   errorCode,
 }: {
   mode: "new" | "edit";
   product?: ProductFormData;
   categories: { slug: string; name: string }[];
   countries: string[];
+  brands?: string[];
   errorCode?: string | null;
 }) {
   const isEdit = mode === "edit";
@@ -493,7 +495,8 @@ export function ProductForm({
         </div>
         <div>
           <label htmlFor="brand" className="mb-1 block text-sm font-medium text-olive-800">Brand</label>
-          <input ref={brandRef} id="brand" name="brand" defaultValue={product?.brand ?? ""} placeholder="Optional" className={inputClass} />
+          <input ref={brandRef} id="brand" name="brand" list="brand-options" defaultValue={product?.brand ?? ""} placeholder="No brand" className={inputClass} />
+          <datalist id="brand-options">{brands.map((b) => <option key={b} value={b} />)}</datalist>
         </div>
         <div>
           <label htmlFor="origin" className="mb-1 block text-sm font-medium text-olive-800">Country of origin</label>

@@ -50,13 +50,15 @@ export default async function AdminProducts({
   }
 
   const parsed = parseProductParams(params);
-  const { q: search, filter, sources, cats, origins, statuses, price, priceMin, priceMax, sortKey, dir, page, pageSize } = parsed;
+  const { q: search, filter, sources, cats, origins, brands, statuses, price, priceMin, priceMax, sortKey, dir, page, pageSize } = parsed;
   const where = await buildProductWhere(prisma, parsed);
 
-  const [categories, sourceGroups, originGroups, customCount, missingOriginCount, missingImageCount, hiddenCount, needsReviewCount, total, rows] = await Promise.all([
+  const [categories, sourceGroups, originGroups, brandGroups, noBrandCount, customCount, missingOriginCount, missingImageCount, hiddenCount, needsReviewCount, total, rows] = await Promise.all([
     getCategories(),
     prisma.product.groupBy({ by: ["source"], _count: { _all: true } }),
     prisma.product.groupBy({ by: ["origin"], _count: { _all: true } }),
+    prisma.product.groupBy({ by: ["brand"], _count: { _all: true } }),
+    prisma.product.count({ where: { OR: [{ brand: null }, { brand: "" }] } }),
     prisma.product.count({ where: { isCustom: true } }),
     prisma.product.count({ where: { origin: null } }),
     prisma.product.count({ where: { imageUrl: null } }),
@@ -88,6 +90,14 @@ export default async function AdminProducts({
       .sort((a, b) => b.count - a.count),
     ...(missingOriginCount ? [{ value: MISSING, label: "Unknown / missing", count: missingOriginCount }] : []),
   ];
+  const brandOptions: FilterOption[] = [
+    ...brandGroups
+      .filter((g) => g.brand && g.brand.trim())
+      .map((g) => ({ value: g.brand as string, label: g.brand as string, count: g._count._all }))
+      .sort((a, b) => b.count - a.count),
+    ...(noBrandCount ? [{ value: MISSING, label: "No brand", count: noBrandCount }] : []),
+  ];
+  const brandNames = brandOptions.filter((o) => o.value !== MISSING).map((o) => o.label);
   const categoryOptions: FilterOption[] = categories.map((c) => ({ value: c.slug, label: c.name }));
   const statusOptions: FilterOption[] = [
     { value: "visible", label: "Visible" },
@@ -122,6 +132,7 @@ export default async function AdminProducts({
   for (const s of sources) chips.push({ key: `source:${s}`, label: labelFor(sourceOptions, s), href: removeHref("source", s) });
   for (const c of cats) chips.push({ key: `cat:${c}`, label: labelFor(categoryOptions, c), href: removeHref("category", c) });
   for (const o of origins) chips.push({ key: `origin:${o}`, label: labelFor(originOptions, o), href: removeHref("origin", o) });
+  for (const b of brands) chips.push({ key: `brand:${b}`, label: labelFor(brandOptions, b), href: removeHref("brand", b) });
   for (const s of statuses) chips.push({ key: `status:${s}`, label: labelFor(statusOptions, s), href: removeHref("status", s) });
   if (filter) chips.push({ key: `filter:${filter}`, label: labelFor(quickOptions, filter), href: removeHref("filter") });
   if (price === "has") chips.push({ key: "price", label: "Has a price", href: removeHref("price") });
@@ -167,6 +178,7 @@ export default async function AdminProducts({
       slug: p.slug,
       name: p.name,
       categoryName: p.category.name,
+      brand: p.brand,
       origin: p.origin,
       imageUrl: p.imageUrl,
       priceLabel: formatPriceOrRequest(priceCents),
@@ -193,6 +205,7 @@ export default async function AdminProducts({
             categoryOptions={categoryOptions}
             originOptions={originOptions}
             statusOptions={statusOptions}
+            brandOptions={brandOptions}
             quickOptions={quickOptions}
           />
           <span className="hidden sm:block"><NewProductMenu /></span>
@@ -219,7 +232,7 @@ export default async function AdminProducts({
         </div>
       ) : null}
 
-      <BulkBar action={bulkSetActive} />
+      <BulkBar action={bulkSetActive} brands={brandNames} />
 
       {total === 0 ? (
         <div className="rounded-xl border border-olive-100 bg-white p-10 text-center">
@@ -269,6 +282,7 @@ export default async function AdminProducts({
                       <Link href={`/admin/products/${p.slug}`} className="font-medium text-olive-900 hover:underline">{p.name}</Link>
                       {p.isCustom ? <span className="ml-2 rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-700">custom</span> : null}
                       {p.isFragile ? <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">fragile</span> : null}
+                      <p className={`text-[11px] ${p.brand ? "text-olive-400" : "text-olive-300 italic"}`}>{p.brand || "No brand"}</p>
                     </td>
                     <td className="p-3"><span className="rounded bg-olive-50 px-2 py-0.5 text-xs text-olive-600">{sourceLabel(p.source)}</span></td>
                     <td className="p-3 text-olive-600">{p.category.name}</td>
