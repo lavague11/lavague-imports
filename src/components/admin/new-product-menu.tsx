@@ -74,21 +74,21 @@ export function NewProductMenu({ floating = false }: { floating?: boolean }) {
             </span>
           </button>
 
-          <div
+          <button
+            type="button"
             role="menuitem"
-            aria-disabled="true"
-            title="Bulk photo add is coming soon"
-            className="flex w-full cursor-not-allowed items-start gap-3 rounded-lg px-3 py-2.5 text-left opacity-60"
+            onClick={() => {
+              setOpen(false);
+              router.push("/admin/products/bulk");
+            }}
+            className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-olive-50"
           >
-            <Images className="mt-0.5 h-5 w-5 shrink-0 text-olive-400" />
+            <Images className="mt-0.5 h-5 w-5 shrink-0 text-olive-700" />
             <span className="min-w-0">
-              <span className="flex items-center gap-1.5">
-                <span className="text-sm font-medium text-olive-700">Bulk (many photos)</span>
-                <span className="rounded-full bg-olive-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-olive-600 uppercase">Soon</span>
-              </span>
+              <span className="block text-sm font-medium text-olive-900">Bulk (many photos)</span>
               <span className="block text-xs text-olive-500">Upload photos, AI groups them</span>
             </span>
-          </div>
+          </button>
         </div>
       ) : null}
     </div>

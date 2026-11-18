@@ -59,7 +59,9 @@ export async function POST(request: Request) {
   "ribbon": string,              // short badge like "Best Seller" only if obvious, else ""
   "description": string,         // 1-2 appealing sentences for the storefront
   "fragile": boolean,            // true if the packaging is glass or otherwise breakable
-  "confidence": number           // 0 to 1, how confident you are in the identification
+  "confidence": number,          // 0 to 1, how confident you are in the identification
+  "photoScore": number,          // 0 to 100: photo quality for e-commerce — sharpness, lighting, product fully in frame, label readable, clean background
+  "photoNotes": string           // one short phrase on the photo, e.g. "sharp, label readable" or "blurry, partly cut off"
 }
 Never present a guess as a certainty: put a printed case count in "piecesPerCase" and an estimate in "piecesPerCaseGuess", never both.${barcodeHint ? ` The product's scanned barcode is ${barcodeHint}; you may use it for context but do not put it in the SKU.` : ""}`;
 
