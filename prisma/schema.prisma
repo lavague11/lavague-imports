@@ -455,6 +455,7 @@ model ProductOverride {
   name              String?
   tagline           String?
   description       String?
+  brand             String?
   imageUrl          String?
   /// Up to three product photos (JSON array of paths/URLs). Overrides the whole
   /// gallery when set.
@@ -481,6 +482,14 @@ model ProductOverride {
   draft          Json?
   /// When the draft was last autosaved; null = no unpublished changes.
   draftUpdatedAt DateTime?
+
+  /// The imported (source) value captured the first time each field was
+  /// hand-edited (PRODUCTS_UI §15), keyed by field name. Powers "Reset to
+  /// imported value" and lets a re-import detect a changed source.
+  imported       Json?
+  /// Source values a re-import proposed for a hand-locked field: { field: value }.
+  /// Surfaced as "Import suggests: X" for the admin to accept or ignore.
+  importSuggests Json?
 
   updatedById String?
   createdAt   DateTime @default(now())

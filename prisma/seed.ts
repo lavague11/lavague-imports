@@ -1,6 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 
-import { PrismaClient } from "../src/generated/prisma/client";
+import { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { categories, products } from "../src/lib/catalog/data";
 
 /**
@@ -82,13 +82,29 @@ async function main() {
   // Re-apply durable admin edits on top of the freshly imported source rows,
   // so nothing done in the portal is lost by a re-import.
   const overrides = await prisma.productOverride.findMany();
+  let suggestCount = 0;
   for (const o of overrides) {
     const product = await prisma.product.findUnique({ where: { slug: o.slug } });
     if (!product) continue;
+    // §15: capture the source values BEFORE re-applying the hand-edits, so we
+    // can flag any that the re-import changed on a hand-locked field.
+    const srcVals: Record<string, unknown> = {
+      name: product.name, description: product.description, brand: product.brand, origin: product.origin,
+      ribbon: product.ribbon, categorySlug: product.categoryId.replace(/^cat_/, ""), isFeatured: product.isFeatured, isFragile: product.isFragile,
+    };
+    const impSnap = (o.imported ?? {}) as Record<string, unknown>;
+    const suggests: Record<string, unknown> = { ...((o.importSuggests ?? {}) as Record<string, unknown>) };
+    const ovAny = o as unknown as Record<string, unknown>;
+    for (const f of ["name", "description", "brand", "origin", "ribbon", "categorySlug", "isFeatured", "isFragile"]) {
+      if (ovAny[f] == null) continue; // not hand-edited
+      if (f in impSnap && JSON.stringify(impSnap[f]) !== JSON.stringify(srcVals[f])) suggests[f] = srcVals[f];
+    }
+
     const data: Record<string, unknown> = {};
     if (o.name != null) data.name = o.name;
     if (o.tagline != null) data.tagline = o.tagline;
     if (o.description != null) data.description = o.description;
+    if (o.brand != null) data.brand = o.brand;
     const images = (o.images ?? null) as string[] | null;
     if (images && images.length) {
       data.images = images;
@@ -105,6 +121,10 @@ async function main() {
     if (o.categorySlug != null) data.categoryId = `cat_${o.categorySlug}`;
     if (Object.keys(data).length) {
       await prisma.product.update({ where: { id: product.id }, data });
+    }
+    if (Object.keys(suggests).length) {
+      await prisma.productOverride.update({ where: { slug: o.slug }, data: { importSuggests: suggests as Prisma.InputJsonValue } });
+      suggestCount += 1;
     }
     const prices = (o.variantPrices ?? {}) as Record<string, number>;
     for (const [sku, cents] of Object.entries(prices)) {
@@ -123,7 +143,11 @@ async function main() {
       }
     }
   }
-  if (overrides.length) console.log(`Re-applied ${overrides.length} product overrides.`);
+  if (overrides.length)
+    console.log(
+      `Re-import summary: ${products.length} products imported, ${overrides.length} kept hand-edited` +
+        (suggestCount ? `, ${suggestCount} with new import suggestions to review` : "") + ".",
+    );
 
   // The warehouse the storefront ships from today. Delivery zones are modelled
   // now so the future multi-store rollout has somewhere to hang.

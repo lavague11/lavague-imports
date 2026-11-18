@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Camera, Check, ExternalLink, Plus, ScanBarcode, Sparkles, Star, Trash2, Wand2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Camera, Check, ExternalLink, Lock, Plus, ScanBarcode, Sparkles, Star, Trash2, Wand2, X } from "lucide-react";
 
 import { saveDraftAction, saveProduct } from "@/app/admin/actions";
 import { BarcodeScanner } from "@/components/admin/barcode-scanner";
@@ -95,6 +96,9 @@ export interface ProductFormData {
 
 interface Photo { key: string; preview: string; url?: string; file?: File }
 interface SizeRow { key: string; sku?: string; amount: string; unit: string; cases: string; price: string }
+export interface FieldLock { locked: boolean; imported?: string; suggest?: string }
+export type FieldLocks = Partial<Record<"name" | "description" | "brand" | "origin" | "ribbon" | "categorySlug" | "isFeatured" | "isFragile", FieldLock>>;
+const FIELD_LABEL: Record<string, string> = { name: "Name", description: "Description", brand: "Brand", origin: "Country", ribbon: "Ribbon", categorySlug: "Category", isFeatured: "Featured", isFragile: "Fragile" };
 
 function seedSizeRows(variants: ProductFormVariant[]): SizeRow[] {
   if (!variants.length) return [{ key: "n0", amount: "", unit: "", cases: "", price: "" }];
@@ -134,6 +138,7 @@ export function ProductForm({
   countries,
   brands = [],
   hasDraft = false,
+  locks,
   errorCode,
 }: {
   mode: "new" | "edit";
@@ -142,11 +147,24 @@ export function ProductForm({
   countries: string[];
   brands?: string[];
   hasDraft?: boolean;
+  locks?: FieldLocks;
   errorCode?: string | null;
 }) {
   const isEdit = mode === "edit";
+  const router = useRouter();
   const errorMessage = errorCode ? (ERRORS[errorCode] ?? "Something went wrong.") : null;
   const [state, formAction] = useActionState(saveProduct, idleFormState);
+
+  // §15 field actions (reset / accept / ignore) — fetch + refresh (no nested forms).
+  const fieldAction = async (action: string, field: string) => {
+    if (!product) return;
+    try {
+      await fetch(`/admin/products/${product.slug}/field`, { method: "POST", body: new URLSearchParams({ action, field }) });
+      router.refresh();
+    } catch {
+      /* ignore */
+    }
+  };
 
   // §9 draft/publish state (edit only).
   const formRef = useRef<HTMLFormElement>(null);
@@ -504,6 +522,31 @@ export function ProductForm({
           <span className="text-xs text-olive-400">
             {draftState === "saving" ? "Saving…" : draftState === "saved" ? "Draft saved ✓" : draftState === "error" ? "Offline — will retry" : ""}
           </span>
+        </div>
+      ) : null}
+
+      {isEdit && product && locks && Object.keys(locks).length ? (
+        <div className="rounded-lg border border-olive-100 bg-olive-50/40 p-3">
+          <p className="mb-2 inline-flex items-center gap-1 text-xs font-semibold tracking-wide text-olive-600 uppercase"><Lock className="h-3.5 w-3.5" /> Hand-edited · locked against imports</p>
+          <div className="space-y-1.5">
+            {Object.entries(locks).map(([field, l]) => (
+              <div key={field} className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded bg-white px-1.5 py-0.5 text-xs font-medium text-olive-700">{FIELD_LABEL[field] ?? field}</span>
+                {l.locked ? (
+                  <button type="button" onClick={() => void fieldAction("reset", field)} className="text-xs text-olive-500 underline underline-offset-2 hover:text-olive-800">
+                    Reset to imported{l.imported ? ` (“${l.imported}”)` : ""}
+                  </button>
+                ) : null}
+                {l.suggest !== undefined ? (
+                  <span className="inline-flex flex-wrap items-center gap-1.5 text-xs text-amber-700">
+                    Import suggests: <span className="font-medium">“{l.suggest}”</span>
+                    <button type="button" onClick={() => void fieldAction("accept", field)} className="font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-800">Accept</button>
+                    <button type="button" onClick={() => void fieldAction("ignore", field)} className="text-olive-500 underline underline-offset-2 hover:text-olive-800">Ignore</button>
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 

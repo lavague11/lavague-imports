@@ -193,11 +193,33 @@ export async function saveProductEdits(
 ): Promise<void> {
   const prisma = requirePrisma();
 
+  // Read the live product (pre-edit) and the existing override first, so we can
+  // snapshot the imported (source) value the first time a field is hand-edited
+  // (§15) and clear any import suggestion the admin is now resolving by editing.
+  const product = await prisma.product.findUnique({ where: { slug } });
+  const existing = await prisma.productOverride.findUnique({ where: { slug }, select: { imported: true, importSuggests: true } });
+  const imported: Record<string, unknown> = { ...((existing?.imported as Record<string, unknown>) ?? {}) };
+  const importSuggests: Record<string, unknown> = { ...((existing?.importSuggests as Record<string, unknown>) ?? {}) };
+  const EDITABLE = ["name", "description", "brand", "origin", "ribbon", "categorySlug", "isFeatured", "isFragile"] as const;
+  if (product) {
+    const snap = (field: string, cur: unknown) => { if (!(field in imported)) imported[field] = cur; };
+    if (edits.name !== undefined) snap("name", product.name);
+    if (edits.description !== undefined) snap("description", product.description);
+    if (edits.brand !== undefined) snap("brand", product.brand);
+    if (edits.origin !== undefined) snap("origin", product.origin);
+    if (edits.ribbon !== undefined) snap("ribbon", product.ribbon);
+    if (edits.isFeatured !== undefined) snap("isFeatured", product.isFeatured);
+    if (edits.isFragile !== undefined) snap("isFragile", product.isFragile);
+    if (edits.categorySlug !== undefined) snap("categorySlug", product.categoryId.replace(/^cat_/, ""));
+    for (const f of EDITABLE) if ((edits as Record<string, unknown>)[f] !== undefined) delete importSuggests[f];
+  }
+
   // Durable override record (only the provided fields).
   const overrideData = {
     name: edits.name,
     tagline: edits.tagline,
     description: edits.description,
+    brand: edits.brand,
     imageUrl: edits.imageUrl,
     images: edits.images ? (edits.images as Prisma.InputJsonValue) : undefined,
     origin: edits.origin,
@@ -208,6 +230,8 @@ export async function saveProductEdits(
     isFragile: edits.isFragile,
     variantPrices: edits.variantPrices ? (edits.variantPrices as Prisma.InputJsonValue) : undefined,
     variantPacks: edits.variantPacks ? (edits.variantPacks as unknown as Prisma.InputJsonValue) : undefined,
+    imported: imported as Prisma.InputJsonValue,
+    importSuggests: Object.keys(importSuggests).length ? (importSuggests as Prisma.InputJsonValue) : Prisma.DbNull,
     updatedById,
   };
   await prisma.productOverride.upsert({
@@ -217,7 +241,6 @@ export async function saveProductEdits(
   });
 
   // Apply to the live product.
-  const product = await prisma.product.findUnique({ where: { slug } });
   if (!product) return;
 
   const data: Record<string, unknown> = {};
@@ -253,6 +276,62 @@ export async function saveProductEdits(
       await prisma.productVariant.updateMany({ where: { sku }, data: packData });
     }
   }
+}
+
+/* ---- hand-edit locks & import suggestions (PRODUCTS_UI §15) ---- */
+
+const SCALAR_FIELDS = ["name", "description", "brand", "origin", "ribbon", "categorySlug", "isFeatured", "isFragile"] as const;
+
+/** Apply a scalar value to the live product (categorySlug maps to categoryId). */
+async function applyScalarToProduct(productId: string, field: string, value: unknown): Promise<void> {
+  const prisma = requirePrisma();
+  const data: Record<string, unknown> = field === "categorySlug" ? { categoryId: value ? `cat_${value}` : undefined } : { [field]: value ?? null };
+  if (data.categoryId === undefined && field === "categorySlug") return;
+  await prisma.product.update({ where: { id: productId }, data });
+}
+
+/** Remove a hand-edit lock on a field and restore the imported (source) value. */
+export async function resetProductField(slug: string, field: string): Promise<void> {
+  if (!(SCALAR_FIELDS as readonly string[]).includes(field)) return;
+  const prisma = requirePrisma();
+  const ov = await prisma.productOverride.findUnique({ where: { slug }, select: { imported: true, importSuggests: true } });
+  const product = await prisma.product.findUnique({ where: { slug }, select: { id: true } });
+  if (!product) return;
+  const imported = (ov?.imported ?? {}) as Record<string, unknown>;
+  const suggests = { ...((ov?.importSuggests ?? {}) as Record<string, unknown>) };
+  delete suggests[field];
+  await prisma.productOverride.update({
+    where: { slug },
+    data: { [field]: null, importSuggests: Object.keys(suggests).length ? (suggests as Prisma.InputJsonValue) : Prisma.DbNull },
+  });
+  if (field in imported) await applyScalarToProduct(product.id, field, imported[field]);
+}
+
+/** Accept a re-import's suggested value for a locked field (adopt the source). */
+export async function acceptImportSuggest(slug: string, field: string): Promise<void> {
+  const prisma = requirePrisma();
+  const ov = await prisma.productOverride.findUnique({ where: { slug }, select: { importSuggests: true } });
+  const product = await prisma.product.findUnique({ where: { slug }, select: { id: true } });
+  if (!product) return;
+  const suggests = { ...((ov?.importSuggests ?? {}) as Record<string, unknown>) };
+  if (!(field in suggests)) return;
+  const value = suggests[field];
+  delete suggests[field];
+  await prisma.productOverride.update({
+    where: { slug },
+    data: { [field]: null, importSuggests: Object.keys(suggests).length ? (suggests as Prisma.InputJsonValue) : Prisma.DbNull },
+  });
+  await applyScalarToProduct(product.id, field, value);
+}
+
+/** Dismiss a re-import suggestion, keeping the hand-edited value. */
+export async function ignoreImportSuggest(slug: string, field: string): Promise<void> {
+  const prisma = requirePrisma();
+  const ov = await prisma.productOverride.findUnique({ where: { slug }, select: { importSuggests: true } });
+  const suggests = { ...((ov?.importSuggests ?? {}) as Record<string, unknown>) };
+  if (!(field in suggests)) return;
+  delete suggests[field];
+  await prisma.productOverride.update({ where: { slug }, data: { importSuggests: Object.keys(suggests).length ? (suggests as Prisma.InputJsonValue) : Prisma.DbNull } });
 }
 
 /* ---- draft / publish (PRODUCTS_UI §9) ---- */

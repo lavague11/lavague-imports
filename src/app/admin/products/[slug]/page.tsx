@@ -25,7 +25,13 @@ export default async function AdminEditProduct({
     }),
     getCategories(),
     getBrandNames(),
-    prisma.productOverride.findUnique({ where: { slug }, select: { draft: true, draftUpdatedAt: true } }),
+    prisma.productOverride.findUnique({
+      where: { slug },
+      select: {
+        draft: true, draftUpdatedAt: true, imported: true, importSuggests: true,
+        name: true, description: true, brand: true, origin: true, ribbon: true, categorySlug: true, isFeatured: true, isFragile: true,
+      },
+    }),
   ]);
   if (!product) notFound();
 
@@ -52,6 +58,27 @@ export default async function AdminEditProduct({
       unitsPerCase: pack?.unitsPerCase ?? v.unitsPerCase,
     };
   });
+
+  // §15 — which fields are hand-edited (locked) and any import suggestions.
+  const ovRec = override as Record<string, unknown> | null;
+  const imp = (override?.imported ?? {}) as Record<string, unknown>;
+  const sug = (override?.importSuggests ?? {}) as Record<string, unknown>;
+  const fmtField = (field: string, v: unknown): string => {
+    if (v == null) return "";
+    if (field === "categorySlug") return categories.find((c) => c.slug === v)?.name ?? String(v);
+    if (field === "isFeatured" || field === "isFragile") return v ? "yes" : "no";
+    const s = String(v);
+    return s.length > 40 ? `${s.slice(0, 40)}…` : s;
+  };
+  const SCALAR_FIELDS = ["name", "description", "brand", "origin", "ribbon", "categorySlug", "isFeatured", "isFragile"] as const;
+  const locks: Record<string, { locked: boolean; imported?: string; suggest?: string }> = {};
+  for (const f of SCALAR_FIELDS) {
+    // A field is "hand-edited" only when its override value actually differs
+    // from the imported source (legacy edits with no snapshot count as locked).
+    const locked = ovRec?.[f] != null && (!(f in imp) || JSON.stringify(ovRec[f]) !== JSON.stringify(imp[f]));
+    const suggest = f in sug ? fmtField(f, sug[f]) : undefined;
+    if (locked || suggest !== undefined) locks[f] = { locked, imported: fmtField(f, imp[f]), suggest };
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -94,6 +121,7 @@ export default async function AdminEditProduct({
           categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
           countries={countries}
           brands={brands}
+          locks={Object.keys(locks).length ? locks : undefined}
         />
       </div>
     </div>
