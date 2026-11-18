@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { FilePlus2, Phone, MessageSquare, Bell } from "lucide-react";
 
 import { DateRangePicker } from "@/components/admin/date-range-picker";
+import { SalesTrendChart } from "@/components/admin/sales-trend-chart";
 import { getCurrentUser } from "@/lib/auth";
 import { rangeWindow } from "@/lib/admin/range";
 import { getPrisma } from "@/lib/db";
@@ -62,6 +63,7 @@ export default async function AdminDashboard({
     orderRequests, needsReviewCount,
     recentInvoices, recentPayments, newCustomers,
     missingImage, custom, overrides, drafts,
+    trendCur, trendPrev,
   ] = await Promise.all([
     prisma.customerInvoice.findMany({
       where: { ...liveWhere, totalCents: { gt: prisma.customerInvoice.fields.paidCents } },
@@ -80,7 +82,33 @@ export default async function AdminDashboard({
     prisma.product.count({ where: { isCustom: true } }),
     prisma.productOverride.count(),
     prisma.productOverride.count({ where: { draftUpdatedAt: { not: null } } }),
+    prisma.customerInvoice.findMany({ where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, select: { issueDate: true, totalCents: true } }),
+    prisma.customerInvoice.findMany({ where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.prevStart, lt: win.prevEnd } }, select: { issueDate: true, totalCents: true } }),
   ]);
+
+  // Revenue trend buckets (equal time slices; current vs previous period).
+  const N = 12;
+  const bucketize = (invs: { issueDate: Date; totalCents: number }[], s: Date, e: Date) => {
+    const len = Math.max(1, (e.getTime() - s.getTime()) / N);
+    const vals = new Array(N).fill(0);
+    for (const inv of invs) {
+      let idx = Math.floor((inv.issueDate.getTime() - s.getTime()) / len);
+      if (idx < 0) idx = 0; if (idx >= N) idx = N - 1;
+      vals[idx] += inv.totalCents;
+    }
+    return vals as number[];
+  };
+  const curVals = bucketize(trendCur, win.start, win.end);
+  const prevVals = bucketize(trendPrev, win.prevStart, win.prevEnd);
+  const sliceLen = (win.end.getTime() - win.start.getTime()) / N;
+  const rangeDays = (win.end.getTime() - win.start.getTime()) / day;
+  const fmtBucket = (i: number) => {
+    const d = new Date(win.start.getTime() + i * sliceLen);
+    if (rangeDays <= 2) return d.toLocaleTimeString("en-US", { hour: "numeric" });
+    if (rangeDays > 200) return d.toLocaleDateString("en-US", { month: "short" });
+    return d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+  };
+  const trendPoints = curVals.map((v, i) => ({ label: fmtBucket(i), value: v, prev: prevVals[i] ?? 0 }));
 
   // Money + aging from the open invoices.
   const outstanding = openInvoices.reduce((s, i) => s + (i.totalCents - i.paidCents), 0);
@@ -151,6 +179,11 @@ export default async function AdminDashboard({
                 <p className="mt-1 text-[11px] text-olive-400">{m.sub}</p>
               </Link>
             ))}
+          </div>
+
+          {/* Sales trend */}
+          <div className="mt-6">
+            <SalesTrendChart points={trendPoints} periodLabel={win.label} />
           </div>
 
           {/* Needs you */}
