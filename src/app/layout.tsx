@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 
 import { CartProvider } from "@/components/cart/cart-provider";
@@ -50,6 +50,20 @@ export const metadata: Metadata = {
     description: site.description,
     images: ["/social-share.webp"],
   },
+  // Run as a standalone app from the iPhone/Android home screen (no browser
+  // chrome). This is also what enables the in-app pull-to-refresh gesture.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: site.name,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#333d22",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

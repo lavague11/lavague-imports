@@ -4,10 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 // Pull-to-refresh for touch devices: swipe down while scrolled to the very top
-// to reload the page. A small spinner follows the pull and spins on release.
-// Storefront only (skips /admin so it can't reload a half-filled form).
-const THRESHOLD = 70; // px of pull needed to trigger a refresh
+// to reload the page. A spinner follows the pull and spins on release. Works in
+// the browser and, importantly, in the iOS/Android home-screen standalone app
+// where the browser's own pull-to-refresh is gone. Skips /admin so a half-filled
+// form can't be reloaded by accident.
+const THRESHOLD = 64; // px of pull needed to trigger a refresh
 const MAX = 90; // px the indicator travels
+const RESIST = 0.55; // drag resistance
+
+function scrollTop() {
+  return Math.max(
+    window.scrollY || 0,
+    document.scrollingElement?.scrollTop || 0,
+    document.documentElement?.scrollTop || 0,
+    document.body?.scrollTop || 0,
+  );
+}
 
 export function PullToRefresh() {
   const [pull, setPull] = useState(0);
@@ -24,21 +36,18 @@ export function PullToRefresh() {
     const set = (v: number) => { pullRef.current = v; setPull(v); };
 
     const onStart = (e: TouchEvent) => {
-      if (refreshingRef.current) return;
-      if (window.scrollY <= 0 && e.touches.length === 1) {
-        startY.current = e.touches[0].clientY;
-        activeRef.current = false;
-      } else {
-        startY.current = null;
-      }
+      if (refreshingRef.current || e.touches.length !== 1) { startY.current = null; return; }
+      startY.current = scrollTop() <= 0 ? e.touches[0].clientY : null;
+      activeRef.current = false;
     };
     const onMove = (e: TouchEvent) => {
       if (startY.current == null || refreshingRef.current) return;
       const dy = e.touches[0].clientY - startY.current;
-      if (dy > 0 && window.scrollY <= 0) {
+      // Only engage while still at the very top and pulling downward.
+      if (dy > 0 && scrollTop() <= 0) {
         activeRef.current = true;
-        set(Math.min(MAX, dy * 0.5));
-        if (e.cancelable) e.preventDefault(); // suppress native overscroll while pulling
+        set(Math.min(MAX, dy * RESIST));
+        if (e.cancelable) e.preventDefault(); // suppress the native overscroll/bounce
       } else if (dy <= 0) {
         activeRef.current = false;
         set(0);
@@ -50,7 +59,7 @@ export function PullToRefresh() {
         refreshingRef.current = true;
         setRefreshing(true);
         set(MAX);
-        setTimeout(() => window.location.reload(), 150);
+        setTimeout(() => window.location.reload(), 200);
       } else {
         set(0);
       }
@@ -58,31 +67,34 @@ export function PullToRefresh() {
       activeRef.current = false;
     };
 
-    window.addEventListener("touchstart", onStart, { passive: true });
-    window.addEventListener("touchmove", onMove, { passive: false });
-    window.addEventListener("touchend", onEnd, { passive: true });
-    window.addEventListener("touchcancel", onEnd, { passive: true });
+    // Non-passive touchmove so preventDefault works; attach to document for the
+    // widest webview compatibility (iOS standalone included).
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onEnd, { passive: true });
+    document.addEventListener("touchcancel", onEnd, { passive: true });
     return () => {
-      window.removeEventListener("touchstart", onStart);
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("touchend", onEnd);
-      window.removeEventListener("touchcancel", onEnd);
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", onEnd);
     };
   }, []);
 
   const visible = pull > 0 || refreshing;
+  const ready = pull >= THRESHOLD || refreshing;
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex justify-center">
+    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <div
-        className="mt-2 flex h-9 w-9 items-center justify-center rounded-full border border-olive-200 bg-white shadow-md"
+        className={`mt-2 flex h-10 w-10 items-center justify-center rounded-full border bg-white shadow-md ${ready ? "border-olive-400" : "border-olive-200"}`}
         style={{
-          transform: `translateY(${visible ? Math.max(pull, refreshing ? 48 : 0) - 48 : -48}px)`,
+          transform: `translateY(${visible ? Math.max(pull, refreshing ? 52 : 0) - 52 : -52}px)`,
           opacity: visible ? 1 : 0,
           transition: activeRef.current ? "none" : "transform .2s ease, opacity .2s ease",
         }}
       >
         <RefreshCw
-          className={`h-4 w-4 text-olive-700 ${refreshing ? "animate-spin" : ""}`}
+          className={`h-5 w-5 ${ready ? "text-olive-800" : "text-olive-500"} ${refreshing ? "animate-spin" : ""}`}
           style={refreshing ? undefined : { transform: `rotate(${pull * 3}deg)` }}
         />
       </div>
