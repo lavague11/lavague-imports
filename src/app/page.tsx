@@ -25,19 +25,6 @@ export default async function HomePage() {
           <h1 className="mx-auto mt-4 max-w-3xl text-4xl leading-[1.1] text-olive-900 sm:text-5xl lg:text-6xl">
             Bringing international tastes to the States.
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-olive-600 sm:text-lg">
-            Moroccan olive oil, North African sodas, Mediterranean pantry staples, and
-            hard-to-find imports — bought direct at the source.
-          </p>
-          <div className="mt-7 flex justify-center">
-            <Link
-              href="/shop"
-              className={buttonClasses({ size: "lg", className: "group shadow-sm transition-shadow hover:shadow-md" })}
-            >
-              Shop all
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-            </Link>
-          </div>
           <div className="mt-8 lg:mt-9">
             <Image
               src="/home-hero.webp"
@@ -48,6 +35,15 @@ export default async function HomePage() {
               sizes="(min-width: 1152px) 1088px, 100vw"
               className="h-auto w-full rounded-card border border-olive-100 shadow-sm"
             />
+          </div>
+          <div className="mt-7 flex justify-center">
+            <Link
+              href="/shop"
+              className={buttonClasses({ size: "lg", className: "group shadow-sm transition-shadow hover:shadow-md" })}
+            >
+              Shop all
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
           </div>
         </Container>
       </section>
@@ -83,7 +79,7 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3">
             {featured.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

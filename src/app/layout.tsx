@@ -4,6 +4,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { StorefrontChrome } from "@/components/layout/storefront-chrome";
 import { site } from "@/lib/site";
 import "./globals.css";
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-white">
+        <PullToRefresh />
         <CartProvider>
           <StorefrontChrome header={<Header />} footer={<Footer />}>
             {children}
