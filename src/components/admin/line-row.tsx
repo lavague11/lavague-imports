@@ -79,67 +79,76 @@ export function LineRow(props: LineRowProps) {
   const hasInfo = !isCredit && info && base != null;
 
   return (
-    <div className={`grid grid-cols-1 gap-2 border-b border-olive-50 px-4 py-3 last:border-0 sm:grid-cols-[1fr_5rem_7rem_6rem_2rem] sm:items-center ${isCredit ? "bg-amber-50/40" : i % 2 ? "bg-olive-50/30" : ""}`}>
-      {/* Description with a product thumbnail on the left */}
-      <div className="flex items-center gap-2">
+    <div className={`invoice-line border-b border-olive-50 px-4 py-4 last:border-0 ${isCredit ? "bg-amber-50/40" : ""}`}>
+      {/* Head: thumbnail + name (+ remove on the right at narrow widths) */}
+      <div className="invoice-line-head">
         {isCredit ? (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-600"><Undo2 className="h-4 w-4" /></div>
+          <div className="il-thumb flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-600"><Undo2 className="h-4 w-4" /></div>
         ) : imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={imageUrl} alt="" className="h-9 w-9 shrink-0 rounded-md border border-olive-100 object-cover" />
+          <img src={imageUrl} alt="" className="il-thumb h-10 w-10 shrink-0 rounded-md border border-olive-100 object-cover" />
         ) : (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-dashed border-olive-200 text-olive-300"><ImageIcon className="h-4 w-4" /></div>
+          <div className="il-thumb flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-dashed border-olive-200 text-olive-300"><ImageIcon className="h-4 w-4" /></div>
         )}
-        <div className="min-w-0 flex-1">
+        <div className="il-name min-w-0 flex-1">
           <input name="desc" value={description} onChange={(e) => props.onChange({ description: e.target.value })} placeholder="Item or service" className={inputCls} />
           {isCredit ? <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Credit{props.creditReason ? ` · ${props.creditReason}` : ""}</span> : null}
         </div>
+        <button type="button" onClick={props.onRemove} aria-label="Remove line" className="il-remove -mr-1 flex h-10 w-9 shrink-0 items-center justify-center text-olive-400 hover:text-red-600">
+          <Trash2 className="h-5 w-5" />
+        </button>
       </div>
 
-      {/* Controls: one compact row on mobile; dissolve into grid cells on desktop */}
-      <div className="flex items-center gap-2 sm:contents">
-      <input name="qty" inputMode="numeric" value={qty} onChange={(e) => props.onChange({ qty: e.target.value })} placeholder="Qty" className="h-10 w-16 shrink-0 rounded-lg border border-olive-200 px-2 text-center text-sm focus:border-olive-500 focus:outline-none sm:w-full sm:px-3 sm:text-right" />
+      {/* Quantity */}
+      <div className="il-qty">
+        <label className="il-label">Qty</label>
+        <input name="qty" inputMode="numeric" value={qty} onChange={(e) => props.onChange({ qty: e.target.value })} placeholder="Qty" className={`${inputCls} text-center`} />
+      </div>
 
       {/* Unit price + an (i) that reveals the price history */}
-      <div className="flex flex-1 items-center gap-1 sm:flex-initial">
-        <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-olive-400">$</span>
-          <input name="unit" inputMode="decimal" value={unit} onChange={(e) => props.onChange({ unit: e.target.value })} placeholder="0.00" className={`${inputCls} pl-6 sm:text-right`} />
-        </div>
-        {hasInfo ? (
-          <div className="relative shrink-0">
-            <button type="button" onClick={() => setOpen((o) => !o)} aria-label="Price history" className={`flex h-6 w-6 items-center justify-center rounded-full hover:bg-olive-100 ${infoColor}`}>
-              <Info className="h-4 w-4" />
-            </button>
-            {open ? (
-              <div className="absolute right-0 z-30 mt-1 w-44 rounded-lg border border-olive-100 bg-white p-2.5 text-left shadow-lg" onMouseLeave={() => setOpen(false)}>
-                {info!.lastPriceCents != null ? (
-                  <p className="text-sm font-medium text-olive-900">Last paid {money(info!.lastPriceCents)}{info!.lastDate ? <span className="font-normal text-olive-400"> · {info!.lastDate}</span> : null}</p>
-                ) : (
-                  <p className="text-sm font-medium text-olive-900">Catalog {info!.catalogPriceCents != null ? money(info!.catalogPriceCents) : "—"}</p>
-                )}
-                {changed ? <p className={`text-xs ${pct > 0.3 ? "text-red-600" : "text-amber-600"}`}>Now {diff > 0 ? "+" : "−"}{money(Math.abs(diff))} vs last</p> : null}
-                {info!.history.length > 1 ? (
-                  <>
-                    <p className="mb-0.5 mt-2 text-[10px] font-medium uppercase tracking-wide text-olive-400">Last {info!.history.length}</p>
-                    <ul className="space-y-0.5 text-xs text-olive-700">
-                      {info!.history.map((h, k) => (
-                        <li key={k} className="flex justify-between"><span>{money(h.priceCents)}</span><span className="text-olive-400">{h.date}</span></li>
-                      ))}
-                    </ul>
-                  </>
-                ) : null}
-              </div>
-            ) : null}
+      <div className="il-price">
+        <label className="il-label">Unit price</label>
+        <div className="flex items-center gap-1">
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-olive-400">$</span>
+            <input name="unit" inputMode="decimal" value={unit} onChange={(e) => props.onChange({ unit: e.target.value })} placeholder="0.00" className={`${inputCls} pl-6 text-right`} />
           </div>
-        ) : null}
+          {hasInfo ? (
+            <div className="relative shrink-0">
+              <button type="button" onClick={() => setOpen((o) => !o)} aria-label="Price history" className={`flex h-7 w-7 items-center justify-center rounded-full hover:bg-olive-100 ${infoColor}`}>
+                <Info className="h-4 w-4" />
+              </button>
+              {open ? (
+                <div className="absolute right-0 z-30 mt-1 w-44 rounded-lg border border-olive-100 bg-white p-2.5 text-left shadow-lg" onMouseLeave={() => setOpen(false)}>
+                  {info!.lastPriceCents != null ? (
+                    <p className="text-sm font-medium text-olive-900">Last paid {money(info!.lastPriceCents)}{info!.lastDate ? <span className="font-normal text-olive-400"> · {info!.lastDate}</span> : null}</p>
+                  ) : (
+                    <p className="text-sm font-medium text-olive-900">Catalog {info!.catalogPriceCents != null ? money(info!.catalogPriceCents) : "—"}</p>
+                  )}
+                  {changed ? <p className={`text-xs ${pct > 0.3 ? "text-red-600" : "text-amber-600"}`}>Now {diff > 0 ? "+" : "−"}{money(Math.abs(diff))} vs last</p> : null}
+                  {info!.history.length > 1 ? (
+                    <>
+                      <p className="mb-0.5 mt-2 text-[10px] font-medium uppercase tracking-wide text-olive-400">Last {info!.history.length}</p>
+                      <ul className="space-y-0.5 text-xs text-olive-700">
+                        {info!.history.map((h, k) => (
+                          <li key={k} className="flex justify-between"><span>{money(h.priceCents)}</span><span className="text-olive-400">{h.date}</span></li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <div className={`w-20 shrink-0 text-right text-sm sm:w-auto ${isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{isCredit ? `−${money(amountCents)}` : money(amountCents)}</div>
-      <button type="button" onClick={props.onRemove} aria-label="Remove line" className="shrink-0 text-olive-400 hover:text-red-600 sm:justify-self-center">
-        <Trash2 className="h-4 w-4" />
-      </button>
+      {/* Line total */}
+      <div className="il-total">
+        <span className="il-total-text">Line total</span>
+        <span className={`font-semibold ${isCredit ? "text-amber-700" : "text-olive-900"}`}>{isCredit ? `−${money(amountCents)}` : money(amountCents)}</span>
       </div>
+
       <input type="hidden" name="isCredit" value={isCredit ? "1" : "0"} />
       <input type="hidden" name="creditReason" value={props.creditReason ?? ""} />
     </div>

@@ -73,6 +73,80 @@
     color: var(--color-olive-600);
   }
 
+  /* Invoice line items: a container-query layout that adapts to the editor's own
+     width (not the viewport). Narrow → a 3-row card; wide → one horizontal row
+     Product | Qty | Unit price | Total | Remove. One set of inputs either way. */
+  .invoice-lines {
+    container-type: inline-size;
+  }
+  .invoice-line {
+    display: grid;
+    gap: 0.5rem 0.75rem;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "head head"
+      "qty price"
+      "total total";
+  }
+  .invoice-line-head {
+    grid-area: head;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .il-thumb { grid-area: thumb; }
+  .il-name { grid-area: name; }
+  .il-remove { grid-area: remove; }
+  .il-qty { grid-area: qty; }
+  .il-price { grid-area: price; }
+  .il-total {
+    grid-area: total;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .il-label {
+    display: block;
+    font-size: 0.6875rem;
+    color: var(--color-olive-500);
+    margin-bottom: 0.25rem;
+  }
+  .il-total-text {
+    font-size: 0.8125rem;
+    color: var(--color-olive-600);
+  }
+  .invoice-head-row {
+    display: none;
+  }
+  @container (min-width: 620px) {
+    .invoice-line {
+      grid-template-columns: 2.5rem minmax(0, 1fr) 5.5rem 9rem 7rem 2rem;
+      grid-template-areas: "thumb name qty price total remove";
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .invoice-line-head {
+      display: contents;
+    }
+    .il-total {
+      display: block;
+      text-align: right;
+    }
+    .il-label {
+      display: none;
+    }
+    .il-total-text {
+      display: none;
+    }
+    .invoice-head-row {
+      display: grid;
+      grid-template-columns: 2.5rem minmax(0, 1fr) 5.5rem 9rem 7rem 2rem;
+      grid-template-areas: "thumb name qty price total remove";
+      column-gap: 0.75rem;
+    }
+  }
+
   /* Infinite marquee for the homepage trust strip. The track holds two identical
      copies of the phrases; translating by -50% loops seamlessly. */
   .animate-marquee {

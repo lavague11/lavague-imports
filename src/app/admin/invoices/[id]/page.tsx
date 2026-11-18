@@ -119,7 +119,7 @@ export default async function InvoicePage({
   const btn = "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium";
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <Link href="/admin/invoices" className="inline-flex items-center gap-1 text-sm text-olive-600 hover:text-olive-900">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All invoices
       </Link>

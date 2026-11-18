@@ -231,9 +231,13 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
       ) : null}
 
       {/* Line items */}
-      <div className="overflow-hidden rounded-xl border border-olive-100 bg-white">
-        <div className="hidden grid-cols-[1fr_5rem_7rem_6rem_2rem] gap-2 border-b border-olive-100 bg-olive-50/60 px-4 py-2 text-xs text-olive-600 sm:grid">
-          <span>Description</span><span className="text-right">Qty</span><span className="text-right">Unit price</span><span className="text-right">Amount</span><span />
+      <div className="invoice-lines overflow-hidden rounded-xl border border-olive-100 bg-white">
+        {/* Column header — only shows when the container is wide enough for the row layout */}
+        <div className="invoice-head-row border-b border-olive-100 bg-olive-50/60 px-4 py-2 text-xs text-olive-600">
+          <span className="il-name">Description</span>
+          <span className="il-qty text-center">Qty</span>
+          <span className="il-price text-right">Unit price</span>
+          <span className="il-total text-right">Total</span>
         </div>
         {rows.map((r, i) => (
           <LineRow
