@@ -2,7 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FilePlus2, Phone, MessageSquare, Bell } from "lucide-react";
 
+import { DateRangePicker } from "@/components/admin/date-range-picker";
 import { getCurrentUser } from "@/lib/auth";
+import { rangeWindow } from "@/lib/admin/range";
 import { getPrisma } from "@/lib/db";
 import { getGoogleUser } from "@/lib/google-session";
 import { paymentMethodLabel } from "@/lib/invoice";
@@ -51,13 +53,12 @@ export default async function AdminDashboard({
   }
 
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const d90 = new Date(now.getTime() - 90 * day);
+  const rangeKey = firstValue(sp.range) ?? "month";
+  const win = rangeWindow(rangeKey, firstValue(sp.from), firstValue(sp.to), now);
   const liveWhere = { archived: false, status: { not: "VOID" as const } };
 
   const [
-    openInvoices, collectedThis, collectedLast, avgAgg,
+    openInvoices, collectedCur, collectedPrev, avgCur, avgPrev,
     orderRequests, needsReviewCount,
     recentInvoices, recentPayments, newCustomers,
     missingImage, custom, overrides, drafts,
@@ -66,9 +67,10 @@ export default async function AdminDashboard({
       where: { ...liveWhere, totalCents: { gt: prisma.customerInvoice.fields.paidCents } },
       select: { id: true, number: true, externalNumber: true, totalCents: true, paidCents: true, dueDate: true, customer: { select: { businessName: true, name: true, phone: true } } },
     }),
-    prisma.customerPayment.aggregate({ _sum: { amountCents: true }, where: { receivedAt: { gte: monthStart } } }),
-    prisma.customerPayment.aggregate({ _sum: { amountCents: true }, where: { receivedAt: { gte: lastMonthStart, lt: monthStart } } }),
-    prisma.customerInvoice.aggregate({ _avg: { totalCents: true }, _count: { _all: true }, where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: d90 } } }),
+    prisma.customerPayment.aggregate({ _sum: { amountCents: true }, where: { receivedAt: { gte: win.start, lte: win.end } } }),
+    prisma.customerPayment.aggregate({ _sum: { amountCents: true }, where: { receivedAt: { gte: win.prevStart, lt: win.prevEnd } } }),
+    prisma.customerInvoice.aggregate({ _avg: { totalCents: true }, _count: { _all: true }, where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } } }),
+    prisma.customerInvoice.aggregate({ _avg: { totalCents: true }, where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.prevStart, lt: win.prevEnd } } }),
     prisma.orderRequest.findMany({ where: { status: "SUBMITTED" }, orderBy: { createdAt: "desc" }, take: 6, select: { id: true, reference: true, createdAt: true, customer: { select: { businessName: true, name: true } } } }),
     prisma.product.count({ where: { needsReview: true } }),
     prisma.customerInvoice.findMany({ orderBy: { createdAt: "desc" }, take: 10, select: { id: true, number: true, externalNumber: true, totalCents: true, status: true, customer: { select: { businessName: true, name: true } } } }),
@@ -92,18 +94,20 @@ export default async function AdminDashboard({
     const bal = i.totalCents - i.paidCents;
     if (dl <= 30) aging.b1 += bal; else if (dl <= 60) aging.b2 += bal; else aging.b3 += bal;
   }
-  const collected = collectedThis._sum.amountCents ?? 0;
-  const collectedPrev = collectedLast._sum.amountCents ?? 0;
-  const collectedPct = pct(collected, collectedPrev);
-  const avgOrder = Math.round(avgAgg._avg.totalCents ?? 0);
+  const collected = collectedCur._sum.amountCents ?? 0;
+  const collectedPrevVal = collectedPrev._sum.amountCents ?? 0;
+  const collectedPct = pct(collected, collectedPrevVal);
+  const avgOrder = Math.round(avgCur._avg?.totalCents ?? 0);
+  const avgPct = pct(avgOrder, Math.round(avgPrev._avg?.totalCents ?? 0));
+  const avgCount = avgCur._count?._all ?? 0;
 
   const custName = (c: { businessName: string | null; name: string | null } | null) => c?.businessName || c?.name || "No customer";
 
   const money = [
     { label: "Outstanding", value: formatPrice(outstanding), href: "/admin/invoices?tab=open", danger: outstanding > 0, sub: `${openInvoices.length} open` },
     { label: "Overdue", value: formatPrice(overdue), href: "/admin/invoices?tab=overdue", danger: overdue > 0, sub: `1–30 ${formatPrice(aging.b1)} · 31–60 ${formatPrice(aging.b2)} · 61+ ${formatPrice(aging.b3)}` },
-    { label: "Collected this month", value: formatPrice(collected), href: "/admin/invoices?tab=paid", sub: collectedPct == null ? "no prior month" : `${collectedPct >= 0 ? "+" : ""}${collectedPct}% vs last month` },
-    { label: "Average order (90d)", value: formatPrice(avgOrder), href: "/admin/invoices", sub: `${avgAgg._count._all} invoices` },
+    { label: `Collected · ${win.label}`, value: formatPrice(collected), href: "/admin/invoices?tab=paid", sub: collectedPct == null ? "vs prev period" : `${collectedPct >= 0 ? "+" : ""}${collectedPct}% vs prev period` },
+    { label: "Average order", value: formatPrice(avgOrder), href: "/admin/invoices", sub: avgPct == null ? `${avgCount} invoices` : `${avgPct >= 0 ? "+" : ""}${avgPct}% · ${avgCount} inv` },
   ];
 
   const needsYou = overdueList.length > 0 || orderRequests.length > 0 || needsReviewCount > 0;
@@ -129,6 +133,12 @@ export default async function AdminDashboard({
           </button>
         </form>
       </div>
+
+      {view === "wholesale" ? (
+        <div className="mt-4">
+          <DateRangePicker current={rangeKey} from={firstValue(sp.from)} to={firstValue(sp.to)} />
+        </div>
+      ) : null}
 
       {view === "wholesale" ? (
         <>
