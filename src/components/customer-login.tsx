@@ -13,7 +13,6 @@ const fieldClass =
 export function CustomerLogin({ next, initialError, prefillId }: { next: string; initialError?: string | null; prefillId?: string }) {
   const [identifier, setIdentifier] = useState(prefillId ?? "");
   const [step, setStep] = useState<"id" | "password" | "create">(prefillId ? "password" : "id");
-  const [name, setName] = useState<string | null>(null);
   const [hasPassword, setHasPassword] = useState(true);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(initialError ?? null);
@@ -27,7 +26,7 @@ export function CustomerLogin({ next, initialError, prefillId }: { next: string;
     try {
       const r = await fetch(`/login/lookup?identifier=${encodeURIComponent(id)}`);
       const d = await r.json();
-      if (d.found) { setName(d.name ?? null); setHasPassword(!!d.hasPassword); setStep("password"); }
+      if (d.found) { setHasPassword(!!d.hasPassword); setStep("password"); }
       else setStep("create");
     } catch {
       setErr("We couldn't reach the account service. Please try again.");
@@ -80,7 +79,7 @@ export function CustomerLogin({ next, initialError, prefillId }: { next: string;
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between rounded-lg border border-olive-100 bg-olive-50/60 px-3 py-2 text-sm">
-        <span className="min-w-0 truncate text-olive-700">{name ? <>Signing in as <span className="font-medium text-olive-900">{name}</span></> : <span className="font-medium text-olive-900">{identifier.trim()}</span>}</span>
+        <span className="min-w-0 truncate text-olive-700">Signing in as <span className="font-medium text-olive-900">{identifier.trim()}</span></span>
         <button type="button" onClick={restart} className="shrink-0 text-xs font-medium text-olive-600 hover:text-olive-900">Change</button>
       </div>
 
