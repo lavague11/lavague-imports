@@ -97,7 +97,7 @@ export default async function AdminDashboard({
     orderRequests, needsReviewCount,
     recentInvoices, recentPayments, newCustomers,
     missingImage, custom, overrides, drafts,
-    trendCur, trendPrev, linesCur, linesPrev,
+    trendCur, trendPrev, linesCur, linesPrev, topCustAgg, allCustInv,
   ] = await Promise.all([
     prisma.customerInvoice.findMany({
       where: { ...liveWhere, totalCents: { gt: prisma.customerInvoice.fields.paidCents } },
@@ -120,7 +120,34 @@ export default async function AdminDashboard({
     prisma.customerInvoice.findMany({ where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.prevStart, lt: win.prevEnd } }, select: { issueDate: true, totalCents: true } }),
     prisma.customerInvoiceLine.groupBy({ by: ["sku"], where: { isCredit: false, sku: { not: null }, invoice: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } } }, _sum: { lineTotalCents: true, quantity: true } }),
     prisma.customerInvoiceLine.groupBy({ by: ["sku"], where: { isCredit: false, sku: { not: null }, invoice: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.prevStart, lt: win.prevEnd } } }, _sum: { lineTotalCents: true } }),
+    prisma.customerInvoice.groupBy({ by: ["customerId"], where: { customerId: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, _sum: { totalCents: true } }),
+    prisma.customerInvoice.findMany({ where: { customerId: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] } }, select: { customerId: true, issueDate: true } }),
   ]);
+
+  // Top customers (by revenue in range) + at-risk ("haven't ordered lately").
+  const topCustRows = topCustAgg.filter((r) => r.customerId).sort((a, b) => (b._sum.totalCents ?? 0) - (a._sum.totalCents ?? 0)).slice(0, 10);
+  const cadence = new Map<string, number[]>();
+  for (const inv of allCustInv) {
+    if (!inv.customerId) continue;
+    const arr = cadence.get(inv.customerId) ?? [];
+    arr.push(inv.issueDate.getTime());
+    cadence.set(inv.customerId, arr);
+  }
+  const atRisk: { cid: string; avgGap: number; sinceLast: number; overdue: number }[] = [];
+  for (const [cid, times] of cadence) {
+    if (times.length < 3) continue;
+    times.sort((a, b) => a - b);
+    const avgGap = (times[times.length - 1] - times[0]) / (times.length - 1) / day;
+    const sinceLast = (now.getTime() - times[times.length - 1]) / day;
+    if (sinceLast > Math.max(avgGap * 1.75, avgGap + 14) && sinceLast > 30) atRisk.push({ cid, avgGap: Math.round(avgGap), sinceLast: Math.round(sinceLast), overdue: sinceLast - avgGap });
+  }
+  atRisk.sort((a, b) => b.overdue - a.overdue);
+  const atRiskTop = atRisk.slice(0, 8);
+  const custIds = [...new Set([...topCustRows.map((r) => r.customerId as string), ...atRiskTop.map((r) => r.cid)])];
+  const custRows = custIds.length ? await prisma.customer.findMany({ where: { id: { in: custIds } }, select: { id: true, businessName: true, name: true, phone: true } }) : [];
+  const custById = new Map(custRows.map((c) => [c.id, c]));
+  const topCustomers = topCustRows.map((r) => ({ cust: custById.get(r.customerId as string) ?? null, amount: r._sum.totalCents ?? 0 }));
+  const atRiskCustomers = atRiskTop.map((r) => ({ cust: custById.get(r.cid) ?? null, sinceLast: r.sinceLast, avgGap: r.avgGap }));
 
   // Top products (by revenue and cases) with a trend vs the previous period.
   const sumRev = new Map<string, number>();
@@ -250,6 +277,47 @@ export default async function AdminDashboard({
               <div className="grid gap-4 lg:grid-cols-2">
                 <TopList title="By revenue" items={topRevenue} />
                 <TopList title="By cases sold" items={topCases} />
+              </div>
+            </section>
+          ) : null}
+
+          {/* Top customers + at-risk */}
+          {topCustomers.length || atRiskCustomers.length ? (
+            <section className="mt-6">
+              <h2 className="mb-2 font-display text-lg text-olive-900">Customers</h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-olive-100 bg-white">
+                  <p className="border-b border-olive-50 px-4 py-2.5 text-sm font-medium text-olive-800">Top customers · {win.label}</p>
+                  <ul className="divide-y divide-olive-50">
+                    {topCustomers.length === 0 ? <li className="px-4 py-3 text-sm text-olive-400">No sales in this period.</li> : null}
+                    {topCustomers.map((t, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
+                        <span className="min-w-0 truncate text-olive-800">{custName(t.cust)}</span>
+                        <span className="shrink-0 font-medium text-olive-900">{formatPrice(t.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-olive-100 bg-white">
+                  <p className="border-b border-olive-50 px-4 py-2.5 text-sm font-medium text-olive-800">Haven&apos;t ordered lately</p>
+                  <ul className="divide-y divide-olive-50">
+                    {atRiskCustomers.length === 0 ? <li className="px-4 py-3 text-sm text-olive-400">Everyone&apos;s on schedule.</li> : null}
+                    {atRiskCustomers.map((a, i) => (
+                      <li key={i} className="flex items-center gap-3 px-4 py-2">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium text-olive-900">{custName(a.cust)}</span>
+                          <span className="text-xs text-olive-500">{a.sinceLast}d since last · usually every {a.avgGap}d</span>
+                        </span>
+                        {a.cust?.phone ? (
+                          <span className="flex shrink-0 items-center gap-1">
+                            <a href={`tel:${a.cust.phone}`} aria-label="Call" className="rounded-full p-1.5 text-olive-500 hover:bg-olive-50"><Phone className="h-4 w-4" /></a>
+                            <a href={`sms:${a.cust.phone}`} aria-label="Text" className="rounded-full p-1.5 text-olive-500 hover:bg-olive-50"><MessageSquare className="h-4 w-4" /></a>
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </section>
           ) : null}
