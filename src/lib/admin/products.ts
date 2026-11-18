@@ -95,6 +95,7 @@ export interface ProductEdits {
   isFeatured?: boolean;
   isActive?: boolean;
   isFragile?: boolean;
+  availability?: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
   /** Per-variant price in cents, keyed by SKU. null clears the price. */
   variantPrices?: Record<string, number | null>;
   /** Per-variant pack (size + units per case), keyed by SKU. */
@@ -259,6 +260,7 @@ export async function saveProductEdits(
   if (edits.isFeatured !== undefined) data.isFeatured = edits.isFeatured;
   if (edits.isActive !== undefined) data.isActive = edits.isActive;
   if (edits.isFragile !== undefined) data.isFragile = edits.isFragile;
+  if (edits.availability !== undefined) data.availability = edits.availability;
   if (edits.categorySlug !== undefined) data.categoryId = `cat_${edits.categorySlug}`;
   if (Object.keys(data).length) {
     await prisma.product.update({ where: { id: product.id }, data });

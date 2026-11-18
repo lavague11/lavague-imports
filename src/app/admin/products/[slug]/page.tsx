@@ -113,6 +113,7 @@ export default async function AdminEditProduct({
             isFeatured: pick(draft?.isFeatured, product.isFeatured),
             isActive: product.isActive,
             isFragile: pick(draft?.isFragile, product.isFragile),
+            availability: product.availability,
             categorySlug: pick(draft?.categorySlug, product.category.slug),
             source: product.source,
             storeUrl: `/shop/${product.slug}`,

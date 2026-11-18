@@ -88,6 +88,7 @@ export interface ProductFormData {
   isFeatured: boolean;
   isActive: boolean;
   isFragile: boolean;
+  availability: string;
   categorySlug: string;
   source: string | null;
   storeUrl: string;
@@ -740,6 +741,14 @@ export function ProductForm({
           <>
             <label className="flex items-center gap-2 text-sm text-olive-800"><input type="checkbox" name="isActive" defaultChecked={product?.isActive ?? true} className="h-4 w-4 accent-olive-800" /> Visible on store</label>
             <label className="flex items-center gap-2 text-sm text-olive-800"><input type="checkbox" name="isFeatured" defaultChecked={product?.isFeatured ?? false} className="h-4 w-4 accent-olive-800" /> Featured (home best-sellers)</label>
+            <label className="flex items-center gap-2 text-sm text-olive-800">
+              Availability
+              <select name="availability" defaultValue={product?.availability ?? "AVAILABLE"} className="h-8 rounded-lg border border-olive-200 px-2 text-sm">
+                <option value="AVAILABLE">Available</option>
+                <option value="LIMITED">Limited</option>
+                <option value="UNAVAILABLE">Unavailable</option>
+              </select>
+            </label>
           </>
         ) : null}
         <label className="flex items-center gap-2 text-sm text-olive-800"><input ref={fragileRef} type="checkbox" name="fragile" defaultChecked={product?.isFragile ?? false} className="h-4 w-4 accent-olive-800" /> Fragile (glass bottle / breakable)</label>

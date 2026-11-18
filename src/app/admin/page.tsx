@@ -97,7 +97,7 @@ export default async function AdminDashboard({
     orderRequests, needsReviewCount,
     recentInvoices, recentPayments, newCustomers,
     missingImage, custom, overrides, drafts,
-    trendCur, trendPrev, linesCur, linesPrev, topCustAgg, allCustInv, repAgg, dtpPayments,
+    trendCur, trendPrev, linesCur, linesPrev, topCustAgg, allCustInv, repAgg, dtpPayments, availWatch,
   ] = await Promise.all([
     prisma.customerInvoice.findMany({
       where: { ...liveWhere, totalCents: { gt: prisma.customerInvoice.fields.paidCents } },
@@ -124,6 +124,7 @@ export default async function AdminDashboard({
     prisma.customerInvoice.findMany({ where: { customerId: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] } }, select: { customerId: true, issueDate: true } }),
     prisma.customerInvoice.groupBy({ by: ["salesRep"], where: { salesRep: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, _sum: { totalCents: true }, _count: { _all: true } }),
     prisma.customerPayment.findMany({ select: { receivedAt: true, invoice: { select: { issueDate: true } } } }),
+    prisma.product.findMany({ where: { availability: { in: ["LIMITED", "UNAVAILABLE"] } }, orderBy: [{ availability: "desc" }, { name: "asc" }], take: 12, select: { slug: true, name: true, supplier: true, leadTimeDays: true, availability: true } }),
   ]);
 
   // A/R from the open invoices.
@@ -440,6 +441,24 @@ export default async function AdminDashboard({
                     })}
                   </ul>
                 </div>
+              </div>
+            </section>
+          ) : null}
+
+          {/* Availability — re-check with supplier */}
+          {availWatch.length ? (
+            <section className="mt-6">
+              <h2 className="mb-2 font-display text-lg text-olive-900">Check with supplier</h2>
+              <div className="rounded-xl border border-olive-100 bg-white">
+                <ul className="divide-y divide-olive-50">
+                  {availWatch.map((p) => (
+                    <li key={p.slug} className="flex items-center gap-3 px-4 py-2">
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${p.availability === "UNAVAILABLE" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>{p.availability === "UNAVAILABLE" ? "Unavailable" : "Limited"}</span>
+                      <Link href={`/admin/products/${p.slug}`} className="min-w-0 flex-1 truncate text-sm text-olive-800 hover:underline">{p.name}</Link>
+                      <span className="shrink-0 text-xs text-olive-400">{p.supplier || "no supplier"}{p.leadTimeDays ? ` · ${p.leadTimeDays}d lead` : ""}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </section>
           ) : null}

@@ -94,6 +94,9 @@ model Product {
   stockUnits          Int?
   /// Typical lead time in days when out of stock (admin-only).
   leadTimeDays        Int?
+  /// Availability (DASHBOARD §1b) — La Vague holds no stock, so this is a
+  /// supplier-sourcing status, not a count. Unavailable shows on the store.
+  availability        ProductAvailability @default(AVAILABLE)
 
   variants      ProductVariant[]
   accountPrices AccountProductPrice[]
@@ -104,6 +107,12 @@ model Product {
   @@index([isFeatured])
   @@index([wholesaleEnabled])
   @@index([barcode])
+}
+
+enum ProductAvailability {
+  AVAILABLE
+  LIMITED
+  UNAVAILABLE
 }
 
 /// A "possible duplicates" group the admin marked as Not Duplicates

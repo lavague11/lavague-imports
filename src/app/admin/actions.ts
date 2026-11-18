@@ -124,6 +124,7 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
         name: str(fd, "name") || undefined,
         description: str(fd, "description") || undefined,
         brand: optStr(fd, "brand"),
+        availability: (["AVAILABLE", "LIMITED", "UNAVAILABLE"].includes(str(fd, "availability")) ? str(fd, "availability") : undefined) as "AVAILABLE" | "LIMITED" | "UNAVAILABLE" | undefined,
         images,
         origin: optStr(fd, "origin"),
         ribbon: optStr(fd, "ribbon"),
