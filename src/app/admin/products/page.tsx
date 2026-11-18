@@ -6,6 +6,7 @@ import { BulkBar } from "@/components/admin/bulk-bar";
 import { ColumnFilter, type FilterOption } from "@/components/admin/column-filter";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { FilterDrawer } from "@/components/admin/filter-drawer";
+import { InlinePrice } from "@/components/admin/inline-price";
 import { MobileProductList } from "@/components/admin/mobile-product-list";
 import { NewProductMenu } from "@/components/admin/new-product-menu";
 import { ProductSearch } from "@/components/admin/product-search";
@@ -250,7 +251,7 @@ export default async function AdminProducts({
             </thead>
             <tbody>
               {rows.map((p) => {
-                const price = p.variants[0]?.retailPriceCents ?? p.minPriceCents ?? null;
+                const v = p.variants[0];
                 return (
                   <tr key={p.id} className="border-b border-olive-50 last:border-0">
                     <td className="p-3">
@@ -272,7 +273,9 @@ export default async function AdminProducts({
                     <td className="p-3"><span className="rounded bg-olive-50 px-2 py-0.5 text-xs text-olive-600">{sourceLabel(p.source)}</span></td>
                     <td className="p-3 text-olive-600">{p.category.name}</td>
                     <td className="p-3 text-olive-600">{p.origin ?? "—"}</td>
-                    <td className="p-3 text-olive-700">{formatPriceOrRequest(price)}</td>
+                    <td className="p-3 text-right">
+                      <InlinePrice slug={p.slug} sku={v?.sku ?? ""} initialDollars={v?.retailPriceCents != null ? (v.retailPriceCents / 100).toFixed(2) : ""} />
+                    </td>
                     <td className="p-3"><StatusSelect slug={p.slug} active={p.isActive} /></td>
                     <td className="p-3 text-right"><Link href={`/admin/products/${p.slug}`} className="text-olive-700 hover:underline">Edit</Link></td>
                   </tr>
