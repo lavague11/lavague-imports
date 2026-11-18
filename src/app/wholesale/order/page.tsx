@@ -7,6 +7,7 @@ import { ReorderGrid, type ReorderItem } from "@/components/wholesale/reorder-gr
 import { getCustomer } from "@/lib/customer-auth";
 import { getPrisma } from "@/lib/db";
 import { cartCount, readWholesaleCart } from "@/lib/wholesale-cart";
+import { usualItems } from "@/lib/wholesale-reorder";
 
 export const metadata = {
   title: "Order request — wholesale line sheet",
@@ -38,27 +39,16 @@ export default async function WholesaleOrderPage({
   const country = (firstValue(params.country) || "").trim();
   const cart = await readWholesaleCart();
 
-  // Reorder grid — products from the customer's past order requests, most-recent
-  // then most-frequent first, plus a couple of secondary suggestions.
-  const pastLines = await prisma.orderRequestLine.findMany({
-    where: { request: { customerId: customer.id }, slug: { not: null } },
-    orderBy: { createdAt: "desc" },
-    take: 500,
-    select: { slug: true, cases: true, createdAt: true },
-  });
-  const stat = new Map<string, { lastQty: number; lastAt: number; freq: number }>();
-  for (const l of pastLines) {
-    if (!l.slug) continue;
-    const s = stat.get(l.slug);
-    if (!s) stat.set(l.slug, { lastQty: l.cases, lastAt: l.createdAt.getTime(), freq: 1 });
-    else s.freq += 1; // the most-recent row is seen first (desc), so lastQty/lastAt stay
-  }
-  const pastSlugs = [...stat.keys()];
+  // Reorder grid — the customer's usual items (past order requests, or paid
+  // invoice history for imported customers), most-recent then most-frequent
+  // first, plus a couple of secondary suggestions.
+  const usual = await usualItems(prisma, customer.id);
+  const usualSlugs = [...usual.keys()];
 
   let reorderItems: ReorderItem[] = [];
-  if (pastSlugs.length) {
+  if (usualSlugs.length) {
     const prods = await prisma.product.findMany({
-      where: { slug: { in: pastSlugs }, isActive: true, wholesaleEnabled: true },
+      where: { slug: { in: usualSlugs }, isActive: true, wholesaleEnabled: true },
       include: { variants: { orderBy: { position: "asc" }, take: 1 } },
     });
     const toItem = (p: (typeof prods)[number], lastQty: number, suggested: boolean): ReorderItem => {
@@ -74,15 +64,15 @@ export default async function WholesaleOrderPage({
       };
     };
     const bySlug = new Map(prods.map((p) => [p.slug, p]));
-    reorderItems = pastSlugs
+    reorderItems = usualSlugs
       .filter((s) => bySlug.has(s))
-      .sort((a, b) => stat.get(b)!.lastAt - stat.get(a)!.lastAt || stat.get(b)!.freq - stat.get(a)!.freq)
-      .map((s) => toItem(bySlug.get(s)!, stat.get(s)!.lastQty, false))
+      .sort((a, b) => usual.get(b)!.lastAt - usual.get(a)!.lastAt || usual.get(b)!.freq - usual.get(a)!.freq)
+      .map((s) => toItem(bySlug.get(s)!, usual.get(s)!.lastQty, false))
       .slice(0, 100);
 
     if (reorderItems.length) {
       const suggestions = await prisma.product.findMany({
-        where: { isActive: true, wholesaleEnabled: true, slug: { notIn: pastSlugs } },
+        where: { isActive: true, wholesaleEnabled: true, slug: { notIn: usualSlugs } },
         include: { variants: { orderBy: { position: "asc" }, take: 1 } },
         orderBy: [{ isFeatured: "desc" }, { name: "asc" }],
         take: 4,
