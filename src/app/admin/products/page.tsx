@@ -6,6 +6,7 @@ import { BulkBar } from "@/components/admin/bulk-bar";
 import { ColumnFilter, type FilterOption } from "@/components/admin/column-filter";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { FilterDrawer } from "@/components/admin/filter-drawer";
+import { NewProductMenu } from "@/components/admin/new-product-menu";
 import { ProductSearch } from "@/components/admin/product-search";
 import { StatusSelect } from "@/components/admin/status-select";
 import { getCurrentUser } from "@/lib/auth";
@@ -171,9 +172,7 @@ export default async function AdminProducts({
             statusOptions={statusOptions}
             quickOptions={quickOptions}
           />
-          <Link href="/admin/products/new" className="inline-flex h-10 items-center rounded-lg bg-olive-900 px-3.5 text-sm font-medium text-white hover:bg-olive-800">
-            + New
-          </Link>
+          <NewProductMenu />
           <ExportMenu />
         </div>
       </div>
