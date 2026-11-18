@@ -11,6 +11,7 @@ interface Props {
   categoryOptions: FilterOption[];
   originOptions: FilterOption[];
   statusOptions: FilterOption[];
+  quickOptions: FilterOption[];
 }
 
 function FilterSection({
@@ -64,12 +65,13 @@ const SORTS = [
  * mobile, where the tiny header funnels are hard to tap. Apply writes every
  * choice to the URL at once and resets to page 1.
  */
-export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, statusOptions }: Props) {
+export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, statusOptions, quickOptions }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   const [open, setOpen] = useState(false);
 
   const listOf = (k: string) => new Set((sp.get(k) || "").split(",").filter(Boolean));
+  const [quick, setQuick] = useState(sp.get("filter") || "");
   const [source, setSource] = useState<Set<string>>(listOf("source"));
   const [category, setCategory] = useState<Set<string>>(listOf("category"));
   const [origin, setOrigin] = useState<Set<string>>(listOf("origin"));
@@ -81,10 +83,12 @@ export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, st
   const [sort, setSort] = useState(sp.get("sort") ? `${sp.get("sort")}:${sp.get("dir") || "asc"}` : "");
 
   const activeCount =
+    (sp.get("filter") ? 1 : 0) +
     listOf("source").size + listOf("category").size + listOf("origin").size + listOf("status").size + (sp.get("price") ? 1 : 0);
 
   // Re-sync draft from the URL whenever the drawer is opened.
   const openDrawer = () => {
+    setQuick(sp.get("filter") || "");
     setSource(listOf("source"));
     setCategory(listOf("category"));
     setOrigin(listOf("origin"));
@@ -106,6 +110,8 @@ export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, st
 
   const apply = () => {
     const p = new URLSearchParams(sp.toString());
+    if (quick) p.set("filter", quick);
+    else p.delete("filter");
     const put = (k: string, s: Set<string>) => (s.size ? p.set(k, [...s].join(",")) : p.delete(k));
     put("source", source);
     put("category", category);
@@ -163,6 +169,34 @@ export function FilterDrawer({ sourceOptions, categoryOptions, originOptions, st
 
             <div className="flex-1 overflow-y-auto px-4">
               <div className="border-t border-olive-100 py-3 first:border-t-0">
+                <p className="mb-1.5 text-xs font-semibold tracking-wide text-olive-500 uppercase">Show</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setQuick("")}
+                    className={`rounded-full border px-2.5 py-1 text-xs ${quick === "" ? "border-olive-800 bg-olive-800 text-white" : "border-olive-200 text-olive-700 hover:bg-olive-50"}`}
+                  >
+                    All
+                  </button>
+                  {quickOptions.map((o) => {
+                    const on = quick === o.value;
+                    return (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => setQuick(on ? "" : o.value)}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${on ? "border-olive-800 bg-olive-800 text-white" : "border-olive-200 text-olive-700 hover:bg-olive-50"}`}
+                      >
+                        {on ? <Check className="h-3 w-3" /> : null}
+                        {o.label}
+                        {o.count != null ? <span className={on ? "text-olive-200" : "text-olive-400"}>{o.count}</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="border-t border-olive-100 py-3">
                 <p className="mb-1.5 text-xs font-semibold tracking-wide text-olive-500 uppercase">Sort</p>
                 <select value={sort} onChange={(e) => setSort(e.target.value)} className="w-full rounded-lg border border-olive-200 px-3 py-2 text-sm">
                   {SORTS.map((s) => (

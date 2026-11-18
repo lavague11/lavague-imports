@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, Download } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 
 /**
  * Export the products list as CSV. "Current view" respects every active
@@ -59,14 +59,15 @@ export function ExportMenu() {
           setCount(checkedSlugs().length);
           setOpen((o) => !o);
         }}
-        className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-olive-200 px-3 text-sm font-medium text-olive-700 hover:bg-olive-50"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-olive-200 text-olive-700 hover:bg-olive-50"
+        aria-label="More actions"
         aria-expanded={open}
       >
-        <Download className="h-4 w-4" /> Export <ChevronDown className="h-3.5 w-3.5" />
+        <MoreHorizontal className="h-5 w-5" />
       </button>
       {open ? (
         <div className="absolute right-0 z-50 mt-1 w-56 rounded-lg border border-olive-100 bg-white py-1 shadow-lg">
-          <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-olive-400 uppercase">Current view</p>
+          <p className="px-3 pt-1 pb-0.5 text-[10px] font-semibold tracking-wide text-olive-400 uppercase">Export · current view</p>
           <button type="button" onClick={() => exportCurrent("csv")} className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50">
             CSV
           </button>

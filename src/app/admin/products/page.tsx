@@ -6,6 +6,7 @@ import { BulkBar } from "@/components/admin/bulk-bar";
 import { ColumnFilter, type FilterOption } from "@/components/admin/column-filter";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { FilterDrawer } from "@/components/admin/filter-drawer";
+import { ProductSearch } from "@/components/admin/product-search";
 import { StatusSelect } from "@/components/admin/status-select";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -49,12 +50,15 @@ export default async function AdminProducts({
   const { q: search, filter, sources, cats, origins, statuses, price, priceMin, priceMax, sortKey, dir, page, pageSize } = parsed;
   const where = await buildProductWhere(prisma, parsed);
 
-  const [categories, sourceGroups, originGroups, customCount, missingOriginCount, total, rows] = await Promise.all([
+  const [categories, sourceGroups, originGroups, customCount, missingOriginCount, missingImageCount, hiddenCount, needsReviewCount, total, rows] = await Promise.all([
     getCategories(),
     prisma.product.groupBy({ by: ["source"], _count: { _all: true } }),
     prisma.product.groupBy({ by: ["origin"], _count: { _all: true } }),
     prisma.product.count({ where: { isCustom: true } }),
     prisma.product.count({ where: { origin: null } }),
+    prisma.product.count({ where: { imageUrl: null } }),
+    prisma.product.count({ where: { isActive: false } }),
+    prisma.product.count({ where: { needsReview: true } }),
     prisma.product.count({ where }),
     prisma.product.findMany({
       where,
@@ -88,6 +92,14 @@ export default async function AdminProducts({
     { value: "retail", label: "Retail channel" },
     { value: "wholesale", label: "Wholesale channel" },
   ];
+  // Quick content filters (formerly the chip-tab row) — now live in the Filter menu.
+  const quickOptions: FilterOption[] = [
+    { value: "missing-image", label: "Missing image", count: missingImageCount },
+    { value: "no-description", label: "No description" },
+    { value: "hidden", label: "Hidden", count: hiddenCount },
+    { value: "needs-review", label: "Needs review", count: needsReviewCount },
+    { value: "custom", label: "Custom", count: customCount },
+  ];
 
   // ---- active filter chips ----
   const labelFor = (list: FilterOption[], v: string) => list.find((o) => o.value === v)?.label ?? v;
@@ -108,6 +120,7 @@ export default async function AdminProducts({
   for (const c of cats) chips.push({ key: `cat:${c}`, label: labelFor(categoryOptions, c), href: removeHref("category", c) });
   for (const o of origins) chips.push({ key: `origin:${o}`, label: labelFor(originOptions, o), href: removeHref("origin", o) });
   for (const s of statuses) chips.push({ key: `status:${s}`, label: labelFor(statusOptions, s), href: removeHref("status", s) });
+  if (filter) chips.push({ key: `filter:${filter}`, label: labelFor(quickOptions, filter), href: removeHref("filter") });
   if (price === "has") chips.push({ key: "price", label: "Has a price", href: removeHref("price") });
   else if (price === "request") chips.push({ key: "price", label: "Price on request", href: removeHref("price") });
   else if (price === "range") {
@@ -119,22 +132,6 @@ export default async function AdminProducts({
     if (search) p.set("q", search);
     return `/admin/products${p.toString() ? `?${p}` : ""}`;
   })();
-
-  const tabs = [
-    { key: "all", label: "All", filter: "" },
-    { key: "missing-image", label: "Missing image", filter: "missing-image" },
-    { key: "no-description", label: "No description", filter: "no-description" },
-    { key: "hidden", label: "Hidden", filter: "hidden" },
-    { key: "needs-review", label: "Needs review", filter: "needs-review" },
-    { key: "custom", label: "Custom", filter: "custom" },
-  ];
-  const tabHref = (f: string) => {
-    const p = new URLSearchParams(cur);
-    if (f) p.set("filter", f);
-    else p.delete("filter");
-    p.delete("page");
-    return `/admin/products?${p.toString()}`;
-  };
 
   // Sortable header link — preserves all current params.
   const sortLink = (label: string, col: SortKey) => {
@@ -160,44 +157,25 @@ export default async function AdminProducts({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      {/* Toolbar: one slim row — title + live search (left), Filter · + New · ⋯ (right) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-3 sm:flex-1">
           <h1 className="font-display text-2xl text-olive-900">Products</h1>
-          <Link href="/admin/products/new" className="inline-flex h-10 items-center rounded-lg bg-olive-900 px-3.5 text-sm font-medium text-white hover:bg-olive-800">
-            + New Product
-          </Link>
+          <ProductSearch />
         </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          {/* Search preserves all active filters/sort via hidden inputs. */}
-          <form action="/admin/products" className="flex flex-1 gap-2 sm:flex-initial">
-            {Object.entries(cur)
-              .filter(([k]) => k !== "q" && k !== "page")
-              .map(([k, v]) => (
-                <input key={k} type="hidden" name={k} value={v} />
-              ))}
-            <input name="q" defaultValue={search} placeholder="Search products…" className="h-10 w-full flex-1 rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none sm:w-56 sm:flex-initial" />
-            <button className="h-10 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white">Search</button>
-          </form>
+        <div className="flex items-center gap-2">
           <FilterDrawer
             sourceOptions={sourceOptions}
             categoryOptions={categoryOptions}
             originOptions={originOptions}
             statusOptions={statusOptions}
+            quickOptions={quickOptions}
           />
+          <Link href="/admin/products/new" className="inline-flex h-10 items-center rounded-lg bg-olive-900 px-3.5 text-sm font-medium text-white hover:bg-olive-800">
+            + New
+          </Link>
           <ExportMenu />
         </div>
-      </div>
-
-      {/* Quick content chips — scroll horizontally on small screens */}
-      <div className="mt-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
-        {tabs.map((t) => {
-          const active = (t.filter || "") === (filter || "");
-          return (
-            <Link key={t.key} href={tabHref(t.filter)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${active ? "border-olive-900 bg-olive-900 text-white" : "border-olive-200 text-olive-700 hover:bg-olive-50"}`}>
-              {t.label}
-            </Link>
-          );
-        })}
       </div>
 
       {/* Active filter chips */}
