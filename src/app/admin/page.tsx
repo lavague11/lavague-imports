@@ -97,7 +97,7 @@ export default async function AdminDashboard({
     orderRequests, needsReviewCount,
     recentInvoices, recentPayments, newCustomers,
     missingImage, custom, overrides, drafts,
-    trendCur, trendPrev, linesCur, linesPrev, topCustAgg, allCustInv,
+    trendCur, trendPrev, linesCur, linesPrev, topCustAgg, allCustInv, repAgg,
   ] = await Promise.all([
     prisma.customerInvoice.findMany({
       where: { ...liveWhere, totalCents: { gt: prisma.customerInvoice.fields.paidCents } },
@@ -122,7 +122,13 @@ export default async function AdminDashboard({
     prisma.customerInvoiceLine.groupBy({ by: ["sku"], where: { isCredit: false, sku: { not: null }, invoice: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.prevStart, lt: win.prevEnd } } }, _sum: { lineTotalCents: true } }),
     prisma.customerInvoice.groupBy({ by: ["customerId"], where: { customerId: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, _sum: { totalCents: true } }),
     prisma.customerInvoice.findMany({ where: { customerId: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] } }, select: { customerId: true, issueDate: true } }),
+    prisma.customerInvoice.groupBy({ by: ["salesRep"], where: { salesRep: { not: null }, status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, _sum: { totalCents: true }, _count: { _all: true } }),
   ]);
+
+  const reps = repAgg
+    .filter((r) => r.salesRep && r.salesRep.trim())
+    .map((r) => ({ name: r.salesRep as string, revenue: r._sum.totalCents ?? 0, count: r._count._all }))
+    .sort((a, b) => b.revenue - a.revenue);
 
   // Top customers (by revenue in range) + at-risk ("haven't ordered lately").
   const topCustRows = topCustAgg.filter((r) => r.customerId).sort((a, b) => (b._sum.totalCents ?? 0) - (a._sum.totalCents ?? 0)).slice(0, 10);
@@ -373,6 +379,22 @@ export default async function AdminDashboard({
                     </Link>
                   ) : null}
                 </div>
+              </div>
+            </section>
+          ) : null}
+
+          {/* Sales reps */}
+          {reps.length ? (
+            <section className="mt-6">
+              <h2 className="mb-2 font-display text-lg text-olive-900">Sales reps · {win.label}</h2>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {reps.map((r) => (
+                  <div key={r.name} className="rounded-xl border border-olive-100 bg-white p-4">
+                    <p className="text-sm font-medium text-olive-900">{r.name}</p>
+                    <p className="mt-1 text-lg font-semibold text-olive-900">{formatPrice(r.revenue)}</p>
+                    <p className="text-xs text-olive-500">{r.count} invoice{r.count === 1 ? "" : "s"}</p>
+                  </div>
+                ))}
               </div>
             </section>
           ) : null}
