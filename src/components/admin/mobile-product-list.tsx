@@ -12,6 +12,7 @@ export interface MobileProductItem {
   slug: string;
   name: string;
   categoryName: string;
+  brand: string | null;
   origin: string | null;
   imageUrl: string | null;
   priceLabel: string;
@@ -101,7 +102,7 @@ export function MobileProductList({ items }: { items: MobileProductItem[] }) {
 
             <div className="min-w-0 flex-1">
               <p className="line-clamp-2 text-sm font-medium text-olive-900">{p.name}</p>
-              <p className="truncate text-xs text-olive-500">{p.categoryName}{p.origin ? ` · ${p.origin}` : ""}</p>
+              <p className="truncate text-xs text-olive-500">{p.brand ? `${p.brand} · ` : ""}{p.categoryName}{p.origin ? ` · ${p.origin}` : ""}</p>
               <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                 <span className="text-sm text-olive-700">{p.priceLabel}</span>
                 {p.needsReview ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">review</span> : null}
