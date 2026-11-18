@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FilePlus2, Phone, MessageSquare, Bell } from "lucide-react";
+import { FilePlus2, Phone, MessageSquare, Bell, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 import { DateRangePicker } from "@/components/admin/date-range-picker";
 import { SalesTrendChart } from "@/components/admin/sales-trend-chart";
@@ -16,6 +16,40 @@ const day = 864e5;
 const daysLate = (due: Date, now: Date) => Math.max(0, Math.floor((now.getTime() - due.getTime()) / day));
 const dateFmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const pct = (cur: number, prev: number) => (prev <= 0 ? null : Math.round(((cur - prev) / prev) * 100));
+
+interface TopItem { sku: string; product: { slug: string; name: string; imageUrl: string | null } | null; label: string; trend: "up" | "down" | "flat" }
+function TopList({ title, items }: { title: string; items: TopItem[] }) {
+  return (
+    <div className="rounded-xl border border-olive-100 bg-white">
+      <p className="border-b border-olive-50 px-4 py-2.5 text-sm font-medium text-olive-800">{title}</p>
+      <ul className="divide-y divide-olive-50">
+        {items.length === 0 ? <li className="px-4 py-3 text-sm text-olive-400">No sales in this period.</li> : null}
+        {items.map((t) => {
+          const Icon = t.trend === "up" ? TrendingUp : t.trend === "down" ? TrendingDown : Minus;
+          const cls = t.trend === "up" ? "text-emerald-600" : t.trend === "down" ? "text-red-500" : "text-olive-300";
+          const row = (
+            <span className="flex items-center gap-3">
+              {t.product?.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={t.product.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded object-contain" />
+              ) : (
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-olive-50 text-[9px] text-olive-400">—</span>
+              )}
+              <span className="min-w-0 flex-1 truncate text-sm text-olive-800">{t.product?.name ?? t.sku}</span>
+              <span className="shrink-0 text-sm font-medium text-olive-900">{t.label}</span>
+              <Icon className={`h-4 w-4 shrink-0 ${cls}`} />
+            </span>
+          );
+          return (
+            <li key={t.sku} className="px-4 py-2">
+              {t.product ? <Link href={`/admin/products/${t.product.slug}`}>{row}</Link> : row}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: "Draft", cls: "bg-olive-100 text-olive-600" },
@@ -63,7 +97,7 @@ export default async function AdminDashboard({
     orderRequests, needsReviewCount,
     recentInvoices, recentPayments, newCustomers,
     missingImage, custom, overrides, drafts,
-    trendCur, trendPrev,
+    trendCur, trendPrev, linesCur, linesPrev,
   ] = await Promise.all([
     prisma.customerInvoice.findMany({
       where: { ...liveWhere, totalCents: { gt: prisma.customerInvoice.fields.paidCents } },
@@ -84,7 +118,30 @@ export default async function AdminDashboard({
     prisma.productOverride.count({ where: { draftUpdatedAt: { not: null } } }),
     prisma.customerInvoice.findMany({ where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } }, select: { issueDate: true, totalCents: true } }),
     prisma.customerInvoice.findMany({ where: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.prevStart, lt: win.prevEnd } }, select: { issueDate: true, totalCents: true } }),
+    prisma.customerInvoiceLine.groupBy({ by: ["sku"], where: { isCredit: false, sku: { not: null }, invoice: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.start, lte: win.end } } }, _sum: { lineTotalCents: true, quantity: true } }),
+    prisma.customerInvoiceLine.groupBy({ by: ["sku"], where: { isCredit: false, sku: { not: null }, invoice: { status: { in: ["SENT", "PARTIAL", "PAID"] }, issueDate: { gte: win.prevStart, lt: win.prevEnd } } }, _sum: { lineTotalCents: true } }),
   ]);
+
+  // Top products (by revenue and cases) with a trend vs the previous period.
+  const sumRev = new Map<string, number>();
+  const sumCases = new Map<string, number>();
+  for (const r of linesCur) { if (!r.sku) continue; sumRev.set(r.sku, r._sum.lineTotalCents ?? 0); sumCases.set(r.sku, r._sum.quantity ?? 0); }
+  const prevRev = new Map(linesPrev.filter((r) => r.sku).map((r) => [r.sku as string, r._sum.lineTotalCents ?? 0]));
+  const byRevenueSkus = [...sumRev.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const byCasesSkus = [...sumCases.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const topSkus = [...new Set([...byRevenueSkus, ...byCasesSkus].map(([s]) => s))];
+  const topVariants = topSkus.length
+    ? await prisma.productVariant.findMany({ where: { sku: { in: topSkus } }, select: { sku: true, product: { select: { slug: true, name: true, imageUrl: true } } } })
+    : [];
+  const prodBySku = new Map(topVariants.map((v) => [v.sku, v.product]));
+  const trendOf = (sku: string, cur: number): "up" | "down" | "flat" => {
+    const p = prevRev.get(sku) ?? 0;
+    if (cur > p * 1.05) return "up";
+    if (p > 0 && cur < p * 0.95) return "down";
+    return "flat";
+  };
+  const topRevenue = byRevenueSkus.map(([sku, rev]) => ({ sku, product: prodBySku.get(sku) ?? null, label: formatPrice(rev), trend: trendOf(sku, rev) }));
+  const topCases = byCasesSkus.map(([sku, cases]) => ({ sku, product: prodBySku.get(sku) ?? null, label: `${cases} cases`, trend: trendOf(sku, sumRev.get(sku) ?? 0) }));
 
   // Revenue trend buckets (equal time slices; current vs previous period).
   const N = 12;
@@ -185,6 +242,17 @@ export default async function AdminDashboard({
           <div className="mt-6">
             <SalesTrendChart points={trendPoints} periodLabel={win.label} />
           </div>
+
+          {/* Top products */}
+          {topRevenue.length || topCases.length ? (
+            <section className="mt-6">
+              <h2 className="mb-2 font-display text-lg text-olive-900">Top products · {win.label}</h2>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <TopList title="By revenue" items={topRevenue} />
+                <TopList title="By cases sold" items={topCases} />
+              </div>
+            </section>
+          ) : null}
 
           {/* Needs you */}
           {needsYou ? (
