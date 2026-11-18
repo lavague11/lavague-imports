@@ -31,6 +31,7 @@ export interface EditLine {
 export interface InvoiceEditFormProps {
   action: string;
   cancelHref: string;
+  invoiceId: string;
   number: string;
   customerId: string | null;
   customerRole: "CUSTOMER" | "WHOLESALE" | null;
@@ -244,7 +245,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
             <Plus className="h-4 w-4" /> Add line
           </button>
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            <VoiceOrder onAddLine={addVoiceLine} customerId={props.customerId} />
+            <VoiceOrder onAddLine={addVoiceLine} customerId={props.customerId} invoiceId={props.invoiceId} />
             <PreviousItems customerId={props.customerId} onAdd={addLines} />
             <AddCredit customerId={props.customerId} onAdd={addCredit} />
             <InvoiceAssist getLines={assistLines} onApply={applyAssist} />

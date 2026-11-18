@@ -48,8 +48,18 @@ export async function POST(request: Request) {
       prompt: VOCAB,
       // language omitted on purpose → auto-detect (speakers mix Arabic + English)
       response_format: "json",
+      include: ["logprobs"], // token logprobs → an overall STT confidence
     });
-    return NextResponse.json({ configured: true, text: result.text ?? "" });
+    // Confidence = exp(mean token logprob). Not every deployment returns logprobs,
+    // so treat it as optional and fall back to "unknown" (null).
+    const logprobs = (result as unknown as { logprobs?: { logprob?: number }[] }).logprobs;
+    let confidence: number | null = null;
+    if (Array.isArray(logprobs) && logprobs.length) {
+      const vals = logprobs.map((l) => (typeof l.logprob === "number" ? l.logprob : 0));
+      const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+      confidence = Math.max(0, Math.min(1, Math.exp(mean)));
+    }
+    return NextResponse.json({ configured: true, text: result.text ?? "", confidence });
   } catch (error) {
     console.error("[voice] transcribe failed", error);
     return NextResponse.json({ configured: true, error: "failed" });

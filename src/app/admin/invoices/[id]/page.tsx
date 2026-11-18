@@ -184,6 +184,7 @@ export default async function InvoicePage({
       <InvoiceEditForm
         action={`/admin/invoices/${id}/save`}
         cancelHref="/admin/invoices"
+        invoiceId={id}
         number={invoice.number}
         customerId={c?.id ?? null}
         customerRole={(c?.role as "CUSTOMER" | "WHOLESALE" | undefined) ?? null}

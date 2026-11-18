@@ -126,6 +126,7 @@ export async function POST(request: Request) {
     "sku": string,           // matched catalog SKU, or "" — NEVER invent
     "packSize": string,
     "quantity": number,      // Arabic/English numbers (واحدة/one=1, اتنين/two=2, تلاتة/three=3 ...); default 1
+    "quantitySpoken": boolean,// true ONLY if the speaker actually said a number for THIS item; false if you defaulted to 1
     "unit": "piece" | "case",// case if box/كرتونة/صندوق/carton/case
     "priceCents": number|null,
     "priceSource": "spoken" | "catalog" | "none",
@@ -155,6 +156,7 @@ ${transcript}`;
     const items = await Promise.all(
       rawItems.map(async (raw) => {
         const it = { ...raw } as Record<string, unknown>;
+        it.quantitySpoken = Boolean(it.quantitySpoken);
         let sku = String(it.sku ?? "");
         const isCredit = Boolean(it.isCredit);
         let matchName = sku ? bySku.get(sku)?.name ?? String(it.name ?? "") : String(it.name ?? "");
