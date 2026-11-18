@@ -81,5 +81,15 @@ export async function POST(request: Request) {
     .slice(0, 3)
     .map((s) => s.c);
 
-  return NextResponse.json({ tag, match, alternatives });
+  // §16 resolution level (the variant test): a barcode/SKU+name hit is a likely
+  // duplicate; a close name on the SAME brand is a related variant (probably a
+  // size); a close name on a different/unknown brand is a possible match.
+  let level: "likely-duplicate" | "related-variant" | "possible" | "none" = "none";
+  if (tag === "strong") level = "likely-duplicate";
+  else if (tag === "possible") {
+    const sameBrand = !!match?.brand && !!brand && match.brand.trim().toLowerCase() === brand.trim().toLowerCase();
+    level = sameBrand ? "related-variant" : "possible";
+  }
+
+  return NextResponse.json({ tag, level, match, alternatives });
 }

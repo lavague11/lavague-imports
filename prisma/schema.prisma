@@ -106,6 +106,25 @@ model Product {
   @@index([barcode])
 }
 
+/// A "possible duplicates" group the admin marked as Not Duplicates
+/// (PRODUCTS_UI §17), so it's never suggested again. `key` is the group key.
+model ProductDuplicateDismissal {
+  key       String   @id
+  createdAt DateTime @default(now())
+}
+
+/// A product merge (PRODUCTS_UI §17). `snapshot` holds the deleted losers'
+/// products, variants and overrides plus the moved variant ids, so the merge
+/// can be undone.
+model MergeLog {
+  id           String    @id @default(cuid())
+  survivorSlug String
+  snapshot     Json
+  actor        String?
+  createdAt    DateTime  @default(now())
+  undoneAt     DateTime?
+}
+
 /// A purchasable size/pack of a product. Prices are stored in cents to avoid
 /// floating point rounding errors.
 model ProductVariant {

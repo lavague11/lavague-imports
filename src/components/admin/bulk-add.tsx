@@ -18,7 +18,14 @@ interface Item {
   score: number | null; notes: string; s: Suggestion | null;
 }
 type Tag = "strong" | "possible" | "none";
-interface MatchInfo { tag: Tag; match: { slug: string; name: string; brand: string | null } | null; alternatives: { slug: string; name: string; brand: string | null }[] }
+type Level = "likely-duplicate" | "related-variant" | "possible" | "none";
+interface MatchInfo { tag: Tag; level?: Level; match: { slug: string; name: string; brand: string | null } | null; alternatives: { slug: string; name: string; brand: string | null }[] }
+const LEVEL_META: Record<Level, { label: string; cls: string }> = {
+  "likely-duplicate": { label: "Likely duplicate", cls: "bg-red-100 text-red-700" },
+  "related-variant": { label: "Related variant", cls: "bg-amber-100 text-amber-800" },
+  possible: { label: "Possible match", cls: "bg-amber-100 text-amber-800" },
+  none: { label: "Needs review", cls: "bg-olive-100 text-olive-600" },
+};
 interface Draft {
   name: string; brand: string; categorySlug: string; origin: string;
   sizeAmount: string; sizeUnit: string; unitsPerCase: string; price: string; description: string; fragile: boolean; sku: string;
@@ -33,11 +40,6 @@ const scoreChip = (score: number | null) => {
   if (score >= 80) return "bg-emerald-100 text-emerald-700";
   if (score >= 55) return "bg-amber-100 text-amber-800";
   return "bg-red-100 text-red-700";
-};
-const TAG_META: Record<Tag, { label: string; cls: string }> = {
-  strong: { label: "Strong match", cls: "bg-emerald-100 text-emerald-700" },
-  possible: { label: "Possible match", cls: "bg-amber-100 text-amber-800" },
-  none: { label: "Needs review", cls: "bg-olive-100 text-olive-600" },
 };
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -239,11 +241,11 @@ export function BulkAdd({ categories, brands, countries }: { categories: { slug:
 
       <div className="space-y-4">
         {groups.map((g) => {
-          const tag = g.match?.tag ?? "none";
+          const level: Level = g.match?.level ?? "none";
           return (
             <div key={g.id} className="rounded-xl border border-olive-100 bg-white p-4">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${TAG_META[tag].cls}`}>{TAG_META[tag].label}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${LEVEL_META[level].cls}`}>{LEVEL_META[level].label}</span>
                 {g.match?.match ? (
                   <span className="text-xs text-olive-500">
                     matches <Link href={`/admin/products/${g.match.match.slug}`} target="_blank" className="font-medium underline">{g.match.match.name}</Link>

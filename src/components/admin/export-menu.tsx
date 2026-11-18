@@ -70,6 +70,9 @@ export function ExportMenu() {
           <a href="/admin/products/clean-names" className="block px-3 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50">
             Suggest clean names
           </a>
+          <a href="/admin/products/duplicates" className="block px-3 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50">
+            Possible duplicates
+          </a>
           <p className="border-t border-olive-100 px-3 pt-1.5 pb-0.5 text-[10px] font-semibold tracking-wide text-olive-400 uppercase">Export · current view</p>
           <button type="button" onClick={() => exportCurrent("csv")} className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50">
             CSV
