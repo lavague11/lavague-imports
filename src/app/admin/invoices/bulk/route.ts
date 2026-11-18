@@ -28,10 +28,18 @@ export async function POST(request: Request) {
     const prisma = requirePrisma();
     let n = 0;
     if (action === "delete") {
-      n = (await prisma.customerInvoice.deleteMany({ where: { id: { in: ids } } })).count;
-    } else {
-      n = (await prisma.customerInvoice.updateMany({ where: { id: { in: ids } }, data: { archived: action === "archive" } })).count;
+      // Paid/partial invoices and any invoice that has payments can never be
+      // deleted — only archived. Delete the rest (lines/photos cascade).
+      const deletable = await prisma.customerInvoice.findMany({
+        where: { id: { in: ids }, status: { notIn: ["PAID", "PARTIAL"] }, payments: { none: {} } },
+        select: { id: true },
+      });
+      const delIds = deletable.map((d) => d.id);
+      n = delIds.length ? (await prisma.customerInvoice.deleteMany({ where: { id: { in: delIds } } })).count : 0;
+      const skipped = ids.length - n;
+      return redirectTo(`/admin/invoices?bulk=delete&n=${n}${skipped ? `&skipped=${skipped}` : ""}`);
     }
+    n = (await prisma.customerInvoice.updateMany({ where: { id: { in: ids } }, data: { archived: action === "archive" } })).count;
     return redirectTo(`/admin/invoices?bulk=${action}&n=${n}`);
   } catch (error) {
     console.error("[invoice] bulk action failed", error);

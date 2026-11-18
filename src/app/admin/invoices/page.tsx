@@ -38,6 +38,7 @@ export default async function AdminInvoices({
   const sp = await searchParams;
   const bulk = firstValue(sp.bulk);
   const bulkN = firstValue(sp.n);
+  const bulkSkipped = firstValue(sp.skipped);
 
   const all = await prisma.customerInvoice.findMany({
     orderBy: { createdAt: "desc" },
@@ -57,6 +58,7 @@ export default async function AdminInvoices({
   const rows: InvoiceRow[] = withDisp.map((i) => ({
     id: i.id,
     number: i.number,
+    ext: i.externalNumber ?? "",
     customer: i.customer?.businessName || i.customer?.name || i.customer?.email || "No customer",
     customerId: i.customer?.id ?? "",
     issueISO: i.issueDate.toISOString(),
@@ -91,6 +93,11 @@ export default async function AdminInvoices({
       {bulk && BULK[bulk] ? (
         <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           {BULK[bulk]}{bulkN ? ` (${bulkN})` : ""}
+        </p>
+      ) : null}
+      {bulk === "delete" && bulkSkipped && Number(bulkSkipped) > 0 ? (
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {bulkSkipped} paid/partly-paid {Number(bulkSkipped) === 1 ? "invoice was" : "invoices were"} not deleted — paid invoices can only be archived.
         </p>
       ) : null}
 

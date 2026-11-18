@@ -6,6 +6,7 @@ import { ArrowDownUp, Download, Search, Trash2, Archive, ArchiveRestore } from "
 export interface InvoiceRow {
   id: string;
   number: string;
+  ext: string;
   customer: string;
   customerId: string;
   issueISO: string;
@@ -43,6 +44,7 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
   const [tab, setTab] = useState("all");
   const [sort, setSort] = useState("newest");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [focused, setFocused] = useState(false);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,7 +52,7 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
     const needle = q.trim().toLowerCase();
     let out = rows.filter((r) => (tab === "archived" ? r.archived : !r.archived));
     if (tab !== "all" && tab !== "archived") out = out.filter((r) => r.dispKey === tab);
-    if (needle) out = out.filter((r) => `${r.number} ${r.customer}`.toLowerCase().includes(needle));
+    if (needle) out = out.filter((r) => `${r.number} ${r.ext} ${r.customer}`.toLowerCase().includes(needle));
     out = [...out].sort((a, b) => {
       if (sort === "oldest") return a.issueISO.localeCompare(b.issueISO);
       if (sort === "amount-high") return b.totalCents - a.totalCents;
@@ -63,11 +65,12 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
   const suggestions = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return [];
-    return rows.filter((r) => `${r.number} ${r.customer}`.toLowerCase().includes(needle)).slice(0, 8);
+    return rows.filter((r) => `${r.number} ${r.ext} ${r.customer}`.toLowerCase().includes(needle)).slice(0, 8);
   }, [rows, q]);
 
   const allVisibleSelected = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
   const toggleAll = () => {
+    setConfirmDelete(false);
     setSelected((prev) => {
       const next = new Set(prev);
       if (allVisibleSelected) filtered.forEach((r) => next.delete(r.id));
@@ -75,13 +78,15 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
       return next;
     });
   };
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    setConfirmDelete(false);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
 
   const selectedIds = [...selected];
 
@@ -123,7 +128,7 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
             onChange={(e) => setQ(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => { blurTimer.current = setTimeout(() => setFocused(false), 150); }}
-            placeholder="Search number or customer…"
+            placeholder="Search LV#, Invoice ASAP # or customer…"
             className="h-10 w-full rounded-lg border border-olive-200 pl-9 pr-3 text-sm focus:border-olive-500 focus:outline-none"
           />
           {focused && suggestions.length > 0 ? (
@@ -135,7 +140,7 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
                     onMouseDown={(e) => e.preventDefault()}
                     className="flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-olive-50"
                   >
-                    <span><span className="font-medium text-olive-900">{s.number}</span> <span className="text-olive-500">· {s.customer}</span></span>
+                    <span><span className="font-medium text-olive-900">{s.ext || s.number}</span>{s.ext ? <span className="text-olive-400"> ({s.number})</span> : null} <span className="text-olive-500">· {s.customer}</span></span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.dispBadge}`}>{s.dispLabel}</span>
                   </a>
                 </li>
@@ -186,13 +191,25 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
                 {tab === "archived" ? <><ArchiveRestore className="h-3.5 w-3.5" /> Unarchive</> : <><Archive className="h-3.5 w-3.5" /> Archive</>}
               </button>
             </form>
-            <form method="post" action="/admin/invoices/bulk" onSubmit={(e) => { if (!window.confirm(`Permanently delete ${selectedIds.length} invoice(s)? This can't be undone.`)) e.preventDefault(); }}>
-              {selectedIds.map((id) => <input key={id} type="hidden" name="ids" value={id} />)}
-              <input type="hidden" name="action" value="delete" />
-              <button className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+            {confirmDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-red-700">Delete {selectedIds.length}? Can&apos;t be undone.</span>
+                <form method="post" action="/admin/invoices/bulk">
+                  {selectedIds.map((id) => <input key={id} type="hidden" name="ids" value={id} />)}
+                  <input type="hidden" name="action" value="delete" />
+                  <button className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">
+                    <Trash2 className="h-3.5 w-3.5" /> Yes, delete
+                  </button>
+                </form>
+                <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 text-xs font-medium text-olive-700 hover:bg-olive-50">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
-            </form>
+            )}
           </div>
         </div>
       ) : null}
@@ -214,7 +231,7 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.number}`} className="h-5 w-5 shrink-0 accent-olive-800" />
                 <a href={`/admin/invoices/${r.id}`} className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-olive-900">{r.number}</span>
+                    <span className="font-medium text-olive-900">{r.ext || r.number}{r.ext ? <span className="ml-1 text-xs font-normal text-olive-400">({r.number})</span> : null}</span>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${r.dispBadge}`}>{r.dispLabel}</span>
                   </div>
                   <p className="truncate text-sm text-olive-600">{r.customer}</p>
@@ -249,7 +266,7 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
                 return (
                   <tr key={r.id} className={`border-b border-olive-50 last:border-0 hover:bg-olive-50/40 ${selected.has(r.id) ? "bg-olive-50/60" : ""} ${overdue ? "bg-red-50/40" : ""}`}>
                     <td className="p-3"><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.number}`} className="h-4 w-4 accent-olive-800" /></td>
-                    <td className="p-3 font-medium"><a href={`/admin/invoices/${r.id}`} className="text-olive-900 hover:underline">{r.number}</a></td>
+                    <td className="p-3 font-medium"><a href={`/admin/invoices/${r.id}`} className="text-olive-900 hover:underline">{r.ext || r.number}</a>{r.ext ? <span className="ml-1 text-xs text-olive-400">({r.number})</span> : null}</td>
                     <td className="p-3"><a href={`/admin/customers/${r.customerId}`} className="text-olive-700 hover:underline">{r.customer}</a></td>
                     <td className="p-3 whitespace-nowrap text-olive-600">{r.issueLabel}</td>
                     <td className="p-3 text-right text-olive-800">{money(r.totalCents)}</td>
