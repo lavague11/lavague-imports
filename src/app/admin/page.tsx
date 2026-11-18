@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FilePlus2, Phone, MessageSquare, Bell, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
+import { DashboardCustomize } from "@/components/admin/dashboard-customize";
 import { DateRangePicker } from "@/components/admin/date-range-picker";
 import { GoalCard } from "@/components/admin/goal-card";
 import { SalesTrendChart } from "@/components/admin/sales-trend-chart";
@@ -132,6 +133,8 @@ export default async function AdminDashboard({
   ]);
   const monthRevenue = monthRevAgg._sum.totalCents ?? 0;
   const monthlyGoal = goalRow?.value ?? 0;
+  const rangeQS = `range=${rangeKey}${firstValue(sp.from) ? `&from=${firstValue(sp.from)}` : ""}${firstValue(sp.to) ? `&to=${firstValue(sp.to)}` : ""}`;
+  const exportHref = (card: string) => `/admin/dashboard/export?card=${card}&${rangeQS}`;
 
   // A/R from the open invoices.
   const outstanding = openInvoices.reduce((s, i) => s + (i.totalCents - i.paidCents), 0);
@@ -286,6 +289,7 @@ export default async function AdminDashboard({
               <Link href="/admin/invoices" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Record payment</Link>
               <Link href="/admin/products/new" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Add product</Link>
               <Link href="/admin/customers" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Add customer</Link>
+              <DashboardCustomize />
             </div>
           </div>
         </>
@@ -305,15 +309,15 @@ export default async function AdminDashboard({
           </div>
 
           {/* Goal + sales trend */}
-          <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_2fr]">
+          <div data-dash-section="goal-trend" className="mt-6 grid gap-4 lg:grid-cols-[1fr_2fr]">
             <GoalCard current={monthRevenue} goal={monthlyGoal} />
             <SalesTrendChart points={trendPoints} periodLabel={win.label} />
           </div>
 
           {/* Top products */}
           {topRevenue.length || topCases.length ? (
-            <section className="mt-6">
-              <h2 className="mb-2 font-display text-lg text-olive-900">Top products · {win.label}</h2>
+            <section data-dash-section="top-products" className="mt-6">
+              <div className="mb-2 flex items-center justify-between"><h2 className="font-display text-lg text-olive-900">Top products · {win.label}</h2><a href={exportHref("top-products")} className="text-xs text-olive-500 underline hover:text-olive-800">Export CSV</a></div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <TopList title="By revenue" items={topRevenue} />
                 <TopList title="By cases sold" items={topCases} />
@@ -323,8 +327,8 @@ export default async function AdminDashboard({
 
           {/* Top customers + at-risk */}
           {topCustomers.length || atRiskCustomers.length ? (
-            <section className="mt-6">
-              <h2 className="mb-2 font-display text-lg text-olive-900">Customers</h2>
+            <section data-dash-section="customers" className="mt-6">
+              <div className="mb-2 flex items-center justify-between"><h2 className="font-display text-lg text-olive-900">Customers</h2><a href={exportHref("top-customers")} className="text-xs text-olive-500 underline hover:text-olive-800">Export CSV</a></div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-xl border border-olive-100 bg-white">
                   <p className="border-b border-olive-50 px-4 py-2.5 text-sm font-medium text-olive-800">Top customers · {win.label}</p>
@@ -364,7 +368,7 @@ export default async function AdminDashboard({
 
           {/* Needs you */}
           {needsYou ? (
-            <section className="mt-6">
+            <section data-dash-section="needs-you" className="mt-6">
               <h2 className="mb-2 font-display text-lg text-olive-900">Needs you</h2>
               <div className="grid gap-4 lg:grid-cols-2">
                 {overdueList.length ? (
@@ -419,8 +423,8 @@ export default async function AdminDashboard({
 
           {/* Collections */}
           {outstanding > 0 ? (
-            <section className="mt-6">
-              <h2 className="mb-2 font-display text-lg text-olive-900">Collections</h2>
+            <section data-dash-section="collections" className="mt-6">
+              <div className="mb-2 flex items-center justify-between"><h2 className="font-display text-lg text-olive-900">Collections</h2><a href={exportHref("biggest-balances")} className="text-xs text-olive-500 underline hover:text-olive-800">Export CSV</a></div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-xl border border-olive-100 bg-white p-4">
                   <div className="flex items-center justify-between text-sm">
@@ -461,7 +465,7 @@ export default async function AdminDashboard({
 
           {/* Availability — re-check with supplier */}
           {availWatch.length ? (
-            <section className="mt-6">
+            <section data-dash-section="availability" className="mt-6">
               <h2 className="mb-2 font-display text-lg text-olive-900">Check with supplier</h2>
               <div className="rounded-xl border border-olive-100 bg-white">
                 <ul className="divide-y divide-olive-50">
@@ -479,7 +483,7 @@ export default async function AdminDashboard({
 
           {/* Sales reps */}
           {reps.length ? (
-            <section className="mt-6">
+            <section data-dash-section="reps" className="mt-6">
               <h2 className="mb-2 font-display text-lg text-olive-900">Sales reps · {win.label}</h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {reps.map((r) => (
@@ -494,7 +498,7 @@ export default async function AdminDashboard({
           ) : null}
 
           {/* Activity */}
-          <section className="mt-6">
+          <section data-dash-section="activity" className="mt-6">
             <h2 className="mb-2 font-display text-lg text-olive-900">Activity</h2>
             <div className="grid gap-4 lg:grid-cols-3">
               <div className="rounded-xl border border-olive-100 bg-white">
@@ -544,7 +548,7 @@ export default async function AdminDashboard({
           </section>
 
           {/* Catalog health strip */}
-          <section className="mt-6">
+          <section data-dash-section="catalog" className="mt-6">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-olive-100 bg-white px-4 py-3 text-sm">
               <span className="text-xs font-semibold tracking-wide text-olive-400 uppercase">Catalog</span>
               {health.map((h) => (
