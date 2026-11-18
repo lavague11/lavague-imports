@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Download, Send } from "lucide-react";
+import { ArrowLeft, Download, Pencil, Send } from "lucide-react";
 
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { CopyLink } from "@/components/admin/copy-link";
 import { CustomerSearchBar, type CustomerSearchOption } from "@/components/admin/customer-search-bar";
 import { InvoiceEditForm } from "@/components/admin/invoice-edit-form";
+import { InvoiceReadOnly } from "@/components/admin/invoice-readonly";
 import { PaymentPhotoField } from "@/components/admin/payment-photo";
 import { PhotoUpload } from "@/components/admin/photo-upload";
 import { getCurrentUser } from "@/lib/auth";
@@ -106,6 +107,9 @@ export default async function InvoicePage({
   const disp = invoiceDisplay(invoice, new Date());
   const balance = invoice.totalCents - invoice.paidCents;
   const isVoid = invoice.status === "VOID";
+  // Imported history is read-only by default; ?edit=1 unlocks the editor.
+  const isImported = invoice.source === "invoice_asap";
+  const editing = !isImported || firstValue(sp.edit) === "1";
 
   const flashKey = ["sent", "paid", "delivered", "voided", "unvoided", "photo", "error", "customer"]
     .map((k) => (sp[k] ? `${k}:${firstValue(sp[k])}` : null))
@@ -145,6 +149,11 @@ export default async function InvoicePage({
           <a href={`/admin/invoices/${id}/pdf`} target="_blank" rel="noreferrer" className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>
             <Download className="h-4 w-4" /> PDF
           </a>
+          {isImported && !editing ? (
+            <Link href={`/admin/invoices/${id}?edit=1`} className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>
+              <Pencil className="h-4 w-4" /> Edit
+            </Link>
+          ) : null}
           {!isVoid && c ? (
             <form method="post" action={`/admin/invoices/${id}/send`}>
               <button className={`${btn} bg-olive-900 text-white hover:bg-olive-800`}>
@@ -167,10 +176,12 @@ export default async function InvoicePage({
         </div>
       </div>
 
-      {/* Customer search */}
-      <div className="mt-3">
-        <CustomerSearchBar invoiceId={id} current={current} customers={customers} />
-      </div>
+      {/* Customer search (edit mode only) */}
+      {editing ? (
+        <div className="mt-3">
+          <CustomerSearchBar invoiceId={id} current={current} customers={customers} />
+        </div>
+      ) : null}
 
       {/* Customer link */}
       {invoice.publicToken ? (
@@ -181,25 +192,48 @@ export default async function InvoicePage({
         </div>
       ) : null}
 
-      {/* The editor (lines, terms, sales rep, notes, totals) */}
-      <InvoiceEditForm
-        action={`/admin/invoices/${id}/save`}
-        cancelHref="/admin/invoices"
-        invoiceId={id}
-        number={invoice.number}
-        customerId={c?.id ?? null}
-        customerRole={(c?.role as "CUSTOMER" | "WHOLESALE" | undefined) ?? null}
-        categories={categories}
-        issueDate={toInput(invoice.issueDate)}
-        dueDate={toInput(invoice.dueDate)}
-        terms={invoice.terms ?? ""}
-        salesRep={invoice.salesRep ?? ""}
-        notes={invoice.notes ?? ""}
-        discount={dollarsOrBlank(invoice.discountCents)}
-        shipping={dollarsOrBlank(invoice.shippingCents)}
-        tax={dollarsOrBlank(invoice.taxCents)}
-        lines={invoice.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents, isCredit: l.isCredit, creditReason: l.creditReason }))}
-      />
+      {!editing ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-olive-200 bg-olive-50/60 px-3 py-2 text-sm text-olive-600">
+          <span>Imported from Invoice ASAP — read-only.</span>
+          <Link href={`/admin/invoices/${id}?edit=1`} className="font-medium text-olive-900 underline">Edit this invoice</Link>
+        </div>
+      ) : null}
+
+      {/* The invoice body: editor (edit mode) or a static read-only view */}
+      {editing ? (
+        <InvoiceEditForm
+          action={`/admin/invoices/${id}/save`}
+          cancelHref={isImported ? `/admin/invoices/${id}` : "/admin/invoices"}
+          invoiceId={id}
+          number={invoice.number}
+          customerId={c?.id ?? null}
+          customerRole={(c?.role as "CUSTOMER" | "WHOLESALE" | undefined) ?? null}
+          categories={categories}
+          issueDate={toInput(invoice.issueDate)}
+          dueDate={toInput(invoice.dueDate)}
+          terms={invoice.terms ?? ""}
+          salesRep={invoice.salesRep ?? ""}
+          notes={invoice.notes ?? ""}
+          discount={dollarsOrBlank(invoice.discountCents)}
+          shipping={dollarsOrBlank(invoice.shippingCents)}
+          tax={dollarsOrBlank(invoice.taxCents)}
+          lines={invoice.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents, isCredit: l.isCredit, creditReason: l.creditReason }))}
+        />
+      ) : (
+        <InvoiceReadOnly
+          terms={invoice.terms}
+          issueLabel={dateFmt(invoice.issueDate)}
+          dueLabel={invoice.dueDate ? dateFmt(invoice.dueDate) : null}
+          salesRep={invoice.salesRep}
+          lines={invoice.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents, lineTotalCents: l.lineTotalCents, isCredit: l.isCredit, sku: l.sku }))}
+          subtotalCents={invoice.subtotalCents}
+          discountCents={invoice.discountCents}
+          shippingCents={invoice.shippingCents}
+          taxCents={invoice.taxCents}
+          totalCents={invoice.totalCents}
+          notes={invoice.notes}
+        />
+      )}
 
       {/* Payments */}
       <section className="mt-6">
