@@ -18,17 +18,40 @@ export default async function AdminEditProduct({
   if (!prisma) return <p className="text-olive-700">Database not connected — see the dashboard.</p>;
 
   const { slug } = await params;
-  const [product, categories, brands] = await Promise.all([
+  const [product, categories, brands, override] = await Promise.all([
     prisma.product.findUnique({
       where: { slug },
       include: { category: true, variants: { orderBy: { position: "asc" } } },
     }),
     getCategories(),
     getBrandNames(),
+    prisma.productOverride.findUnique({ where: { slug }, select: { draft: true, draftUpdatedAt: true } }),
   ]);
   if (!product) notFound();
 
   const countries = Object.keys(COUNTRY_ISO).sort();
+
+  // Merge any unpublished draft (§9) over the live product so the form shows the
+  // work-in-progress. The store still reads the live (published) product.
+  type DraftShape = {
+    name?: string; description?: string; brand?: string | null; origin?: string | null; ribbon?: string | null;
+    categorySlug?: string; isFeatured?: boolean; isFragile?: boolean;
+    variantPrices?: Record<string, number | null>;
+    variantPacks?: Record<string, { size?: string | null; unitsPerCase?: number | null }>;
+  };
+  const draft: DraftShape | null = override?.draft && typeof override.draft === "object" ? (override.draft as DraftShape) : null;
+  const hasDraft = !!override?.draftUpdatedAt;
+  const pick = <T,>(d: T | undefined, fallback: T): T => (d !== undefined ? d : fallback);
+  const mergedVariants = product.variants.map((v) => {
+    const pack = draft?.variantPacks?.[v.sku];
+    const dp = draft?.variantPrices?.[v.sku];
+    return {
+      sku: v.sku,
+      name: pack?.size ?? v.name,
+      retailPriceCents: dp !== undefined ? dp : v.retailPriceCents,
+      unitsPerCase: pack?.unitsPerCase ?? v.unitsPerCase,
+    };
+  });
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -51,26 +74,22 @@ export default async function AdminEditProduct({
       <div className="mt-6">
         <ProductForm
           mode="edit"
+          hasDraft={hasDraft}
           product={{
             slug: product.slug,
-            name: product.name,
-            description: product.description,
-            brand: product.brand,
+            name: pick(draft?.name, product.name),
+            description: pick(draft?.description, product.description),
+            brand: pick(draft?.brand, product.brand),
             images: product.images?.length ? product.images : product.imageUrl ? [product.imageUrl] : [],
-            origin: product.origin,
-            ribbon: product.ribbon,
-            isFeatured: product.isFeatured,
+            origin: pick(draft?.origin, product.origin),
+            ribbon: pick(draft?.ribbon, product.ribbon),
+            isFeatured: pick(draft?.isFeatured, product.isFeatured),
             isActive: product.isActive,
-            isFragile: product.isFragile,
-            categorySlug: product.category.slug,
+            isFragile: pick(draft?.isFragile, product.isFragile),
+            categorySlug: pick(draft?.categorySlug, product.category.slug),
             source: product.source,
             storeUrl: `/shop/${product.slug}`,
-            variants: product.variants.map((v) => ({
-              sku: v.sku,
-              name: v.name,
-              retailPriceCents: v.retailPriceCents,
-              unitsPerCase: v.unitsPerCase,
-            })),
+            variants: mergedVariants,
           }}
           categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
           countries={countries}

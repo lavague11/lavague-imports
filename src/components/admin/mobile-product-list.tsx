@@ -22,6 +22,7 @@ export interface MobileProductItem {
   needsReview: boolean;
   isCustom: boolean;
   isFragile: boolean;
+  unpublished: boolean;
 }
 
 /**
@@ -106,6 +107,7 @@ export function MobileProductList({ items }: { items: MobileProductItem[] }) {
               <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                 <span className="text-sm text-olive-700">{p.priceLabel}</span>
                 {p.needsReview ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">review</span> : null}
+                {p.unpublished ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">unpublished</span> : null}
                 {!p.active ? <span className="rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-600">hidden</span> : null}
                 {p.isFragile ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">fragile</span> : null}
               </div>

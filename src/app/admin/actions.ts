@@ -10,8 +10,11 @@ import {
 } from "@/lib/auth";
 import {
   addProductSizes,
+  clearDraft,
   collectImagesFromForm,
   parseNewSizeRows,
+  saveDraft,
+  saveDraftPrice,
   saveProductEdits,
   setActive,
   setProductPricing,
@@ -135,6 +138,8 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
     );
     // New sizes added via the "+ Add size" table.
     await addProductSizes(slug, parseNewSizeRows(fd));
+    // Publishing applies the current edits live, so any pending draft is now moot.
+    await clearDraft(slug);
   } catch (error) {
     console.error("[admin] saveProduct failed", error);
     return { status: "error", message: "Couldn't save — is the database connected?" };
@@ -146,8 +151,38 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
   return { status: "success", message: "Saved.", reference: slug };
 }
 
-/** Mobile long-press quick sheet: set the primary price + visibility in one tap.
- *  No redirect (revalidates), so it's safe on the live host. */
+/** Autosave the edit form as a draft (§9) — never applied to the live product
+ *  until Publish. Called directly from the client form (not via a redirect). */
+export async function saveDraftAction(fd: FormData): Promise<void> {
+  await requireUser();
+  const slug = str(fd, "slug");
+  if (!slug) return;
+  const variantPrices: Record<string, number | null> = {};
+  for (const [key, value] of fd.entries()) {
+    if (!key.startsWith("price__") || typeof value !== "string") continue;
+    const t = value.trim();
+    variantPrices[key.slice("price__".length)] = t === "" ? null : Math.round(parseFloat(t) * 100);
+  }
+  try {
+    await saveDraft(slug, {
+      name: str(fd, "name") || undefined,
+      description: str(fd, "description") || undefined,
+      brand: optStr(fd, "brand"),
+      origin: optStr(fd, "origin"),
+      ribbon: optStr(fd, "ribbon"),
+      categorySlug: str(fd, "categorySlug") || undefined,
+      isFeatured: fd.get("isFeatured") === "on",
+      isFragile: fd.get("fragile") === "on",
+      variantPrices,
+      variantPacks: collectPacks(fd),
+    });
+  } catch (error) {
+    console.error("[admin] saveDraftAction failed", error);
+  }
+}
+
+/** Mobile long-press quick sheet: visibility is instant (§9), price saves as a
+ *  draft. No redirect (revalidates), so it's safe on the live host. */
 export async function quickUpdateProduct(fd: FormData): Promise<void> {
   const user = await requireUser();
   const slug = str(fd, "slug");
@@ -156,20 +191,13 @@ export async function quickUpdateProduct(fd: FormData): Promise<void> {
   const priceStr = str(fd, "price").trim();
   const active = fd.get("active") === "on" || fd.get("active") === "true";
   try {
-    await saveProductEdits(
-      slug,
-      {
-        isActive: active,
-        ...(sku ? { variantPrices: { [sku]: priceStr === "" ? null : Math.round(parseFloat(priceStr) * 100) } } : {}),
-      },
-      user.id,
-    );
+    await setActive([slug], active, user.id); // visibility is instant
+    if (sku) await saveDraftPrice(slug, sku, priceStr === "" ? null : Math.round(parseFloat(priceStr) * 100));
   } catch (error) {
     console.error("[admin] quickUpdateProduct failed", error);
     return;
   }
   revalidatePath("/admin/products");
-  revalidatePath(`/shop/${slug}`);
   revalidatePath("/shop");
 }
 

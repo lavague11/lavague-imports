@@ -255,6 +255,40 @@ export async function saveProductEdits(
   }
 }
 
+/* ---- draft / publish (PRODUCTS_UI §9) ---- */
+
+/** Autosave pending edits as a draft — NOT applied to the live product. */
+export async function saveDraft(slug: string, edits: ProductEdits): Promise<void> {
+  const prisma = requirePrisma();
+  const data = { draft: edits as unknown as Prisma.InputJsonValue, draftUpdatedAt: new Date() };
+  await prisma.productOverride.upsert({ where: { slug }, update: data, create: { slug, ...data } });
+}
+
+/** Discard any unpublished draft for a product. */
+export async function clearDraft(slug: string): Promise<void> {
+  const prisma = requirePrisma();
+  await prisma.productOverride.updateMany({ where: { slug }, data: { draft: Prisma.DbNull, draftUpdatedAt: null } });
+}
+
+/** Merge a single variant price into the draft (used by inline/quick edits,
+ *  which per §9 save as drafts rather than publishing). */
+export async function saveDraftPrice(slug: string, sku: string, cents: number | null): Promise<void> {
+  const prisma = requirePrisma();
+  const ov = await prisma.productOverride.findUnique({ where: { slug }, select: { draft: true } });
+  const draft: ProductEdits = ov?.draft && typeof ov.draft === "object" ? { ...(ov.draft as ProductEdits) } : {};
+  draft.variantPrices = { ...(draft.variantPrices ?? {}), [sku]: cents };
+  await saveDraft(slug, draft);
+}
+
+/** Apply a product's stored draft to the live product, then clear it. */
+export async function publishDraft(slug: string, updatedById?: string): Promise<void> {
+  const prisma = requirePrisma();
+  const ov = await prisma.productOverride.findUnique({ where: { slug }, select: { draft: true } });
+  const draft = ov?.draft as ProductEdits | null;
+  if (draft && typeof draft === "object") await saveProductEdits(slug, draft, updatedById);
+  await clearDraft(slug);
+}
+
 /** Saves cost + selling price for a product from the pricing tool. Updates the
  *  primary variant's price, recomputes minPriceCents, sets the cost, and writes
  *  a durable override so both survive a re-import. */

@@ -75,6 +75,13 @@ export default async function AdminProducts({
   ]);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  // Which of the visible products have unpublished draft changes (§9).
+  const draftRows = await prisma.productOverride.findMany({
+    where: { slug: { in: rows.map((r) => r.slug) }, draftUpdatedAt: { not: null } },
+    select: { slug: true },
+  });
+  const draftSlugs = new Set(draftRows.map((d) => d.slug));
+
   // ---- funnel options ----
   const sourceOptions: FilterOption[] = [
     ...sourceGroups
@@ -188,6 +195,7 @@ export default async function AdminProducts({
       needsReview: p.needsReview,
       isCustom: p.isCustom,
       isFragile: p.isFragile,
+      unpublished: draftSlugs.has(p.slug),
     };
   });
 
@@ -282,6 +290,7 @@ export default async function AdminProducts({
                       <Link href={`/admin/products/${p.slug}`} className="font-medium text-olive-900 hover:underline">{p.name}</Link>
                       {p.isCustom ? <span className="ml-2 rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-700">custom</span> : null}
                       {p.isFragile ? <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">fragile</span> : null}
+                      {draftSlugs.has(p.slug) ? <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">unpublished</span> : null}
                       <p className={`text-[11px] ${p.brand ? "text-olive-400" : "text-olive-300 italic"}`}>{p.brand || "No brand"}</p>
                     </td>
                     <td className="p-3"><span className="rounded bg-olive-50 px-2 py-0.5 text-xs text-olive-600">{sourceLabel(p.source)}</span></td>

@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { requireUser } from "@/lib/auth";
-import { saveProductEdits } from "@/lib/admin/products";
+import { saveDraftPrice } from "@/lib/admin/products";
 import { getPrisma } from "@/lib/db";
 
-// Inline price edit from the desktop list (PRODUCTS_UI §10). Updates one
-// variant's price (as a durable override draft) and returns JSON so the client
-// can show a 5-second Undo. No redirect — safe on the live host.
+// Inline price edit from the desktop list (PRODUCTS_UI §10). Saves the new price
+// as a draft (§9) — not published until the product is published — and returns
+// JSON so the client can show a 5-second Undo. No redirect — safe on the host.
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    userId = user.id;
+    await requireUser();
   } catch {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
@@ -37,7 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
 
   try {
-    await saveProductEdits(slug, { variantPrices: { [sku]: cents } }, userId);
+    await saveDraftPrice(slug, sku, cents);
   } catch (error) {
     console.error("[admin] inline price save failed", error);
     return NextResponse.json({ ok: false }, { status: 500 });

@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Camera, Check, ExternalLink, Plus, ScanBarcode, Sparkles, Star, Trash2, Wand2, X } from "lucide-react";
 
-import { saveProduct } from "@/app/admin/actions";
+import { saveDraftAction, saveProduct } from "@/app/admin/actions";
 import { BarcodeScanner } from "@/components/admin/barcode-scanner";
 import { suggestCleanName } from "@/lib/clean-name";
 import { idleFormState } from "@/lib/form";
@@ -115,7 +115,7 @@ function EditSave() {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className="h-11 w-full rounded-lg bg-olive-900 px-6 text-sm font-medium text-white hover:bg-olive-800 disabled:opacity-60 sm:w-auto">
-      {pending ? "Saving…" : "Save changes"}
+      {pending ? "Publishing…" : "Publish changes"}
     </button>
   );
 }
@@ -133,6 +133,7 @@ export function ProductForm({
   categories,
   countries,
   brands = [],
+  hasDraft = false,
   errorCode,
 }: {
   mode: "new" | "edit";
@@ -140,11 +141,58 @@ export function ProductForm({
   categories: { slug: string; name: string }[];
   countries: string[];
   brands?: string[];
+  hasDraft?: boolean;
   errorCode?: string | null;
 }) {
   const isEdit = mode === "edit";
   const errorMessage = errorCode ? (ERRORS[errorCode] ?? "Something went wrong.") : null;
   const [state, formAction] = useActionState(saveProduct, idleFormState);
+
+  // §9 draft/publish state (edit only).
+  const formRef = useRef<HTMLFormElement>(null);
+  const [draftState, setDraftState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [unpublished, setUnpublished] = useState(hasDraft);
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRef = useRef(false);
+
+  // Publishing succeeded → nothing unpublished left.
+  useEffect(() => {
+    if (isEdit && state.status === "success") {
+      setUnpublished(false);
+      setDraftState("idle");
+      pendingRef.current = false;
+    }
+  }, [isEdit, state.status]);
+
+  // Warn before leaving while an autosave is still pending.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingRef.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  const onFormChange = () => {
+    if (!isEdit) return;
+    pendingRef.current = true;
+    setUnpublished(true);
+    setDraftState("saving");
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    draftTimer.current = setTimeout(async () => {
+      if (!formRef.current) return;
+      try {
+        await saveDraftAction(new FormData(formRef.current));
+        pendingRef.current = false;
+        setDraftState("saved");
+      } catch {
+        setDraftState("error");
+      }
+    }, 900);
+  };
 
   const primarySku = product?.variants[0]?.sku ?? "";
 
@@ -442,9 +490,22 @@ export function ProductForm({
     : { action: "/admin/products/create", method: "post" as const, encType: "multipart/form-data" as const };
 
   return (
-    <form {...formProps} className="space-y-5 rounded-xl border border-olive-100 bg-white p-6">
+    <form ref={formRef} onChange={onFormChange} {...formProps} className="space-y-5 rounded-xl border border-olive-100 bg-white p-6">
       <style>{`@keyframes lvScanSweep{0%{top:0%}50%{top:100%}100%{top:0%}}`}</style>
       {isEdit && product ? <input type="hidden" name="slug" value={product.slug} /> : null}
+
+      {isEdit ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {unpublished ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">Unpublished changes</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Published</span>
+          )}
+          <span className="text-xs text-olive-400">
+            {draftState === "saving" ? "Saving…" : draftState === "saved" ? "Draft saved ✓" : draftState === "error" ? "Offline — will retry" : ""}
+          </span>
+        </div>
+      ) : null}
 
       {/* Per-slot image fields (kept URL + synced file). collectImagesFromForm reads these in order. */}
       {[0, 1, 2].map((i) => (
@@ -643,7 +704,7 @@ export function ProductForm({
 
       {errorMessage ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{errorMessage}</p> : null}
       {isEdit && state.status === "error" ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{state.message}</p> : null}
-      {isEdit && state.status === "success" ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Saved.</p> : null}
+      {isEdit && state.status === "success" ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Published — the store now shows these changes.</p> : null}
 
       {/* Sticky action bar on mobile; inline on desktop */}
       <div className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t border-olive-100 bg-white/95 px-6 py-3 backdrop-blur sm:static sm:mx-0 sm:mb-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">

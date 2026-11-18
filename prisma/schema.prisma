@@ -475,6 +475,13 @@ model ProductOverride {
   /// { "<sku>": { "size": "70 g", "unitsPerCase": 24 } }.
   variantPacks      Json?
 
+  /// Pending (unpublished) edits (PRODUCTS_UI §9). Shape mirrors ProductEdits.
+  /// Autosaved as the admin types; applied to the live product on Publish, then
+  /// cleared. The store never reads this — only the published live product.
+  draft          Json?
+  /// When the draft was last autosaved; null = no unpublished changes.
+  draftUpdatedAt DateTime?
+
   updatedById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
