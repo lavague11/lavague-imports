@@ -203,7 +203,33 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
           {rows.length === 0 ? "No invoices yet." : "No invoices match."}
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-xl border border-olive-100 bg-white">
+        <>
+        {/* Mobile: invoice cards (no sideways scroll) */}
+        <div className="mt-4 divide-y divide-olive-50 overflow-hidden rounded-xl border border-olive-100 bg-white lg:hidden">
+          {filtered.map((r) => {
+            const balance = r.totalCents - r.paidCents;
+            const overdue = r.dispKey === "overdue";
+            return (
+              <div key={r.id} className={`flex items-center gap-3 p-3 ${overdue ? "bg-red-50/40" : ""} ${selected.has(r.id) ? "bg-olive-50/60" : ""}`}>
+                <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.number}`} className="h-5 w-5 shrink-0 accent-olive-800" />
+                <a href={`/admin/invoices/${r.id}`} className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-olive-900">{r.number}</span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${r.dispBadge}`}>{r.dispLabel}</span>
+                  </div>
+                  <p className="truncate text-sm text-olive-600">{r.customer}</p>
+                  <div className="mt-0.5 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-olive-500">{r.issueLabel}</span>
+                    <span className="text-olive-700">{money(r.totalCents)}{balance > 0 ? <span className="text-olive-900"> · bal {money(balance)}</span> : ""}</span>
+                  </div>
+                </a>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="mt-4 hidden overflow-x-auto rounded-xl border border-olive-100 bg-white lg:block">
           <table className="w-full text-sm">
             <thead className="border-b border-olive-100 bg-olive-50/60 text-left text-olive-600">
               <tr>
@@ -235,6 +261,7 @@ export function InvoicesTable({ rows }: { rows: InvoiceRow[] }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

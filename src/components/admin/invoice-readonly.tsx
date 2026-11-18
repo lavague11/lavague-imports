@@ -45,19 +45,18 @@ export function InvoiceReadOnly(p: InvoiceReadOnlyProps) {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-olive-100 bg-white">
-        <div className="grid grid-cols-[1fr_4rem_6rem_6rem] gap-2 border-b border-olive-100 bg-olive-50/60 px-4 py-2 text-xs text-olive-600">
-          <span>Description</span><span className="text-right">Qty</span><span className="text-right">Unit price</span><span className="text-right">Amount</span>
-        </div>
+        <div className="border-b border-olive-100 bg-olive-50/60 px-4 py-2 text-xs font-medium text-olive-600">Items</div>
         {p.lines.map((l, i) => (
-          <div key={i} className={`grid grid-cols-[1fr_4rem_6rem_6rem] gap-2 border-b border-olive-50 px-4 py-2.5 text-sm last:border-0 ${l.isCredit ? "bg-amber-50/40" : ""}`}>
-            <div className="min-w-0">
-              <span className="text-olive-900">{l.description}</span>
-              {l.sku ? <span className="ml-1.5 text-xs text-olive-400">{l.sku}</span> : null}
-              {l.isCredit ? <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">Credit</span> : null}
+          <div key={i} className={`border-b border-olive-50 px-4 py-2.5 text-sm last:border-0 ${l.isCredit ? "bg-amber-50/40" : ""}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-olive-900">{l.description}</span>
+                {l.sku ? <span className="ml-1.5 text-xs text-olive-400">{l.sku}</span> : null}
+                {l.isCredit ? <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">Credit</span> : null}
+              </div>
+              <div className={`shrink-0 text-right font-medium ${l.isCredit ? "text-amber-700" : "text-olive-900"}`}>{l.isCredit ? `−${formatPrice(Math.abs(l.lineTotalCents))}` : formatPrice(l.lineTotalCents)}</div>
             </div>
-            <div className="text-right text-olive-600">{l.quantity}</div>
-            <div className="text-right text-olive-600">{l.isCredit ? `−${formatPrice(Math.abs(l.unitPriceCents))}` : formatPrice(l.unitPriceCents)}</div>
-            <div className={`text-right ${l.isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{l.isCredit ? `−${formatPrice(Math.abs(l.lineTotalCents))}` : formatPrice(l.lineTotalCents)}</div>
+            <div className="mt-0.5 text-xs text-olive-500">{l.quantity} × {l.isCredit ? `−${formatPrice(Math.abs(l.unitPriceCents))}` : formatPrice(l.unitPriceCents)}</div>
           </div>
         ))}
       </div>

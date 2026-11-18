@@ -92,7 +92,28 @@ export default async function AdminOrders({
           No order requests {tab === "all" ? "yet" : `in “${tab}”`}.
         </div>
       ) : (
-        <div className="mt-5 overflow-hidden rounded-xl border border-olive-100 bg-white">
+        <>
+        {/* Mobile: order cards */}
+        <div className="mt-5 divide-y divide-olive-50 overflow-hidden rounded-xl border border-olive-100 bg-white lg:hidden">
+          {orders.map((o) => {
+            const cases = o.lines.reduce((s, l) => s + l.cases, 0);
+            return (
+              <Link key={o.id} href={`/admin/orders/${o.id}`} className="block p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-olive-900">{o.reference}</span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${BADGE[o.status] ?? "bg-olive-100 text-olive-700"}`}>
+                    {o.status.charAt(0) + o.status.slice(1).toLowerCase()}
+                  </span>
+                </div>
+                <p className="truncate text-sm text-olive-600">{o.customer.businessName || o.customer.name || o.customer.email}</p>
+                <p className="mt-0.5 text-xs text-olive-500">{o._count.lines} items · {cases} cases · {fmt(o.createdAt)}</p>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="mt-5 hidden overflow-x-auto rounded-xl border border-olive-100 bg-white lg:block">
           <table className="w-full text-sm">
             <thead className="border-b border-olive-100 bg-olive-50/60 text-left text-olive-600">
               <tr>
@@ -127,6 +148,7 @@ export default async function AdminOrders({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );
