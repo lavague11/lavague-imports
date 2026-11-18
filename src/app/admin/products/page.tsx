@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { bulkSetActive } from "@/app/admin/actions";
+import { BulkBar } from "@/components/admin/bulk-bar";
 import { ColumnFilter, type FilterOption } from "@/components/admin/column-filter";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { FilterDrawer } from "@/components/admin/filter-drawer";
@@ -166,15 +167,15 @@ export default async function AdminProducts({
             + New Product
           </Link>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {/* Search preserves all active filters/sort via hidden inputs. */}
-          <form action="/admin/products" className="flex gap-2">
+          <form action="/admin/products" className="flex flex-1 gap-2 sm:flex-initial">
             {Object.entries(cur)
               .filter(([k]) => k !== "q" && k !== "page")
               .map(([k, v]) => (
                 <input key={k} type="hidden" name={k} value={v} />
               ))}
-            <input name="q" defaultValue={search} placeholder="Search products…" className="h-10 w-44 rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none sm:w-56" />
+            <input name="q" defaultValue={search} placeholder="Search products…" className="h-10 w-full flex-1 rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none sm:w-56 sm:flex-initial" />
             <button className="h-10 rounded-lg bg-olive-900 px-4 text-sm font-medium text-white">Search</button>
           </form>
           <FilterDrawer
@@ -187,12 +188,12 @@ export default async function AdminProducts({
         </div>
       </div>
 
-      {/* Quick content chips */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      {/* Quick content chips — scroll horizontally on small screens */}
+      <div className="mt-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => {
           const active = (t.filter || "") === (filter || "");
           return (
-            <Link key={t.key} href={tabHref(t.filter)} className={`rounded-full border px-3 py-1.5 text-sm ${active ? "border-olive-900 bg-olive-900 text-white" : "border-olive-200 text-olive-700 hover:bg-olive-50"}`}>
+            <Link key={t.key} href={tabHref(t.filter)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm ${active ? "border-olive-900 bg-olive-900 text-white" : "border-olive-200 text-olive-700 hover:bg-olive-50"}`}>
               {t.label}
             </Link>
           );
@@ -214,11 +215,7 @@ export default async function AdminProducts({
         </div>
       ) : null}
 
-      <form id="bulk" action={bulkSetActive} className="mt-4 mb-2 flex items-center gap-2 text-sm">
-        <span className="text-olive-600">With selected:</span>
-        <button name="action" value="show" className="rounded-md border border-olive-300 px-3 py-1 hover:bg-olive-50">Show</button>
-        <button name="action" value="hide" className="rounded-md border border-olive-300 px-3 py-1 hover:bg-olive-50">Hide</button>
-      </form>
+      <BulkBar action={bulkSetActive} />
 
       {total === 0 ? (
         <div className="rounded-xl border border-olive-100 bg-white p-10 text-center">
@@ -228,7 +225,40 @@ export default async function AdminProducts({
           </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-olive-100 bg-white">
+        <>
+        {/* Mobile: compact product cards (no sideways scroll) */}
+        <div className="divide-y divide-olive-50 overflow-hidden rounded-xl border border-olive-100 bg-white lg:hidden">
+          {rows.map((p) => {
+            const price = p.variants[0]?.retailPriceCents ?? p.minPriceCents ?? null;
+            return (
+              <div key={p.id} className="flex items-center gap-3 p-3">
+                <input type="checkbox" name="slug" value={p.slug} form="bulk" data-bulk="1" aria-label={`Select ${p.name}`} className="h-5 w-5 shrink-0 accent-olive-800" />
+                <Link href={`/admin/products/${p.slug}`} className="flex min-w-0 flex-1 items-center gap-3">
+                  {p.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded object-contain" />
+                  ) : (
+                    <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded bg-amber-50 text-[10px] font-medium text-amber-700">none</span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-olive-900">{p.name}</p>
+                    <p className="truncate text-xs text-olive-500">{p.category.name}{p.origin ? ` · ${p.origin}` : ""}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      <span className="text-sm text-olive-700">{formatPriceOrRequest(price)}</span>
+                      {p.needsReview ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">review</span> : null}
+                      {p.isCustom ? <span className="rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-700">custom</span> : null}
+                      {p.isFragile ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">fragile</span> : null}
+                    </div>
+                  </div>
+                </Link>
+                <div className="shrink-0"><StatusSelect slug={p.slug} active={p.isActive} /></div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop: full table */}
+        <div className="hidden overflow-x-auto rounded-xl border border-olive-100 bg-white lg:block">
           <table className="w-full text-sm">
             <thead className="border-b border-olive-100 bg-olive-50/60 text-left text-olive-600">
               <tr>
@@ -249,7 +279,7 @@ export default async function AdminProducts({
                 return (
                   <tr key={p.id} className="border-b border-olive-50 last:border-0">
                     <td className="p-3">
-                      <input type="checkbox" name="slug" value={p.slug} form="bulk" className="h-4 w-4 accent-olive-800" />
+                      <input type="checkbox" name="slug" value={p.slug} form="bulk" data-bulk="1" className="h-4 w-4 accent-olive-800" />
                     </td>
                     <td className="p-3">
                       {p.imageUrl ? (
@@ -276,6 +306,7 @@ export default async function AdminProducts({
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Pagination + page-size */}
