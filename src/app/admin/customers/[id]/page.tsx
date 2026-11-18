@@ -58,6 +58,7 @@ export default async function CustomerOverview({
   const { id } = await params;
   const sp = await searchParams;
   const invFilter = firstValue(sp.inv) || "all";
+  const loginFlash = firstValue(sp.login);
 
   const [customer, payments] = await Promise.all([
     prisma.customer.findUnique({
@@ -111,6 +112,20 @@ export default async function CustomerOverview({
       <Link href="/admin/customers" className="inline-flex items-center gap-1 text-sm text-olive-600 hover:text-olive-900">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All customers
       </Link>
+
+      {loginFlash === "set" ? (
+        <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          Login password set. {customer.email ? `They can sign in at /login with ${customer.email}.` : "They can now sign in at /login."}
+        </p>
+      ) : loginFlash === "short" ? (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Password must be at least 8 characters — not changed.
+        </p>
+      ) : loginFlash === "error" ? (
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          Couldn&apos;t set the login — try again.
+        </p>
+      ) : null}
 
       {/* Header */}
       <div className="mt-3 rounded-xl border border-olive-100 bg-white p-5">
@@ -167,6 +182,30 @@ export default async function CustomerOverview({
               }}
               audits={customer.audits.map((a) => ({ id: a.id, actor: a.actor, summary: a.summary, when: dateTimeFmt(a.createdAt) }))}
             />
+            <details className="rounded-lg border border-olive-200 bg-white">
+              <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2 text-sm font-medium text-olive-700 hover:bg-olive-50">
+                <Lock className="h-4 w-4" /> {customer.passwordHash ? "Reset login" : "Set login"}
+              </summary>
+              <form method="post" action={`/admin/customers/${customer.id}/set-login`} className="flex flex-col gap-2 border-t border-olive-100 p-3">
+                <label className="text-xs text-olive-500" htmlFor="set-login-pw">
+                  {customer.passwordHash ? "New password for this customer" : "Create a password so this customer can sign in"}
+                </label>
+                <input
+                  id="set-login-pw"
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  required
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  className="h-9 rounded-lg border border-olive-200 px-2.5 text-sm focus:border-olive-500 focus:outline-none"
+                />
+                <button className="h-9 rounded-lg bg-olive-900 px-3 text-sm font-medium text-white hover:bg-olive-800">
+                  {customer.passwordHash ? "Update password" : "Set password"}
+                </button>
+                <p className="text-[11px] text-olive-400">They sign in at /login with their email{customer.email ? ` (${customer.email})` : ""}.</p>
+              </form>
+            </details>
           </div>
         </div>
       </div>
