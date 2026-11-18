@@ -9,7 +9,7 @@ import { Box, ChevronDown, Images, Plus } from "lucide-react";
  *  - One item      → the single-product form (/admin/products/new)
  *  - Bulk (photos) → the eBay-style bulk add (§4), shown as "Soon" until built
  */
-export function NewProductMenu() {
+export function NewProductMenu({ floating = false }: { floating?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -29,21 +29,34 @@ export function NewProductMenu() {
 
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="inline-flex h-10 items-center gap-1 rounded-lg bg-olive-900 pl-3 pr-2.5 text-sm font-medium text-white hover:bg-olive-800"
-      >
-        <Plus className="h-4 w-4" /> New
-        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      {floating ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="New product"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-olive-900 text-white shadow-lg hover:bg-olive-800"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="inline-flex h-10 items-center gap-1 rounded-lg bg-olive-900 pl-3 pr-2.5 text-sm font-medium text-white hover:bg-olive-800"
+        >
+          <Plus className="h-4 w-4" /> New
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      )}
 
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-1 w-64 overflow-hidden rounded-xl border border-olive-100 bg-white p-1 shadow-lg"
+          className={`absolute right-0 z-50 w-64 overflow-hidden rounded-xl border border-olive-100 bg-white p-1 shadow-lg ${floating ? "bottom-full mb-2" : "mt-1"}`}
         >
           <button
             type="button"

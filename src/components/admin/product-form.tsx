@@ -113,7 +113,7 @@ function seedSizeRows(variants: ProductFormVariant[]): SizeRow[] {
 function EditSave() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className="h-11 rounded-lg bg-olive-900 px-6 text-sm font-medium text-white hover:bg-olive-800 disabled:opacity-60">
+    <button type="submit" disabled={pending} className="h-11 w-full rounded-lg bg-olive-900 px-6 text-sm font-medium text-white hover:bg-olive-800 disabled:opacity-60 sm:w-auto">
       {pending ? "Saving…" : "Save changes"}
     </button>
   );
@@ -591,9 +591,12 @@ export function ProductForm({
       {isEdit && state.status === "error" ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{state.message}</p> : null}
       {isEdit && state.status === "success" ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Saved.</p> : null}
 
-      {isEdit ? <EditSave /> : (
-        <button type="submit" className="h-11 rounded-lg bg-olive-900 px-6 text-sm font-medium text-white hover:bg-olive-800">Create product</button>
-      )}
+      {/* Sticky action bar on mobile; inline on desktop */}
+      <div className="sticky bottom-0 z-10 -mx-6 -mb-6 border-t border-olive-100 bg-white/95 px-6 py-3 backdrop-blur sm:static sm:mx-0 sm:mb-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        {isEdit ? <EditSave /> : (
+          <button type="submit" className="h-11 w-full rounded-lg bg-olive-900 px-6 text-sm font-medium text-white hover:bg-olive-800 sm:w-auto">Create product</button>
+        )}
+      </div>
 
       {/* Enhanced result pop-up */}
       {enhanced ? (

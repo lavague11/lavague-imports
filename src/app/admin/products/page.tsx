@@ -6,6 +6,7 @@ import { BulkBar } from "@/components/admin/bulk-bar";
 import { ColumnFilter, type FilterOption } from "@/components/admin/column-filter";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { FilterDrawer } from "@/components/admin/filter-drawer";
+import { MobileProductList } from "@/components/admin/mobile-product-list";
 import { NewProductMenu } from "@/components/admin/new-product-menu";
 import { ProductSearch } from "@/components/admin/product-search";
 import { StatusSelect } from "@/components/admin/status-select";
@@ -156,6 +157,27 @@ export default async function AdminProducts({
     return `/admin/products?${p.toString()}`;
   };
 
+  const deleted = firstValue(params.deleted);
+  const mobileItems = rows.map((p) => {
+    const v = p.variants[0];
+    const priceCents = v?.retailPriceCents ?? p.minPriceCents ?? null;
+    return {
+      id: p.id,
+      slug: p.slug,
+      name: p.name,
+      categoryName: p.category.name,
+      origin: p.origin,
+      imageUrl: p.imageUrl,
+      priceLabel: formatPriceOrRequest(priceCents),
+      priceDollars: v?.retailPriceCents != null ? (v.retailPriceCents / 100).toFixed(2) : "",
+      sku: v?.sku ?? "",
+      active: p.isActive,
+      needsReview: p.needsReview,
+      isCustom: p.isCustom,
+      isFragile: p.isFragile,
+    };
+  });
+
   return (
     <div>
       {/* Toolbar: one slim row — title + live search (left), Filter · + New · ⋯ (right) */}
@@ -172,10 +194,14 @@ export default async function AdminProducts({
             statusOptions={statusOptions}
             quickOptions={quickOptions}
           />
-          <NewProductMenu />
+          <span className="hidden sm:block"><NewProductMenu /></span>
           <ExportMenu />
         </div>
       </div>
+
+      {deleted ? (
+        <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Product deleted.</p>
+      ) : null}
 
       {/* Active filter chips */}
       {chips.length ? (
@@ -203,36 +229,8 @@ export default async function AdminProducts({
         </div>
       ) : (
         <>
-        {/* Mobile: compact product cards (no sideways scroll) */}
-        <div className="divide-y divide-olive-50 overflow-hidden rounded-xl border border-olive-100 bg-white lg:hidden">
-          {rows.map((p) => {
-            const price = p.variants[0]?.retailPriceCents ?? p.minPriceCents ?? null;
-            return (
-              <div key={p.id} className="flex items-center gap-3 p-3">
-                <input type="checkbox" name="slug" value={p.slug} form="bulk" data-bulk="1" aria-label={`Select ${p.name}`} className="h-5 w-5 shrink-0 accent-olive-800" />
-                <Link href={`/admin/products/${p.slug}`} className="flex min-w-0 flex-1 items-center gap-3">
-                  {p.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded object-contain" />
-                  ) : (
-                    <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded bg-amber-50 text-[10px] font-medium text-amber-700">none</span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-olive-900">{p.name}</p>
-                    <p className="truncate text-xs text-olive-500">{p.category.name}{p.origin ? ` · ${p.origin}` : ""}</p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                      <span className="text-sm text-olive-700">{formatPriceOrRequest(price)}</span>
-                      {p.needsReview ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">review</span> : null}
-                      {p.isCustom ? <span className="rounded bg-olive-100 px-1.5 py-0.5 text-[10px] text-olive-700">custom</span> : null}
-                      {p.isFragile ? <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">fragile</span> : null}
-                    </div>
-                  </div>
-                </Link>
-                <div className="shrink-0"><StatusSelect slug={p.slug} active={p.isActive} /></div>
-              </div>
-            );
-          })}
-        </div>
+        {/* Mobile: product cards (tap to edit, long-press for quick edit, … menu) */}
+        <MobileProductList items={mobileItems} />
 
         {/* Desktop: full table */}
         <div className="hidden overflow-x-auto rounded-xl border border-olive-100 bg-white lg:block">
@@ -305,6 +303,11 @@ export default async function AdminProducts({
             <PageLink cur={cur} page={page + 1} disabled={page >= totalPages}>Next →</PageLink>
           </div>
         ) : null}
+      </div>
+
+      {/* Mobile floating "+ New" */}
+      <div className="fixed bottom-5 right-5 z-30 sm:hidden">
+        <NewProductMenu floating />
       </div>
     </div>
   );

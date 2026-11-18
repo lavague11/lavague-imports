@@ -145,6 +145,33 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
   return { status: "success", message: "Saved.", reference: slug };
 }
 
+/** Mobile long-press quick sheet: set the primary price + visibility in one tap.
+ *  No redirect (revalidates), so it's safe on the live host. */
+export async function quickUpdateProduct(fd: FormData): Promise<void> {
+  const user = await requireUser();
+  const slug = str(fd, "slug");
+  if (!slug) return;
+  const sku = str(fd, "sku");
+  const priceStr = str(fd, "price").trim();
+  const active = fd.get("active") === "on" || fd.get("active") === "true";
+  try {
+    await saveProductEdits(
+      slug,
+      {
+        isActive: active,
+        ...(sku ? { variantPrices: { [sku]: priceStr === "" ? null : Math.round(parseFloat(priceStr) * 100) } } : {}),
+      },
+      user.id,
+    );
+  } catch (error) {
+    console.error("[admin] quickUpdateProduct failed", error);
+    return;
+  }
+  revalidatePath("/admin/products");
+  revalidatePath(`/shop/${slug}`);
+  revalidatePath("/shop");
+}
+
 export async function bulkSetActive(fd: FormData): Promise<void> {
   const user = await requireUser();
   const slugs = fd.getAll("slug").filter((s): s is string => typeof s === "string");
