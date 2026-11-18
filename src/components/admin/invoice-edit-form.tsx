@@ -232,16 +232,17 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
             onRemove={() => removeRow(i)}
           />
         ))}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <button type="button" onClick={addRow} className="inline-flex items-center gap-1.5 text-sm font-medium text-olive-700 hover:text-olive-900">
+        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <button type="button" onClick={addRow} className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-olive-700 hover:text-olive-900">
             <Plus className="h-4 w-4" /> Add line
           </button>
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            <VoiceOrder onAddLine={addVoiceLine} customerId={props.customerId} invoiceId={props.invoiceId} />
-            <PreviousItems customerId={props.customerId} onAdd={addLines} />
-            <AddCredit customerId={props.customerId} onAdd={addCredit} />
-            <InvoiceAssist getLines={assistLines} onApply={applyAssist} />
-            <PhotoToInvoice customerId={props.customerId} categories={props.categories} onAddLine={(line) => addLines([line])} />
+          {/* Mobile: tidy 2-up grid, each button centered in its cell. Desktop: inline wrap. */}
+          <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex sm:flex-wrap sm:items-center sm:justify-end [&>div]:flex [&>div]:justify-center sm:[&>div]:block">
+            <div><VoiceOrder onAddLine={addVoiceLine} customerId={props.customerId} invoiceId={props.invoiceId} /></div>
+            <div><PreviousItems customerId={props.customerId} onAdd={addLines} /></div>
+            <div><AddCredit customerId={props.customerId} onAdd={addCredit} /></div>
+            <div><InvoiceAssist getLines={assistLines} onApply={applyAssist} /></div>
+            <div><PhotoToInvoice customerId={props.customerId} categories={props.categories} onAddLine={(line) => addLines([line])} /></div>
           </div>
         </div>
       </div>
