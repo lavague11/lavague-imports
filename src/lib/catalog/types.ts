@@ -40,6 +40,8 @@ export interface Product {
   isFeatured: boolean;
   /** Breakable item (glass bottle/jar) — surfaced with a "Fragile" badge. */
   isFragile?: boolean;
+  /** Supplier-sourcing status (DASHBOARD §1b). Absent/undefined = available. */
+  availability?: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
   /** Primary, curated category (drives the shop nav). */
   categorySlug: string;
   categoryName: string;

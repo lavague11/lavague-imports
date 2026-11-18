@@ -101,6 +101,15 @@ export default async function ProductPage({
           <h1 className="mt-3 text-3xl leading-tight text-olive-900 sm:text-4xl">
             {product.name}
           </h1>
+          {product.availability === "UNAVAILABLE" ? (
+            <p className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+              Currently unavailable
+            </p>
+          ) : product.availability === "LIMITED" ? (
+            <p className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
+              Limited availability
+            </p>
+          ) : null}
           {isZabihaMeat(product) || product.isFragile ? (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {isZabihaMeat(product) ? <HalalBadge /> : null}

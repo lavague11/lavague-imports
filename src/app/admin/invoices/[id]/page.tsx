@@ -111,6 +111,14 @@ export default async function InvoicePage({
   const isImported = invoice.source === "invoice_asap";
   const editing = !isImported || firstValue(sp.edit) === "1";
 
+  // Flag any line whose product is currently unavailable (DASHBOARD §1b).
+  const lineSkus = invoice.lines.map((l) => l.sku).filter((s): s is string => !!s);
+  const unavailVariants = lineSkus.length
+    ? await prisma.productVariant.findMany({ where: { sku: { in: lineSkus }, product: { availability: "UNAVAILABLE" } }, select: { sku: true } })
+    : [];
+  const unavailableSkus = new Set(unavailVariants.map((v) => v.sku));
+  const unavailableLines = invoice.lines.filter((l) => l.sku && unavailableSkus.has(l.sku));
+
   const flashKey = ["sent", "paid", "delivered", "voided", "unvoided", "photo", "error", "customer"]
     .map((k) => (sp[k] ? `${k}:${firstValue(sp[k])}` : null))
     .find(Boolean);
@@ -120,6 +128,11 @@ export default async function InvoicePage({
 
   return (
     <div className="mx-auto max-w-5xl">
+      {unavailableLines.length ? (
+        <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          ⚠ {unavailableLines.length} item{unavailableLines.length === 1 ? "" : "s"} currently unavailable: {unavailableLines.map((l) => l.description).join(", ")}
+        </p>
+      ) : null}
       <Link href="/admin/invoices" className="inline-flex items-center gap-1 text-sm text-olive-600 hover:text-olive-900">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All invoices
       </Link>

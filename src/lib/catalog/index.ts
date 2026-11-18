@@ -40,6 +40,7 @@ interface ProductRow {
   collections: string[];
   isFeatured: boolean;
   isFragile: boolean;
+  availability: "AVAILABLE" | "LIMITED" | "UNAVAILABLE";
   category: { slug: string; name: string };
   variants: {
     id: string;
@@ -69,6 +70,7 @@ function toProduct(row: ProductRow): Product {
     ribbon: row.ribbon,
     isFeatured: row.isFeatured,
     isFragile: row.isFragile,
+    availability: row.availability,
     categorySlug: row.category.slug,
     categoryName: row.category.name,
     collections: row.collections,
