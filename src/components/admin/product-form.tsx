@@ -7,8 +7,9 @@ import { Camera, Check, ExternalLink, Plus, ScanBarcode, Sparkles, Star, Trash2,
 
 import { saveProduct } from "@/app/admin/actions";
 import { BarcodeScanner } from "@/components/admin/barcode-scanner";
+import { suggestCleanName } from "@/lib/clean-name";
 import { idleFormState } from "@/lib/form";
-import { UNIT_OPTIONS, parseUnitSize } from "@/lib/units";
+import { UNIT_OPTIONS, formatUnitSize, parseUnitSize } from "@/lib/units";
 
 const inputClass =
   "h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:ring-2 focus:ring-olive-200 focus:outline-none";
@@ -147,7 +148,10 @@ export function ProductForm({
 
   const primarySku = product?.variants[0]?.sku ?? "";
 
-  const nameRef = useRef<HTMLInputElement>(null);
+  const [nameValue, setNameValue] = useState(product?.name ?? "");
+  const [dupMatches, setDupMatches] = useState<{ slug: string; name: string; brand: string | null }[]>([]);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+
   const brandRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
   const originRef = useRef<HTMLInputElement>(null);
@@ -200,6 +204,36 @@ export function ProductForm({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photos]);
+
+  // §12 — debounced "looks like this already exists" check while typing.
+  useEffect(() => {
+    const q = nameValue.trim();
+    if (q.length < 3) {
+      setDupMatches([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const brand = brandRef.current?.value ?? "";
+        const params = new URLSearchParams({ name: q, brand, exclude: product?.slug ?? "" });
+        const res = await fetch(`/admin/products/find?${params.toString()}`);
+        const data = await res.json();
+        setDupMatches(Array.isArray(data.matches) ? data.matches : []);
+      } catch {
+        setDupMatches([]);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nameValue]);
+
+  // §13 — suggest a clean Brand · Product · Size name from the current fields.
+  const suggestClean = () => {
+    const brand = brandRef.current?.value ?? "";
+    const size = formatUnitSize(sizeRows[0]?.amount ?? "", sizeRows[0]?.unit ?? "");
+    const clean = suggestCleanName(nameValue, brand, size);
+    setSuggestion(clean && clean !== nameValue.trim() ? clean : null);
+  };
 
   const applyToRows = useCallback((patch: { key: RowKey; value: string; source: Source }[]) => {
     setRows((prev) => {
@@ -365,7 +399,7 @@ export function ProductForm({
   const setRowValue = (key: RowKey, value: string) => setRows((prev) => ({ ...prev, [key]: { ...prev[key], value } }));
 
   const apply = () => {
-    if (nameRef.current && rows.name.value) nameRef.current.value = rows.name.value;
+    if (rows.name.value) setNameValue(rows.name.value);
     if (brandRef.current && rows.brand.value) brandRef.current.value = rows.brand.value;
     if (categoryRef.current && rows.categorySlug.value && categories.some((c) => c.slug === rows.categorySlug.value))
       categoryRef.current.value = rows.categorySlug.value;
@@ -483,8 +517,25 @@ export function ProductForm({
       {/* Name / Category / Brand / Country */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="name" className="mb-1 block text-sm font-medium text-olive-800">Name *</label>
-          <input ref={nameRef} id="name" name="name" required defaultValue={product?.name ?? ""} className={inputClass} />
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor="name" className="block text-sm font-medium text-olive-800">Name *</label>
+            <button type="button" onClick={suggestClean} className="text-xs font-medium text-olive-600 hover:text-olive-900 hover:underline">Suggest clean name</button>
+          </div>
+          <input id="name" name="name" required value={nameValue} onChange={(e) => { setNameValue(e.target.value); setSuggestion(null); }} className={inputClass} />
+          {suggestion ? (
+            <p className="mt-1 text-xs text-olive-600">
+              Suggested: <span className="font-medium text-olive-800">{suggestion}</span>{" "}
+              <button type="button" onClick={() => { setNameValue(suggestion); setSuggestion(null); }} className="font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-800">Use</button>{" · "}
+              <button type="button" onClick={() => setSuggestion(null)} className="text-olive-400 hover:text-olive-700">Dismiss</button>
+            </p>
+          ) : null}
+          {dupMatches.length ? (
+            <p className="mt-1 text-xs text-amber-700">
+              Looks like{" "}
+              <a href={`/admin/products/${dupMatches[0].slug}`} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">{dupMatches[0].name}</a>
+              {dupMatches.length > 1 ? ` (and ${dupMatches.length - 1} more)` : ""} already exists — open it?
+            </p>
+          ) : null}
         </div>
         <div>
           <label htmlFor="categorySlug" className="mb-1 block text-sm font-medium text-olive-800">Category *</label>
