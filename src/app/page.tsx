@@ -48,17 +48,27 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      {/* Trust strip */}
+      {/* Trust strip — an infinite marquee that scrolls the phrases around */}
       <section className="border-b border-olive-100 bg-white">
-        <Container className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 py-3.5 text-center text-xs font-medium text-olive-600 sm:text-sm">
-          <span>Imported direct — no middleman</span>
-          <span className="text-olive-300" aria-hidden="true">·</span>
-          <span>Free shipping on every order</span>
-          <span className="text-olive-300" aria-hidden="true">·</span>
-          <span>Same-week delivery across NY &amp; NJ</span>
-          <span className="text-olive-300" aria-hidden="true">·</span>
-          <span>Wholesale pricing for the trade</span>
-        </Container>
+        <div className="group relative overflow-hidden py-3.5">
+          <div className="flex w-max animate-marquee items-center text-xs font-medium text-olive-600 group-hover:[animation-play-state:paused] sm:text-sm">
+            {Array.from({ length: 2 }).map((_, copy) => (
+              <div key={copy} className="flex items-center" aria-hidden={copy === 1}>
+                {[
+                  "Imported direct",
+                  "Free shipping on orders over $100",
+                  "Same-week delivery across NY & NJ",
+                  "Wholesale pricing for the trade",
+                ].map((phrase) => (
+                  <span key={phrase} className="flex items-center">
+                    <span className="whitespace-nowrap px-5">{phrase}</span>
+                    <span className="text-olive-300" aria-hidden="true">·</span>
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Best sellers */}

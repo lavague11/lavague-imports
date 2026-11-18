@@ -72,4 +72,23 @@
     text-transform: uppercase;
     color: var(--color-olive-600);
   }
+
+  /* Infinite marquee for the homepage trust strip. The track holds two identical
+     copies of the phrases; translating by -50% loops seamlessly. */
+  .animate-marquee {
+    animation: marquee 28s linear infinite;
+  }
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee {
+      animation: none;
+    }
+  }
 }
