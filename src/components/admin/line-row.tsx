@@ -96,10 +96,12 @@ export function LineRow(props: LineRowProps) {
         </div>
       </div>
 
-      <input name="qty" inputMode="numeric" value={qty} onChange={(e) => props.onChange({ qty: e.target.value })} placeholder="Qty" className={`${inputCls} sm:text-right`} />
+      {/* Controls: one compact row on mobile; dissolve into grid cells on desktop */}
+      <div className="flex items-center gap-2 sm:contents">
+      <input name="qty" inputMode="numeric" value={qty} onChange={(e) => props.onChange({ qty: e.target.value })} placeholder="Qty" className="h-10 w-16 shrink-0 rounded-lg border border-olive-200 px-2 text-center text-sm focus:border-olive-500 focus:outline-none sm:w-full sm:px-3 sm:text-right" />
 
       {/* Unit price + an (i) that reveals the price history */}
-      <div className="flex items-center gap-1">
+      <div className="flex flex-1 items-center gap-1 sm:flex-initial">
         <div className="relative flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-olive-400">$</span>
           <input name="unit" inputMode="decimal" value={unit} onChange={(e) => props.onChange({ unit: e.target.value })} placeholder="0.00" className={`${inputCls} pl-6 sm:text-right`} />
@@ -133,10 +135,11 @@ export function LineRow(props: LineRowProps) {
         ) : null}
       </div>
 
-      <div className={`text-sm sm:text-right ${isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{isCredit ? `−${money(amountCents)}` : money(amountCents)}</div>
-      <button type="button" onClick={props.onRemove} aria-label="Remove line" className="justify-self-start text-olive-400 hover:text-red-600 sm:justify-self-center">
+      <div className={`w-20 shrink-0 text-right text-sm sm:w-auto ${isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{isCredit ? `−${money(amountCents)}` : money(amountCents)}</div>
+      <button type="button" onClick={props.onRemove} aria-label="Remove line" className="shrink-0 text-olive-400 hover:text-red-600 sm:justify-self-center">
         <Trash2 className="h-4 w-4" />
       </button>
+      </div>
       <input type="hidden" name="isCredit" value={isCredit ? "1" : "0"} />
       <input type="hidden" name="creditReason" value={props.creditReason ?? ""} />
     </div>
