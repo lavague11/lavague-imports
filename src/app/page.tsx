@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Leaf, PackageCheck, Ship, Store } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { ProductCard } from "@/components/catalog/product-card";
 import { buttonClasses } from "@/components/ui/button";
@@ -8,29 +8,6 @@ import { Container } from "@/components/ui/container";
 import { Flag } from "@/components/ui/flag";
 import { getCategories, getCountryFilters, getProducts } from "@/lib/catalog";
 import { fullAddress, site } from "@/lib/site";
-
-const guarantees = [
-  {
-    icon: Ship,
-    title: "Imported direct",
-    body: "We buy at origin from the producers themselves — no middle layer, no re-labelled stock.",
-  },
-  {
-    icon: PackageCheck,
-    title: "Free shipping",
-    body: "Every online order ships free, and NY/NJ accounts can arrange same-week delivery.",
-  },
-  {
-    icon: Store,
-    title: "Built for wholesale",
-    body: "Case pricing, standing reorders, and allocation ahead of Ramadan and Hajj season.",
-  },
-  {
-    icon: Leaf,
-    title: "Small, honest range",
-    body: "We carry a short list and know every item on it, rather than a catalogue we can't vouch for.",
-  },
-];
 
 export default async function HomePage() {
   const [featured, categories, countries] = await Promise.all([
@@ -85,23 +62,6 @@ export default async function HomePage() {
           <span>Same-week delivery across NY &amp; NJ</span>
           <span className="text-olive-300" aria-hidden="true">·</span>
           <span>Wholesale pricing for the trade</span>
-        </Container>
-      </section>
-
-      {/* Guarantees */}
-      <section className="border-b border-olive-100">
-        <Container className="grid gap-8 py-14 sm:grid-cols-2 lg:grid-cols-4">
-          {guarantees.map((item) => (
-            <div key={item.title}>
-              <item.icon className="h-6 w-6 text-olive-600" aria-hidden="true" />
-              <h2 className="mt-3.5 text-base font-semibold text-olive-900">
-                {item.title}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-olive-600">
-                {item.body}
-              </p>
-            </div>
-          ))}
         </Container>
       </section>
 
