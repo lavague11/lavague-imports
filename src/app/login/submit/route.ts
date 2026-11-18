@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createSession, verifyPassword } from "@/lib/auth";
-import { createCustomerSession } from "@/lib/customer-auth";
+import { createCustomerSession, findCustomerByIdentifier } from "@/lib/customer-auth";
 import { requirePrisma } from "@/lib/db";
 
 // Unified sign-in as a full-page POST → 303 (Post/Redirect/Get), NOT a Server
@@ -21,7 +21,8 @@ function redirectTo(pathAndQuery: string) {
 
 export async function POST(request: Request) {
   const form = await request.formData();
-  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  // Accept either the new `identifier` (email OR phone) or the legacy `email`.
+  const identifier = String(form.get("identifier") ?? form.get("email") ?? "").trim();
   const password = String(form.get("password") ?? "");
   const remember = form.get("remember") === "on";
   const next = safeNext(form.get("next"));
@@ -29,29 +30,28 @@ export async function POST(request: Request) {
   const fail = (code: string) => {
     const params = new URLSearchParams({ error: code });
     if (next !== "/account") params.set("next", next);
+    if (identifier) params.set("id", identifier);
     return redirectTo(`/login?${params.toString()}`);
   };
 
   try {
     const prisma = requirePrisma();
 
-    // Staff first — an admin email routes to the admin workspace.
-    const admin = await prisma.adminUser.findUnique({ where: { email } });
-    if (admin) {
-      if (await verifyPassword(password, admin.passwordHash)) {
-        await createSession(admin.id, remember);
-        return redirectTo("/admin");
+    // Staff first — an admin email routes to the admin workspace (email only).
+    if (identifier.includes("@")) {
+      const admin = await prisma.adminUser.findUnique({ where: { email: identifier.toLowerCase() } });
+      if (admin) {
+        if (await verifyPassword(password, admin.passwordHash)) {
+          await createSession(admin.id, remember);
+          return redirectTo("/admin");
+        }
+        return fail("invalid");
       }
-      return fail("invalid");
     }
 
-    // Otherwise a customer.
-    const customer = await prisma.customer.findUnique({ where: { email } });
-    if (
-      customer &&
-      customer.passwordHash &&
-      (await verifyPassword(password, customer.passwordHash))
-    ) {
+    // Otherwise a customer, by email or phone.
+    const customer = await findCustomerByIdentifier(identifier);
+    if (customer && customer.passwordHash && (await verifyPassword(password, customer.passwordHash))) {
       await createCustomerSession(customer.id, remember);
       return redirectTo(next);
     }

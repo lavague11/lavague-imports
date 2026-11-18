@@ -26,6 +26,7 @@ export async function POST(request: Request) {
   const password = String(form.get("password") ?? "");
   const rawName = String(form.get("name") ?? "").trim();
   const name = rawName ? titleCaseName(rawName) : null;
+  const phone = String(form.get("phone") ?? "").trim() || null;
   const next = safeNext(form.get("next"));
 
   const fail = (code: string) => {
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     if (existing) return fail("exists");
 
     const customer = await prisma.customer.create({
-      data: { email, name, passwordHash: await hashPassword(password) },
+      data: { email, name, phone, passwordHash: await hashPassword(password) },
     });
     await createCustomerSession(customer.id);
     return redirectTo(next);

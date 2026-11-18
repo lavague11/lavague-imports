@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Container } from "@/components/ui/container";
+import { CustomerLogin } from "@/components/customer-login";
 import { getCurrentUser } from "@/lib/auth";
 import { getCustomer } from "@/lib/customer-auth";
 import { googleOAuthConfigured } from "@/lib/integrations";
@@ -12,7 +13,7 @@ export const metadata = {
 };
 
 const ERRORS: Record<string, string> = {
-  invalid: "Incorrect email or password.",
+  invalid: "Incorrect password. Check it and try again.",
   exists: "An account with that email already exists — sign in instead.",
   weak: "Please choose a password of at least 8 characters.",
   email: "Please enter a valid email address.",
@@ -45,6 +46,9 @@ export default async function LoginPage({
   if (admin) redirect("/admin");
 
   const mode = params.mode === "signup" ? "signup" : "signin";
+  const prefillId = typeof params.id === "string" ? params.id : "";
+  const prefillEmail = prefillId.includes("@") ? prefillId : "";
+  const prefillPhone = prefillId && !prefillId.includes("@") ? prefillId : "";
   const errorCode = typeof params.error === "string" ? params.error : null;
   const errorMessage = errorCode ? (ERRORS[errorCode] ?? "Something went wrong.") : null;
   const googleReady = googleOAuthConfigured();
@@ -101,7 +105,11 @@ export default async function LoginPage({
             </div>
             <div>
               <label htmlFor="email" className="mb-1 block text-sm font-medium text-olive-800">Email</label>
-              <input id="email" name="email" type="email" autoComplete="email" required className={fieldClass} />
+              <input id="email" name="email" type="email" autoComplete="email" required defaultValue={prefillEmail} className={fieldClass} />
+            </div>
+            <div>
+              <label htmlFor="phone" className="mb-1 block text-sm font-medium text-olive-800">Phone <span className="font-normal text-olive-400">(optional)</span></label>
+              <input id="phone" name="phone" type="tel" autoComplete="tel" defaultValue={prefillPhone} className={fieldClass} />
             </div>
             <div>
               <label htmlFor="password" className="mb-1 block text-sm font-medium text-olive-800">Password</label>
@@ -113,27 +121,7 @@ export default async function LoginPage({
             </button>
           </form>
         ) : (
-          <form action="/login/submit" method="post" className="space-y-4">
-            <input type="hidden" name="next" value={next} />
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm font-medium text-olive-800">Email</label>
-              <input id="email" name="email" type="email" autoComplete="email" required className={fieldClass} />
-            </div>
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium text-olive-800">Password</label>
-                <Link href="/forgot" className="text-xs font-medium text-olive-600 hover:text-olive-900">Forgot?</Link>
-              </div>
-              <input id="password" name="password" type="password" autoComplete="current-password" required className={fieldClass} />
-            </div>
-            <label htmlFor="remember" className="flex items-center gap-2 text-sm text-olive-700">
-              <input id="remember" name="remember" type="checkbox" defaultChecked className="h-4 w-4 rounded border-olive-300 accent-olive-800" />
-              Keep me signed in for 30 days
-            </label>
-            <button type="submit" className="h-11 w-full rounded-lg bg-olive-900 text-sm font-medium text-white hover:bg-olive-800">
-              Sign in
-            </button>
-          </form>
+          <CustomerLogin next={next} prefillId={prefillId || undefined} />
         )}
 
         <p className="mt-6 text-center text-sm text-olive-600">

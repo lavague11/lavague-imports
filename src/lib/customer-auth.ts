@@ -74,6 +74,22 @@ export async function getCustomer(): Promise<CustomerUser | null> {
   return null;
 }
 
+/** Find a customer by email (has '@') or phone (matched on the last 10 digits,
+ *  tolerant of formatting). Returns the fields sign-in needs, or null. */
+export async function findCustomerByIdentifier(identifier: string) {
+  const prisma = requirePrisma();
+  const id = identifier.trim();
+  if (!id) return null;
+  if (id.includes("@")) {
+    return prisma.customer.findUnique({ where: { email: id.toLowerCase() }, select: { id: true, email: true, name: true, phone: true, passwordHash: true } });
+  }
+  const digits = id.replace(/\D/g, "");
+  if (digits.length < 7) return null;
+  const last10 = digits.slice(-10);
+  const candidates = await prisma.customer.findMany({ where: { phone: { not: null } }, select: { id: true, email: true, name: true, phone: true, passwordHash: true } });
+  return candidates.find((c) => (c.phone ?? "").replace(/\D/g, "").slice(-10) === last10) ?? null;
+}
+
 export async function requireCustomer(): Promise<CustomerUser> {
   const customer = await getCustomer();
   if (!customer) throw new Error("Not authenticated");
