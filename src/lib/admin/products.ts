@@ -15,6 +15,7 @@ export interface ProductEdits {
   name?: string;
   tagline?: string | null;
   description?: string;
+  brand?: string | null;
   imageUrl?: string | null;
   /** Full replacement gallery (up to 3). imageUrl is kept in sync with [0]. */
   images?: string[];
@@ -153,6 +154,7 @@ export async function saveProductEdits(
   if (edits.name !== undefined) data.name = edits.name;
   if (edits.tagline !== undefined) data.tagline = edits.tagline;
   if (edits.description !== undefined) data.description = edits.description;
+  if (edits.brand !== undefined) data.brand = edits.brand;
   if (edits.images !== undefined) {
     data.images = edits.images;
     data.imageUrl = edits.images[0] ?? null;

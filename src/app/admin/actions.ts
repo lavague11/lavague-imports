@@ -117,6 +117,7 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
       {
         name: str(fd, "name") || undefined,
         description: str(fd, "description") || undefined,
+        brand: optStr(fd, "brand"),
         images,
         origin: optStr(fd, "origin"),
         ribbon: optStr(fd, "ribbon"),

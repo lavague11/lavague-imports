@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { NewProductForm } from "@/components/admin/new-product-form";
+import { ProductForm } from "@/components/admin/product-form";
 import { getCurrentUser } from "@/lib/auth";
 import { getCategories } from "@/lib/catalog";
 import { COUNTRY_ISO } from "@/lib/countries";
@@ -26,7 +26,8 @@ export default async function AdminNewProduct({
       <p className="mt-1 mb-6 text-sm text-olive-600">
         Create a product that isn&apos;t in any imported source. It survives catalog re-imports.
       </p>
-      <NewProductForm
+      <ProductForm
+        mode="new"
         categories={categories.map((c) => ({ slug: c.slug, name: c.name }))}
         countries={Object.keys(COUNTRY_ISO).sort()}
         errorCode={errorCode}

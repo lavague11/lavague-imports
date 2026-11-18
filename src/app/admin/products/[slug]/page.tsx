@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { ProductEditForm } from "@/components/admin/product-edit-form";
+import { ProductForm } from "@/components/admin/product-form";
 import { getCurrentUser } from "@/lib/auth";
 import { getCategories, sourceLabel } from "@/lib/catalog";
 import { COUNTRY_ISO } from "@/lib/countries";
@@ -48,11 +48,13 @@ export default async function AdminEditProduct({
       </p>
 
       <div className="mt-6">
-        <ProductEditForm
+        <ProductForm
+          mode="edit"
           product={{
             slug: product.slug,
             name: product.name,
             description: product.description,
+            brand: product.brand,
             images: product.images?.length ? product.images : product.imageUrl ? [product.imageUrl] : [],
             origin: product.origin,
             ribbon: product.ribbon,
@@ -60,6 +62,8 @@ export default async function AdminEditProduct({
             isActive: product.isActive,
             isFragile: product.isFragile,
             categorySlug: product.category.slug,
+            source: product.source,
+            storeUrl: `/shop/${product.slug}`,
             variants: product.variants.map((v) => ({
               sku: v.sku,
               name: v.name,
