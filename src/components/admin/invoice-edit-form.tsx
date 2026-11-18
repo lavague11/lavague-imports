@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { AddCredit, type CreditInput } from "@/components/admin/add-credit";
 import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist";
 import { NotesDictation } from "@/components/admin/notes-dictation";
 import { PhotoToInvoice } from "@/components/admin/photo-to-invoice";
 import { PreviousItems, type InvoiceLineInput } from "@/components/admin/previous-items";
-import { PriceHint } from "@/components/admin/price-hint";
+import { LineRow } from "@/components/admin/line-row";
 import { VoiceOrder, type VoiceItem } from "@/components/admin/voice-order";
 
 import {
@@ -219,26 +219,18 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
           <span>Description</span><span className="text-right">Qty</span><span className="text-right">Unit price</span><span className="text-right">Amount</span><span />
         </div>
         {rows.map((r, i) => (
-          <div key={i} className={`grid grid-cols-1 gap-2 border-b border-olive-50 px-4 py-3 last:border-0 sm:grid-cols-[1fr_5rem_7rem_6rem_2rem] sm:items-center ${r.isCredit ? "bg-amber-50/40" : i % 2 ? "bg-olive-50/30" : ""}`}>
-            <div>
-              <input name="desc" value={r.description} onChange={(e) => setRow(i, { description: e.target.value })} placeholder="Item or service" className={inputCls} />
-              {r.isCredit ? <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">Credit{r.creditReason ? ` · ${r.creditReason}` : ""}</span> : null}
-            </div>
-            <input name="qty" inputMode="numeric" value={r.qty} onChange={(e) => setRow(i, { qty: e.target.value })} placeholder="Qty" className={`${inputCls} sm:text-right`} />
-            <div>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-olive-400">$</span>
-                <input name="unit" inputMode="decimal" value={r.unit} onChange={(e) => setRow(i, { unit: e.target.value })} placeholder="0.00" className={`${inputCls} pl-6 sm:text-right`} />
-              </div>
-              <PriceHint customerId={props.customerId} name={r.description} price={r.unit} isCredit={r.isCredit} onAutoFill={(v) => setRow(i, { unit: v })} />
-            </div>
-            <div className={`text-sm sm:text-right ${r.isCredit ? "font-medium text-amber-700" : "text-olive-800"}`}>{r.isCredit ? `−${money(lineTotal(r))}` : money(lineTotal(r))}</div>
-            <button type="button" onClick={() => removeRow(i)} aria-label="Remove line" className="justify-self-start text-olive-400 hover:text-red-600 sm:justify-self-center">
-              <Trash2 className="h-4 w-4" />
-            </button>
-            <input type="hidden" name="isCredit" value={r.isCredit ? "1" : "0"} />
-            <input type="hidden" name="creditReason" value={r.creditReason ?? ""} />
-          </div>
+          <LineRow
+            key={i}
+            index={i}
+            description={r.description}
+            qty={r.qty}
+            unit={r.unit}
+            isCredit={r.isCredit}
+            creditReason={r.creditReason}
+            customerId={props.customerId}
+            onChange={(patch) => setRow(i, patch)}
+            onRemove={() => removeRow(i)}
+          />
         ))}
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <button type="button" onClick={addRow} className="inline-flex items-center gap-1.5 text-sm font-medium text-olive-700 hover:text-olive-900">
