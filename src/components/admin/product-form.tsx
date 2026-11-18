@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Camera, Check, ExternalLink, ScanBarcode, Sparkles, Star, Wand2, X } from "lucide-react";
+import { Camera, Check, ExternalLink, Plus, ScanBarcode, Sparkles, Star, Trash2, Wand2, X } from "lucide-react";
 
 import { saveProduct } from "@/app/admin/actions";
 import { BarcodeScanner } from "@/components/admin/barcode-scanner";
@@ -93,6 +93,22 @@ export interface ProductFormData {
 }
 
 interface Photo { key: string; preview: string; url?: string; file?: File }
+interface SizeRow { key: string; sku?: string; amount: string; unit: string; cases: string; price: string }
+
+function seedSizeRows(variants: ProductFormVariant[]): SizeRow[] {
+  if (!variants.length) return [{ key: "n0", amount: "", unit: "", cases: "", price: "" }];
+  return variants.map((v) => {
+    const p = parseUnitSize(v.name);
+    return {
+      key: `v-${v.sku}`,
+      sku: v.sku,
+      amount: p.amount,
+      unit: p.unit,
+      cases: v.unitsPerCase != null ? String(v.unitsPerCase) : "",
+      price: v.retailPriceCents != null ? (v.retailPriceCents / 100).toFixed(2) : "",
+    };
+  });
+}
 
 function EditSave() {
   const { pending } = useFormStatus();
@@ -127,23 +143,22 @@ export function ProductForm({
   const errorMessage = errorCode ? (ERRORS[errorCode] ?? "Something went wrong.") : null;
   const [state, formAction] = useActionState(saveProduct, idleFormState);
 
-  // Single-size fields apply when creating, or editing a product with ≤1 variant.
-  const singleVariant = product && product.variants.length <= 1 ? product.variants[0] : undefined;
-  const useSingleSize = !isEdit || (product ? product.variants.length <= 1 : true);
-  const singleSku = singleVariant?.sku ?? "";
-  const singleParsed = singleVariant ? parseUnitSize(singleVariant.name) : { amount: "", unit: "" };
+  const primarySku = product?.variants[0]?.sku ?? "";
 
   const nameRef = useRef<HTMLInputElement>(null);
   const brandRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLSelectElement>(null);
   const originRef = useRef<HTMLInputElement>(null);
-  const unitAmountRef = useRef<HTMLInputElement>(null);
-  const unitSelectRef = useRef<HTMLSelectElement>(null);
-  const casesRef = useRef<HTMLInputElement>(null);
   const skuRef = useRef<HTMLInputElement>(null);
   const ribbonRef = useRef<HTMLInputElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const fragileRef = useRef<HTMLInputElement>(null);
+
+  const [sizeRows, setSizeRows] = useState<SizeRow[]>(() => seedSizeRows(product?.variants ?? []));
+  const setSize = (key: string, patch: Partial<SizeRow>) =>
+    setSizeRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const addSize = () => setSizeRows((prev) => [...prev, { key: `n${Date.now()}`, amount: "", unit: "", cases: "", price: "" }]);
+  const removeSize = (key: string) => setSizeRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)));
 
   const addRef = useRef<HTMLInputElement>(null);
   const slotRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
@@ -353,12 +368,20 @@ export function ProductForm({
     if (categoryRef.current && rows.categorySlug.value && categories.some((c) => c.slug === rows.categorySlug.value))
       categoryRef.current.value = rows.categorySlug.value;
     if (originRef.current && rows.origin.value) originRef.current.value = rows.origin.value;
-    if (rows.size.value && useSingleSize) {
+    // Seed the first size row from the identified size / pieces-per-case.
+    if (rows.size.value || rows.piecesPerCase.value) {
       const { amount, unit } = parseSize(rows.size.value);
-      if (unitAmountRef.current) unitAmountRef.current.value = amount;
-      if (unitSelectRef.current && unit) unitSelectRef.current.value = unit;
+      setSizeRows((prev) => {
+        if (!prev.length) return prev;
+        const next = [...prev];
+        next[0] = {
+          ...next[0],
+          ...(rows.size.value ? { amount, ...(unit ? { unit } : {}) } : {}),
+          ...(rows.piecesPerCase.value ? { cases: rows.piecesPerCase.value.replace(/[^0-9]/g, "") } : {}),
+        };
+        return next;
+      });
     }
-    if (casesRef.current && rows.piecesPerCase.value) casesRef.current.value = rows.piecesPerCase.value.replace(/[^0-9]/g, "");
     if (skuRef.current && rows.sku.value) skuRef.current.value = rows.sku.value;
     setBarcode(rows.barcode.value);
     if (descRef.current && extras.description) descRef.current.value = extras.description;
@@ -377,13 +400,6 @@ export function ProductForm({
     { key: "barcode", label: "Barcode" },
     { key: "sku", label: "Suggested SKU" },
   ];
-
-  // Field names for the single-size block: tie to the existing variant's SKU on
-  // edit so saveProduct updates it; use the create route's names on new.
-  const sizeAmountName = isEdit ? `sizeAmount__${singleSku}` : "unitSizeAmount";
-  const sizeUnitName = isEdit ? `sizeUnit__${singleSku}` : "unitSizeUnit";
-  const caseName = isEdit ? `case__${singleSku}` : "unitsPerCase";
-  const priceName = isEdit ? `price__${singleSku}` : "price";
 
   const formProps = isEdit
     ? { action: formAction }
@@ -486,72 +502,73 @@ export function ProductForm({
         </div>
       </div>
 
-      {/* SKU + single size/price (new, or single-variant edit) */}
-      {useSingleSize ? (
-        <div className="grid gap-4 sm:grid-cols-4">
-          <div>
-            <label htmlFor="sku" className="mb-1 block text-sm font-medium text-olive-800">SKU</label>
-            {isEdit ? (
-              <input id="sku" value={singleSku} readOnly className={`${inputClass} bg-olive-50 text-olive-500`} />
-            ) : (
-              <input ref={skuRef} id="sku" name="sku" placeholder="auto if blank" className={inputClass} />
-            )}
-          </div>
-          <div>
-            <label htmlFor="unitSizeAmount" className="mb-1 block text-sm font-medium text-olive-800">Unit size</label>
-            <input ref={unitAmountRef} id="unitSizeAmount" name={sizeAmountName} defaultValue={singleParsed.amount} inputMode="decimal" placeholder="e.g. 70" className={inputClass} />
-          </div>
-          <div>
-            <label htmlFor="unitSizeUnit" className="mb-1 block text-sm font-medium text-olive-800">Unit</label>
-            <select ref={unitSelectRef} id="unitSizeUnit" name={sizeUnitName} defaultValue={singleParsed.unit} className={inputClass}>
-              <option value="">— none —</option>
-              {UNIT_OPTIONS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="unitsPerCase" className="mb-1 block text-sm font-medium text-olive-800">Units per case</label>
-            <input ref={casesRef} id="unitsPerCase" name={caseName} defaultValue={singleVariant?.unitsPerCase ?? ""} inputMode="numeric" placeholder="e.g. 24" className={inputClass} />
-          </div>
-        </div>
-      ) : null}
-
-      {/* Price each + Ribbon (single-size block keeps price here; multi-size has its own grid) */}
+      {/* SKU (primary) + Ribbon */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {useSingleSize ? (
-          <div>
-            <label htmlFor="price" className="mb-1 block text-sm font-medium text-olive-800">Price each (USD)</label>
-            <input id="price" name={priceName} defaultValue={singleVariant && singleVariant.retailPriceCents != null ? (singleVariant.retailPriceCents / 100).toFixed(2) : ""} inputMode="decimal" placeholder="blank = on request" className={inputClass} />
-          </div>
-        ) : <div />}
+        <div>
+          <label htmlFor="sku" className="mb-1 block text-sm font-medium text-olive-800">SKU</label>
+          {isEdit ? (
+            <input id="sku" value={primarySku} readOnly className={`${inputClass} bg-olive-50 text-olive-500`} />
+          ) : (
+            <input ref={skuRef} id="sku" name="sku" placeholder="auto if blank" className={inputClass} />
+          )}
+        </div>
         <div>
           <label htmlFor="ribbon" className="mb-1 block text-sm font-medium text-olive-800">Ribbon / badge</label>
           <input ref={ribbonRef} id="ribbon" name="ribbon" defaultValue={product?.ribbon ?? ""} placeholder="e.g. Best Seller" className={inputClass} />
         </div>
       </div>
 
-      {/* Multi-size grid (edit, >1 variant) — unified into one table in §7 */}
-      {isEdit && product && !useSingleSize ? (
-        <div>
-          <p className="mb-1 text-sm font-medium text-olive-800">Options &amp; case sizes</p>
-          <p className="mb-3 text-xs text-olive-500">This product has multiple sizes. Unit size is the weight/volume of one item; units per case is how many ship in a wholesale case.</p>
-          <div className="space-y-3">
-            {product.variants.map((v) => {
-              const parsed = parseUnitSize(v.name);
-              return (
-                <div key={v.sku} className="rounded-lg border border-olive-100 bg-olive-50/40 p-3">
-                  <div className="grid gap-3 sm:grid-cols-4">
-                    <label className="block"><span className="mb-1 block text-xs text-olive-600">Unit size</span><input name={`sizeAmount__${v.sku}`} defaultValue={parsed.amount} inputMode="decimal" placeholder="e.g. 70" className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm" /></label>
-                    <label className="block"><span className="mb-1 block text-xs text-olive-600">Unit</span><select name={`sizeUnit__${v.sku}`} defaultValue={parsed.unit} className="h-9 w-full rounded-lg border border-olive-200 px-2 text-sm"><option value="">— none —</option>{UNIT_OPTIONS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}</select></label>
-                    <label className="block"><span className="mb-1 block text-xs text-olive-600">Units per case</span><input name={`case__${v.sku}`} defaultValue={v.unitsPerCase ?? ""} inputMode="numeric" placeholder="e.g. 24" className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm" /></label>
-                    <label className="block"><span className="mb-1 block text-xs text-olive-600">Price each (USD)</span><input name={`price__${v.sku}`} defaultValue={v.retailPriceCents != null ? (v.retailPriceCents / 100).toFixed(2) : ""} inputMode="decimal" placeholder="blank = on request" className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm" /></label>
-                  </div>
-                  <p className="mt-2 text-[11px] text-olive-400">{v.sku}</p>
-                </div>
-              );
-            })}
-          </div>
+      {/* Options & case sizes — one table for every size (§7) */}
+      <div>
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-sm font-medium text-olive-800">Options &amp; case sizes</p>
+          <button type="button" onClick={addSize} className="inline-flex items-center gap-1 rounded-lg border border-olive-200 px-2.5 py-1 text-xs font-medium text-olive-700 hover:bg-olive-50">
+            <Plus className="h-3.5 w-3.5" /> Add size
+          </button>
         </div>
-      ) : null}
+        <p className="mb-2 text-xs text-olive-500">Unit size is the weight/volume of one item (e.g. “70 g”). Units per case is how many ship in a wholesale case. Leave price blank for “On request”.</p>
+        <div className="space-y-2">
+          {sizeRows.map((r) => {
+            const amountName = r.sku ? `sizeAmount__${r.sku}` : "newSizeAmount";
+            const unitName = r.sku ? `sizeUnit__${r.sku}` : "newSizeUnit";
+            const caseFieldName = r.sku ? `case__${r.sku}` : "newCase";
+            const priceFieldName = r.sku ? `price__${r.sku}` : "newPrice";
+            return (
+              <div key={r.key} className="rounded-lg border border-olive-100 bg-olive-50/40 p-3">
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-olive-600">Unit size</span>
+                    <input name={amountName} value={r.amount} onChange={(e) => setSize(r.key, { amount: e.target.value })} inputMode="decimal" placeholder="e.g. 70" className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-olive-600">Unit</span>
+                    <select name={unitName} value={r.unit} onChange={(e) => setSize(r.key, { unit: e.target.value })} className="h-9 w-full rounded-lg border border-olive-200 px-2 text-sm">
+                      <option value="">— none —</option>
+                      {UNIT_OPTIONS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-olive-600">Units per case</span>
+                    <input name={caseFieldName} value={r.cases} onChange={(e) => setSize(r.key, { cases: e.target.value })} inputMode="numeric" placeholder="—" className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm placeholder:text-olive-300" />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-olive-600">Price each (USD)</span>
+                    <input name={priceFieldName} value={r.price} onChange={(e) => setSize(r.key, { price: e.target.value })} inputMode="decimal" placeholder="On request" className="h-9 w-full rounded-lg border border-olive-200 px-3 text-sm placeholder:text-olive-300" />
+                  </label>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[11px] text-olive-400">{r.sku ?? "new size"}</span>
+                  {!r.sku && sizeRows.length > 1 ? (
+                    <button type="button" onClick={() => removeSize(r.key)} className="inline-flex items-center gap-1 text-[11px] text-olive-500 hover:text-red-700">
+                      <Trash2 className="h-3.5 w-3.5" /> Remove
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Description */}
       <div>

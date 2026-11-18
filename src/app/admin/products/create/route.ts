@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireUser } from "@/lib/auth";
-import { collectImagesFromForm, createCustomProduct } from "@/lib/admin/products";
+import { collectImagesFromForm, createCustomProduct, parseNewSizeRows } from "@/lib/admin/products";
 import { formatUnitSize } from "@/lib/units";
 
 // Create a product via a full-page POST (Post/Redirect/Get), NOT a Server
@@ -44,9 +44,14 @@ export async function POST(request: Request) {
       .slice(0, 70) || "product";
 
   const images = await collectImagesFromForm(fd);
-  const priceStr = s(fd, "price");
-  const caseStr = s(fd, "unitsPerCase");
-  const caseNum = parseInt(caseStr, 10);
+
+  // Sizes come from the "+ Add size" table (first row is the primary variant).
+  // Fall back to legacy single fields when no table rows were submitted.
+  const sizeRows = parseNewSizeRows(fd);
+  const primary = sizeRows[0];
+  const extras = sizeRows.slice(1);
+  const legacyPrice = s(fd, "price");
+  const legacyCase = parseInt(s(fd, "unitsPerCase"), 10);
 
   let created: { slug: string };
   try {
@@ -61,10 +66,11 @@ export async function POST(request: Request) {
       barcode: s(fd, "barcode").replace(/[^0-9]/g, "") || null,
       ribbon: optS(fd, "ribbon"),
       images,
-      priceCents: priceStr ? Math.round(parseFloat(priceStr) * 100) : null,
-      unitSize: formatUnitSize(s(fd, "unitSizeAmount"), s(fd, "unitSizeUnit")),
-      unitsPerCase: Number.isFinite(caseNum) && caseNum > 0 ? caseNum : null,
+      priceCents: primary ? primary.priceCents ?? null : legacyPrice ? Math.round(parseFloat(legacyPrice) * 100) : null,
+      unitSize: primary ? primary.size ?? null : formatUnitSize(s(fd, "unitSizeAmount"), s(fd, "unitSizeUnit")),
+      unitsPerCase: primary ? primary.unitsPerCase ?? null : Number.isFinite(legacyCase) && legacyCase > 0 ? legacyCase : null,
       isFragile: fd.get("fragile") === "on",
+      extraVariants: extras,
     });
   } catch (error) {
     console.error("[admin] createProduct failed", error);

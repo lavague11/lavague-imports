@@ -2,6 +2,76 @@ import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
 import { requirePrisma } from "@/lib/db";
+import { formatUnitSize } from "@/lib/units";
+
+/** A size/pack to create as a new ProductVariant. */
+export interface SeedVariant {
+  size?: string | null;
+  unitsPerCase?: number | null;
+  priceCents?: number | null;
+}
+
+/** Parse the "+ Add size" rows from a submitted form (repeated newSize* fields,
+ *  index-aligned). Returns only rows that carry some content. */
+export function parseNewSizeRows(fd: FormData): SeedVariant[] {
+  const amounts = fd.getAll("newSizeAmount").map(String);
+  const units = fd.getAll("newSizeUnit").map(String);
+  const cases = fd.getAll("newCase").map(String);
+  const prices = fd.getAll("newPrice").map(String);
+  const n = Math.max(amounts.length, units.length, cases.length, prices.length);
+  const rows: SeedVariant[] = [];
+  for (let i = 0; i < n; i++) {
+    const size = formatUnitSize(amounts[i] ?? "", units[i] ?? "");
+    const caseNum = parseInt((cases[i] ?? "").trim(), 10);
+    const priceStr = (prices[i] ?? "").trim();
+    const row: SeedVariant = {
+      size,
+      unitsPerCase: Number.isFinite(caseNum) && caseNum > 0 ? caseNum : null,
+      priceCents: priceStr ? Math.round(parseFloat(priceStr) * 100) : null,
+    };
+    rows.push(row);
+  }
+  return rows;
+}
+
+const hasContent = (v: SeedVariant) =>
+  (v.size != null && v.size.trim() !== "" && v.size.trim().toLowerCase() !== "each") ||
+  v.unitsPerCase != null ||
+  v.priceCents != null;
+
+/** Create new sizes (variants) on an existing product and recompute its
+ *  denormalized lowest price. Skips empty rows; generates unique SKUs. */
+export async function addProductSizes(slug: string, rows: SeedVariant[]): Promise<void> {
+  const prisma = requirePrisma();
+  const clean = rows.filter(hasContent);
+  if (!clean.length) return;
+  const product = await prisma.product.findUnique({ where: { slug }, include: { variants: true } });
+  if (!product) return;
+
+  const base = (product.variants[0]?.sku ?? `LV-${slug}`.toUpperCase()).slice(0, 30);
+  const used = new Set(product.variants.map((v) => v.sku));
+  let pos = product.variants.length;
+  const data = clean.map((v, i) => {
+    let sku = `${base}-${pos + i + 1}`.slice(0, 40);
+    while (used.has(sku)) sku = `${base}-${pos + i + 1}-${Math.random().toString(36).slice(2, 5)}`.slice(0, 40);
+    used.add(sku);
+    return {
+      sku,
+      name: v.size && v.size.trim() ? v.size.trim() : "Each",
+      productId: product.id,
+      retailPriceCents: v.priceCents ?? null,
+      unitsPerCase: v.unitsPerCase ?? null,
+      inStock: true,
+      position: pos + i,
+    };
+  });
+  await prisma.productVariant.createMany({ data, skipDuplicates: true });
+
+  const prices = [...product.variants.map((v) => v.retailPriceCents), ...clean.map((v) => v.priceCents ?? null)].filter(
+    (c): c is number => c != null,
+  );
+  await prisma.product.update({ where: { id: product.id }, data: { minPriceCents: prices.length ? Math.min(...prices) : null } });
+}
 
 /** A single-variant pack edit. */
 export interface VariantPack {
@@ -250,6 +320,8 @@ export interface NewProductInput {
   /** Hidden from the storefront + queued for admin review (invoice photo/voice). */
   isActive?: boolean;
   needsReview?: boolean;
+  /** Additional sizes beyond the primary variant (from the "+ Add size" table). */
+  extraVariants?: SeedVariant[];
 }
 
 /** Creates an admin-owned (isCustom) product with a single variant. Returns its identity. */
@@ -295,5 +367,33 @@ export async function createCustomProduct(
       },
     },
   });
+
+  // Additional sizes from the "+ Add size" table.
+  const extras = (input.extraVariants ?? []).filter(hasContent);
+  if (extras.length) {
+    const used = new Set<string>([input.sku]);
+    const data = extras.map((v, i) => {
+      let sku = `${input.sku}-${i + 2}`.slice(0, 40);
+      while (used.has(sku)) sku = `${input.sku}-${i + 2}-${Math.random().toString(36).slice(2, 5)}`.slice(0, 40);
+      used.add(sku);
+      return {
+        sku,
+        name: v.size && v.size.trim() ? v.size.trim() : "Each",
+        productId: id,
+        retailPriceCents: v.priceCents ?? null,
+        unitsPerCase: v.unitsPerCase ?? null,
+        inStock: true,
+        position: i + 1,
+      };
+    });
+    await prisma.productVariant.createMany({ data, skipDuplicates: true });
+  }
+
+  // Denormalized lowest price across all variants.
+  const prices = [input.priceCents ?? null, ...extras.map((v) => v.priceCents ?? null)].filter((c): c is number => c != null);
+  if (prices.length) {
+    await prisma.product.update({ where: { id }, data: { minPriceCents: Math.min(...prices) } });
+  }
+
   return { slug, sku: input.sku, imageUrl };
 }

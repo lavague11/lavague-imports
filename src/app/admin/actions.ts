@@ -9,7 +9,9 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import {
+  addProductSizes,
   collectImagesFromForm,
+  parseNewSizeRows,
   saveProductEdits,
   setActive,
   setProductPricing,
@@ -130,6 +132,8 @@ export async function saveProduct(_prev: FormState, fd: FormData): Promise<FormS
       },
       user.id,
     );
+    // New sizes added via the "+ Add size" table.
+    await addProductSizes(slug, parseNewSizeRows(fd));
   } catch (error) {
     console.error("[admin] saveProduct failed", error);
     return { status: "error", message: "Couldn't save — is the database connected?" };
