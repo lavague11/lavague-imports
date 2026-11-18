@@ -84,7 +84,7 @@ export function ProductCard({ product }: { product: Product }) {
               href={`/shop/${product.slug}`}
               className="inline-flex h-9 w-full items-center justify-center rounded-full border border-olive-300 bg-white px-4 text-sm font-medium text-olive-900 transition-colors hover:border-olive-500 hover:bg-olive-50"
             >
-              Choose an option ({product.variants.length})
+              Choose an option
             </Link>
           ) : (
             <AddToQuote
