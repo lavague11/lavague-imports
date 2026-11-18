@@ -1248,6 +1248,12 @@ enum CustomerInvoiceStatus {
 model CustomerInvoice {
   id         String                @id @default(cuid())
   number     String                @unique
+  /// Invoice ASAP history import: the original external invoice number (idempotent key).
+  externalNumber String?           @unique
+  /// Original invoice date from the imported source (issueDate mirrors it for display).
+  invoiceDate    DateTime?
+  /// Where this invoice came from, e.g. 'invoice_asap' for imported history.
+  source         String?
   /// Optional: a new invoice can start as a blank draft and get a customer later.
   customerId String?
   customer   Customer?             @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -1369,6 +1375,12 @@ model CustomerInvoiceLine {
   /// A credit line: negative lineTotalCents, with a reason (reports filter on this).
   isCredit       Boolean         @default(false)
   creditReason   String?
+  /// Invoice ASAP history import: raw source fields kept alongside `description`.
+  itemCode       String?
+  originalName   String?
+  cleanName      String?
+  sku            String?
+  brand          String?
 
   @@index([invoiceId])
   @@index([isCredit])
