@@ -173,12 +173,12 @@ export async function POST(request: Request) {
     "priceSource": "spoken" | "catalog" | "none",
     "matchTag": "matched" | "best guess" | "not in catalog",
     "isCredit": boolean,
-    "creditReason": string   // if credit, one of [Damaged, Expired, Returned, Short delivery, Courtesy, Price adjustment, Other]; else ""
+    "creditReason": string   // ONLY if the speaker actually stated a reason, one of [Damaged, Expired, Returned, Short delivery, Courtesy, Price adjustment, Other]; if no reason was spoken, "" (do NOT guess or default to Other)
   }]
 }
 Match each item to the CANDIDATES below using brand + product + size (وزنية/wazneya = El Ouazzania extra virgin, المغربية = Al Maghribya, داري = Dari, بلبولة/belboula = Dari barley couscous). Prefer the candidate whose brand AND size match. Only use a SKU/price/brand from the candidates — never invent. If nothing fits, matchTag "not in catalog", sku "".
 PRICE: "ب<n>"/"at n" = unit price; "الكل"/"total" = line total (÷ qty). No price spoken → matched catalog price, priceSource "catalog"; no match → null, "none".
-CREDIT: "credit 2 cases harissa damaged" → isCredit true, reason Damaged. "$40 courtesy credit" → name "Credit", priceCents 4000, reason Courtesy.
+CREDIT: "credit 2 cases harissa damaged" → isCredit true, reason Damaged. "$40 courtesy credit" → name "Credit", priceCents 4000, reason Courtesy. "credit 2 cases harissa" (no reason said) → isCredit true, creditReason "".
 
 CANDIDATES:
 ${JSON.stringify(cands, null, 1)}
