@@ -129,6 +129,11 @@ function parseCommand(raw: string): Command | null {
   return null;
 }
 
+// A bare "Other" from the model usually means no reason was actually stated, so
+// clear it → the card then asks for a reason ("No reason given → ask for one").
+const clearDefaultReason = (items: VoiceItem[]): VoiceItem[] =>
+  items.map((it) => (it.isCredit && it.creditReason === "Other" ? { ...it, creditReason: "" } : it));
+
 // Map a spoken reason to one of the CREDIT_REASONS, or null.
 function parseReason(raw: string): string | null {
   const t = raw.toLowerCase();
@@ -478,7 +483,7 @@ export function VoiceOrder({
       if (customerId) mfd.append("customerId", customerId);
       const mRes = await fetch("/admin/invoices/voice/match", { method: "POST", body: mfd });
       const mData = await mRes.json();
-      const items: VoiceItem[] = Array.isArray(mData.items) ? mData.items : [];
+      const items: VoiceItem[] = clearDefaultReason(Array.isArray(mData.items) ? mData.items : []);
       if (items.length) setQueue((q) => [...q, ...items]);
 
       // Capture a detected customer, but don't open the confirm modal mid-stream
@@ -641,7 +646,7 @@ export function VoiceOrder({
         setCustomerHandled(false);
         setCustMode("confirm");
         setNewBusiness(mData.heardCustomer || "");
-        const items: VoiceItem[] = Array.isArray(mData.items) ? mData.items : [];
+        const items: VoiceItem[] = clearDefaultReason(Array.isArray(mData.items) ? mData.items : []);
         if (items.length === 0 && !mData.customer?.id) setNote("Couldn't pull any items out of that — tap and try again.");
         setQueue(items);
         setTally({ added: 0, skipped: 0 });
