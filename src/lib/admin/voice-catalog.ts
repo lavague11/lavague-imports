@@ -14,6 +14,8 @@ export interface CatalogHit {
   packSize: string;
   priceCents: number | null;
   imageUrl: string | null;
+  /** This customer's last-paid price for the product, when known (picker, §3). */
+  lastPaidCents?: number | null;
 }
 
 interface ProductRow {

@@ -212,7 +212,13 @@ ${transcript}`;
         // Default the quantity to how this customer usually orders it (plain numbers only).
         if (!it.quantitySpoken && usualQty && usualQty > 0) it.quantity = usualQty;
 
-        return { ...it, sku, priceCents, priceSource, imageUrl, alternatives: r.alternatives, vague: Boolean(r.vague), usualQty };
+        // Picker options (§3): attach this customer's last-paid price per option.
+        const alternatives = customerId
+          ? await Promise.all(r.alternatives.map(async (a) => ({ ...a, lastPaidCents: (await lastPaid(prisma, customerId, a.name))?.cents ?? null })))
+          : r.alternatives;
+        const lastPaidCents = priceSource === "last" ? priceCents : null;
+
+        return { ...it, sku, priceCents, priceSource, imageUrl, alternatives, vague: Boolean(r.vague), ambiguous: Boolean(r.ambiguous), usualQty, lastPaidCents };
       }),
     );
 

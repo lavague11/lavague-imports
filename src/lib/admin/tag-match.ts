@@ -19,10 +19,13 @@ export interface ResolveResult {
   match: ResolvedMatch | null;
   alternatives: CatalogHit[];
   vague: boolean;
+  /** Low confidence or top-2 close → the card should show a picker (stage 3). */
+  ambiguous: boolean;
 }
 
 const HISTORY_MIN = 0.45;
 const FUZZY_MIN = 0.5;
+const CONFIDENT = 0.72;
 
 async function hitForSku(prisma: PrismaClient, sku: string): Promise<CatalogHit | null> {
   const v = await prisma.productVariant.findUnique({
@@ -128,36 +131,39 @@ export async function resolveSpokenItem(
   const brandNorm = input.brand ? normText(input.brand) : "";
   const sizeHint = extractSizeHint(`${input.name} ${input.size ?? ""}`);
 
-  // 1. History
+  // 1. History (confident — a known reorder).
   if (input.customerId) {
     const h = await fromHistory(prisma, norm, input.customerId);
-    if (h) return { match: h, alternatives: [], vague: false };
+    if (h) return { match: h, alternatives: [], vague: false, ambiguous: false };
   }
 
-  // 2. Tags
+  // 2. Tags (strong facet agreement).
   const t = await fromTags(prisma, tokens, brandNorm, sizeHint);
-  if (t) return { match: t, alternatives: [], vague: false };
+  if (t) return { match: t, alternatives: [], vague: false, ambiguous: false };
 
   // A bare type with no brand/size and no history → ask, don't fuzzy-guess a
   // specific brand. Offer the closest items for the picker (stage 3).
   const hits = await searchCatalog(prisma, query, 6);
   if (await isVague(prisma, norm, tokens, brandNorm, sizeHint)) {
-    return { match: null, alternatives: hits.slice(0, 3), vague: true };
+    return { match: null, alternatives: hits.slice(0, 3), vague: true, ambiguous: hits.length > 0 };
   }
 
-  // 3. Fuzzy name
+  // 3. Fuzzy name.
   if (hits.length) {
     const best = hits[0];
     const score = diceSim(norm, normText(`${best.brand ?? ""} ${best.name}`));
     if (score >= FUZZY_MIN) {
-      return { match: { ...best, source: "fuzzy", confidence: score, usualQty: null }, alternatives: hits.slice(1, 4), vague: false };
+      // Ambiguous when the best isn't clearly best: low confidence, or a close runner-up.
+      const second = hits[1] ? diceSim(norm, normText(`${hits[1].brand ?? ""} ${hits[1].name}`)) : 0;
+      const ambiguous = score < CONFIDENT || score - second < 0.1;
+      return { match: { ...best, source: "fuzzy", confidence: score, usualQty: null }, alternatives: hits.slice(1, 4), vague: false, ambiguous };
     }
-    // Weak fuzzy → offer the hits as alternatives (picker, stage 3).
-    return { match: null, alternatives: hits.slice(0, 3), vague: false };
+    // Weak fuzzy → no confident match; offer the hits for the picker.
+    return { match: null, alternatives: hits.slice(0, 3), vague: false, ambiguous: true };
   }
 
-  // 4. Fallback
-  return { match: null, alternatives: [], vague: false };
+  // 4. Fallback — nothing close.
+  return { match: null, alternatives: [], vague: false, ambiguous: false };
 }
 
 // Vague: a bare type word with no brand / size (e.g. "olive oil") → ask for

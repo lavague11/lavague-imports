@@ -12,6 +12,7 @@ export interface CatalogHit {
   packSize: string;
   priceCents: number | null;
   imageUrl: string | null;
+  lastPaidCents?: number | null;
 }
 
 export interface VoiceItem {
@@ -32,6 +33,17 @@ export interface VoiceItem {
   alternatives?: CatalogHit[];
   vague?: boolean;
   usualQty?: number | null;
+  ambiguous?: boolean;
+  lastPaidCents?: number | null;
+}
+
+// Picker options (§3): the current best + its alternatives, deduped, top 3.
+function pickerOptionsFor(it: VoiceItem): CatalogHit[] {
+  const out: CatalogHit[] = [];
+  const seen = new Set<string>();
+  if (it.sku) { out.push({ name: it.name, brand: it.brand || null, sku: it.sku, packSize: it.packSize, priceCents: it.priceCents, imageUrl: it.imageUrl, lastPaidCents: it.lastPaidCents ?? null }); seen.add(it.sku); }
+  for (const a of it.alternatives ?? []) { if (a.sku && !seen.has(a.sku)) { seen.add(a.sku); out.push(a); } }
+  return out.slice(0, 3);
 }
 
 interface DetectedCustomer { id: string; label: string }
@@ -298,7 +310,7 @@ export function VoiceOrder({
     // Prefill the quantity: a spoken number, else how this customer usually orders it.
     setQty(current.quantitySpoken ? String(current.quantity || 1) : current.usualQty ? String(current.usualQty) : "");
     setReason("");
-    setChanging(!current.isCredit && current.matchTag === "not in catalog");
+    setChanging(!current.isCredit && (current.matchTag === "not in catalog" || Boolean(current.ambiguous)));
     setSearchQ("");
     setResults([]);
     setDupe(null);
@@ -776,7 +788,7 @@ export function VoiceOrder({
       const a = parseAnswer(text);
       if (a.kind === "yes") answer(true);
       else if (a.kind === "no") answer(false);
-      else if (a.kind === "select") { const alt = current.alternatives?.[a.n - 1]; if (alt) adopt(alt); }
+      else if (a.kind === "select") { const opts = current.ambiguous ? pickerOptionsFor(current) : current.alternatives ?? []; const alt = opts[a.n - 1]; if (alt) adopt(alt); }
       else if (a.kind === "qty") setQty(String(a.n));
       else void speak("Sorry, I didn't catch that.");
     } finally {
@@ -962,7 +974,7 @@ export function VoiceOrder({
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className={`w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl ${isCredit ? "ring-2 ring-amber-300" : ""}`}>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-olive-800">{isCredit ? "Add this credit?" : "Is this the item?"}</span>
+              <span className="text-sm font-semibold text-olive-800">{isCredit ? "Add this credit?" : current.ambiguous ? "Which one?" : "Is this the item?"}</span>
               {isCredit ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"><Undo2 className="h-3 w-3" /> Credit</span>
               ) : (
@@ -1052,7 +1064,7 @@ export function VoiceOrder({
             {!isCredit ? (
               <div className="mt-3">
                 <button type="button" onClick={() => setChanging((v) => !v)} className="text-xs font-medium text-olive-600 underline underline-offset-2 hover:text-olive-900">
-                  {current.matchTag === "matched" ? "Not the right item? Change" : "Find or create the right item"}
+                  {current.ambiguous ? "Which one did you mean?" : current.matchTag === "matched" ? "Not the right item? Change" : "Find or create the right item"}
                 </button>
 
                 {changing ? (
@@ -1070,9 +1082,11 @@ export function VoiceOrder({
                       </div>
                     ) : (
                       <>
-                        {(current.alternatives?.length ? current.alternatives : []).map((a) => (
+                        {current.ambiguous ? <p className="px-1 text-[11px] text-olive-500">Tap the right one, or say &ldquo;the first/second one&rdquo;.</p> : null}
+                        {(current.ambiguous ? pickerOptionsFor(current) : current.alternatives ?? []).map((a) => (
                           <HitButton key={`alt-${a.sku}`} hit={a} onPick={adopt} />
                         ))}
+                        {current.ambiguous ? <p className="px-1 pt-1 text-[11px] text-olive-400">None of these? Search or create below.</p> : null}
                         <input
                           value={searchQ}
                           onChange={(e) => runSearch(e.target.value)}
@@ -1162,7 +1176,8 @@ function HitButton({ hit, onPick }: { hit: CatalogHit; onPick: (h: CatalogHit) =
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-medium text-olive-900">{hit.name}</span>
         <span className="block truncate text-[11px] text-olive-500">
-          {[hit.brand, hit.packSize].filter(Boolean).join(" · ") || "—"} · {money(hit.priceCents)}
+          {[hit.brand, hit.packSize].filter(Boolean).join(" · ") || "—"}
+          {hit.lastPaidCents != null ? <span className="text-emerald-700"> · last paid {money(hit.lastPaidCents)}</span> : <> · {money(hit.priceCents)}</>}
         </span>
       </span>
     </button>
