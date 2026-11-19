@@ -85,6 +85,12 @@ function dice(a: string, b: string): number {
   return (2 * inter) / (A.size + B.size);
 }
 
+// Consonant skeleton — drops vowels and semivowels so transliterated Arabic
+// lines up with English spelling ("zaym" & "zaeem" both → "zm", ≠ "zaytuna" → "ztn").
+function skeleton(s: string): string {
+  return s.replace(/[aeiouwy]/g, "");
+}
+
 function scoreOne(spoken: string, row: CustomerRow): number {
   const sp = canon(spoken);
   const cu = canon(`${row.businessName ?? ""} ${row.name ?? ""}`);
@@ -97,7 +103,10 @@ function scoreOne(spoken: string, row: CustomerRow): number {
     for (const c of cuTokens) {
       const d = dice(s, c);
       const pref = s.length >= 3 && c.startsWith(s.slice(0, 3)) ? 0.3 : 0;
-      tokenBest = Math.max(tokenBest, d + pref);
+      const sk = skeleton(s);
+      const ck = skeleton(c);
+      const skel = sk.length >= 2 && sk === ck ? 0.5 : sk.length >= 2 && ck.includes(sk) ? 0.25 : 0;
+      tokenBest = Math.max(tokenBest, d + pref + skel);
     }
   }
   const whole = dice(sp, cu);
