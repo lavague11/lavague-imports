@@ -10,8 +10,10 @@ import { getProductTags, listTypeOptions } from "@/lib/admin/product-tags";
 
 export default async function AdminEditProduct({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/admin/login");
@@ -19,6 +21,7 @@ export default async function AdminEditProduct({
   if (!prisma) return <p className="text-olive-700">Database not connected — see the dashboard.</p>;
 
   const { slug } = await params;
+  const dupeBarcode = (await searchParams).dupe === "barcode";
   const [tags, typeOptions] = await Promise.all([getProductTags(slug), listTypeOptions()]);
   const [product, categories, brands, override] = await Promise.all([
     prisma.product.findUnique({
@@ -99,6 +102,12 @@ export default async function AdminEditProduct({
         <span className="font-medium text-olive-700">{sourceLabel(product.source)}</span>
         {product.isCustom ? " · custom product" : ""}
       </p>
+
+      {dupeBarcode ? (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          A product with that barcode already exists — opened it here instead of creating a duplicate.
+        </p>
+      ) : null}
 
       <div className="mt-6">
         <ProductForm

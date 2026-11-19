@@ -13,6 +13,7 @@ export interface CatalogHit {
   priceCents: number | null;
   imageUrl: string | null;
   lastPaidCents?: number | null;
+  slug?: string;
 }
 
 export interface VoiceItem {
@@ -207,6 +208,7 @@ export function VoiceOrder({
   const [results, setResults] = useState<CatalogHit[]>([]);
   const [dupe, setDupe] = useState<CatalogHit | null>(null);
   const [creating, setCreating] = useState(false);
+  const [aliasUndo, setAliasUndo] = useState<{ tagId: string; slug: string; label: string } | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Spoken replies (TTS) + tap-to-answer-by-voice.
@@ -343,6 +345,34 @@ export function VoiceOrder({
     setResults([]);
     setSearchQ("");
   };
+
+  // "Use this one" (§5): adopt the existing product AND learn the spoken name as
+  // a SPOKEN alias on it, with an Undo. (Formal overwrite-guard + approval: §6.)
+  const useThisOne = async (hit: CatalogHit) => {
+    adopt(hit);
+    const spoken = (current?.heard || current?.name || "").trim();
+    if (!hit.slug || !spoken) return;
+    try {
+      const r = await fetch(`/admin/products/${hit.slug}/tags`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add", kind: "SPOKEN", value: spoken }),
+      });
+      const d = await r.json();
+      const added = Array.isArray(d.tags) ? d.tags.find((t: { id: string; kind: string; value: string }) => t.kind === "SPOKEN" && t.value.toLowerCase() === spoken.toLowerCase()) : null;
+      if (added) setAliasUndo({ tagId: added.id, slug: hit.slug, label: `“${spoken}” → ${hit.name}` });
+    } catch { /* ignore */ }
+  };
+  const undoAlias = async () => {
+    if (!aliasUndo) return;
+    const u = aliasUndo;
+    setAliasUndo(null);
+    try { await fetch(`/admin/products/${u.slug}/tags`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "remove", id: u.tagId }) }); } catch { /* ignore */ }
+  };
+  useEffect(() => {
+    if (!aliasUndo) return;
+    const t = setTimeout(() => setAliasUndo(null), 10000);
+    return () => clearTimeout(t);
+  }, [aliasUndo]);
 
   const runSearch = (q: string) => {
     setSearchQ(q);
@@ -1078,7 +1108,7 @@ export function VoiceOrder({
                           Looks like <span className="font-semibold">{dupe.name}</span>{dupe.packSize ? ` · ${dupe.packSize}` : ""} already exists — use it?
                         </p>
                         <div className="mt-1.5 flex gap-1.5">
-                          <button type="button" onClick={() => adopt(dupe)} className="rounded-lg bg-olive-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-olive-800">Use it</button>
+                          <button type="button" onClick={() => useThisOne(dupe)} className="rounded-lg bg-olive-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-olive-800">Use this one</button>
                           <button type="button" onClick={() => createNew(true)} disabled={creating} className="rounded-lg border border-olive-300 px-2.5 py-1 text-xs font-medium text-olive-700 hover:bg-white disabled:opacity-60">Create anyway</button>
                           <button type="button" onClick={() => setDupe(null)} className="rounded-lg px-2 py-1 text-xs text-olive-500 hover:text-olive-800">Back</button>
                         </div>
@@ -1156,6 +1186,14 @@ export function VoiceOrder({
             {transcript ? <p className="mt-2 text-xs text-olive-500">Heard: &ldquo;{transcript}&rdquo;</p> : null}
             <button type="button" onClick={() => setDone(false)} className="mt-4 w-full rounded-lg bg-olive-900 py-2.5 text-sm font-medium text-white hover:bg-olive-800">Done</button>
           </div>
+        </div>
+      ) : null}
+
+      {/* Alias learned toast (§5) */}
+      {aliasUndo ? (
+        <div className="fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 rounded-full bg-olive-900 px-4 py-2 text-sm text-white shadow-lg">
+          <span className="max-w-[60vw] truncate">Learned {aliasUndo.label}</span>
+          <button type="button" onClick={undoAlias} className="font-semibold text-emerald-300 underline">Undo</button>
         </div>
       ) : null}
     </>

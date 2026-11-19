@@ -4,7 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
 import { createCustomProduct } from "@/lib/admin/products";
 import { addProductTag, guessTagsFor } from "@/lib/admin/product-tags";
-import { findCatalogDuplicates, type CatalogHit } from "@/lib/admin/voice-catalog";
+import { findSimilarProducts } from "@/lib/admin/duplicate-guard";
+import type { CatalogHit } from "@/lib/admin/voice-catalog";
 
 export const runtime = "nodejs";
 
@@ -33,10 +34,11 @@ export async function POST(request: Request) {
   const force = clean(fd?.get("force")) === "1";
   if (!name) return NextResponse.json({ error: "name" }, { status: 400 });
 
-  // Duplicate check first — unless the admin already chose "create anyway".
+  // Duplicate guard (§5) — unless the admin already chose "create anyway".
   if (!force) {
-    const dupes = await findCatalogDuplicates(prisma, name, brand, size);
-    if (dupes.length) return NextResponse.json({ duplicate: dupes[0], alternatives: dupes.slice(1) });
+    const sim = await findSimilarProducts(prisma, { name, brand, size, barcode: null });
+    const all = [...(sim.exactBarcode ? [sim.exactBarcode] : []), ...sim.similar];
+    if (all.length) return NextResponse.json({ duplicate: all[0], alternatives: all.slice(1) });
   }
 
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "product";

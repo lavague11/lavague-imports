@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/auth";
+import { getPrisma } from "@/lib/db";
 import { createCustomProduct, saveUploadedImage } from "@/lib/admin/products";
+import { findSimilarProducts } from "@/lib/admin/duplicate-guard";
 import { formatUnitSize } from "@/lib/units";
 
 export const runtime = "nodejs";
@@ -26,6 +28,16 @@ export async function POST(request: Request) {
   if (!name) return NextResponse.json({ error: "name" }, { status: 400 });
   if (!priceStr || !(parseFloat(priceStr) > 0)) return NextResponse.json({ error: "price" }, { status: 400 });
 
+  // Duplicate guard (§5): an exact barcode match blocks creation.
+  const barcode = clean(fd.get("barcode")).replace(/[^0-9]/g, "") || null;
+  if (barcode && clean(fd.get("force")) !== "1") {
+    const prisma = getPrisma();
+    if (prisma) {
+      const sim = await findSimilarProducts(prisma, { barcode, name, brand: clean(fd.get("brand")) || null, size: null });
+      if (sim.exactBarcode) return NextResponse.json({ error: "barcode-dupe", existing: { slug: sim.exactBarcode.slug, name: sim.exactBarcode.name } });
+    }
+  }
+
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "product";
   const sku = clean(fd.get("sku")) || `LV-${slug}`.toUpperCase().slice(0, 40);
   const caseNum = parseInt(clean(fd.get("unitsPerCase")), 10);
@@ -42,7 +54,7 @@ export async function POST(request: Request) {
       description: `${name}.`,
       brand: clean(fd.get("brand")) || null,
       origin: clean(fd.get("origin")) || null,
-      barcode: clean(fd.get("barcode")).replace(/[^0-9]/g, "") || null,
+      barcode,
       imageUrl,
       priceCents: Math.round(parseFloat(priceStr) * 100),
       unitSize: formatUnitSize(clean(fd.get("unitSizeAmount")), clean(fd.get("unitSizeUnit"))) || clean(fd.get("size")) || null,

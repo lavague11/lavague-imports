@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireUser } from "@/lib/auth";
+import { getPrisma } from "@/lib/db";
 import { collectImagesFromForm, createCustomProduct } from "@/lib/admin/products";
+import { findSimilarProducts } from "@/lib/admin/duplicate-guard";
 import { formatUnitSize } from "@/lib/units";
 
 // Create ONE product from the bulk-add review (PRODUCTS_UI §4). Saved hidden
@@ -23,6 +25,16 @@ export async function POST(request: Request) {
   const name = s(fd, "name");
   const categorySlug = s(fd, "categorySlug");
   if (!name || !categorySlug) return NextResponse.json({ ok: false, error: "required" }, { status: 400 });
+
+  // Duplicate guard (§5): never create over an exact barcode match.
+  const barcode = s(fd, "barcode").replace(/[^0-9]/g, "") || null;
+  if (barcode && fd.get("force") !== "1") {
+    const prisma = getPrisma();
+    if (prisma) {
+      const sim = await findSimilarProducts(prisma, { barcode, name, brand: s(fd, "brand") || null, size: null });
+      if (sim.exactBarcode) return NextResponse.json({ ok: false, error: "barcode-dupe", existing: { slug: sim.exactBarcode.slug, name: sim.exactBarcode.name } });
+    }
+  }
 
   const slug =
     (s(fd, "slug") || name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "product";

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { requireUser } from "@/lib/auth";
+import { getPrisma } from "@/lib/db";
 import { collectImagesFromForm, createCustomProduct, parseNewSizeRows } from "@/lib/admin/products";
+import { findSimilarProducts } from "@/lib/admin/duplicate-guard";
 import { formatUnitSize } from "@/lib/units";
 
 // Create a product via a full-page POST (Post/Redirect/Get), NOT a Server
@@ -42,6 +44,17 @@ export async function POST(request: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 70) || "product";
+
+  // Duplicate guard (§5): an exact barcode match blocks creation and opens the
+  // existing product. (The form also warns on similar names/brand before submit.)
+  const barcode = s(fd, "barcode").replace(/[^0-9]/g, "") || null;
+  if (barcode && fd.get("force") !== "1") {
+    const prisma = getPrisma();
+    if (prisma) {
+      const sim = await findSimilarProducts(prisma, { barcode, name, brand: optS(fd, "brand"), size: null });
+      if (sim.exactBarcode) return redirectTo(`/admin/products/${sim.exactBarcode.slug}?dupe=barcode`);
+    }
+  }
 
   const images = await collectImagesFromForm(fd);
 
