@@ -193,9 +193,9 @@ model TagBackfillStaging {
 
 ---
 
-## Open questions (please confirm before stage 1 / stage 7)
+## Resolved decisions (confirmed by user 2026-11-19)
 
-1. **`product_name_mapping.xlsx`** isn't in the repo. Do you have it? If so, where — and should Pass 1 import it into the alias table / tags? (Pass 1 works without it, just with less coverage.)
-2. **8-tag cap vs "3–6 spoken names"**: 4 structured + 6 spoken = 10. I'll cap at **8 total** (so e.g. 4 structured + up to 4 spoken, or fewer structured + more spoken). OK, or do you want 8 *spoken* on top of the 4 structured?
-3. **TYPE controlled list seed**: seed it from the distinct cleaned type-words already in the catalog, for you to prune — OK?
-4. **Backfill scope**: all ~2,485 products, or wholesale-enabled only first?
+1. **Tag cap = 8 total**, structured + spoken combined (e.g. 4 structured + up to 4 spoken).
+2. **`product_name_mapping.xlsx`**: user will provide it later. Build Pass-1 backfill to **optionally import it** (and still work without it); drop the file in before stage 7.
+3. **TYPE controlled list**: **auto-seed from the catalog** (distinct cleaned type-words), admin prunes afterward.
+4. **Backfill scope**: **all ~2,485 products**.
