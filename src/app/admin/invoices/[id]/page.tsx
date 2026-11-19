@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Download, Pencil, Send } from "lucide-react";
 
+import { CollapsibleSection } from "@/components/admin/collapsible-section";
 import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 import { CopyLink } from "@/components/admin/copy-link";
-import { CustomerSearchBar, type CustomerSearchOption } from "@/components/admin/customer-search-bar";
+import { type CustomerSearchOption } from "@/components/admin/customer-search-bar";
 import { InvoiceEditForm } from "@/components/admin/invoice-edit-form";
+import { InvoiceHeader } from "@/components/admin/invoice-header";
 import { InvoiceReadOnly } from "@/components/admin/invoice-readonly";
 import { PaymentPhotoField } from "@/components/admin/payment-photo";
 import { PhotoUpload } from "@/components/admin/photo-upload";
@@ -127,7 +129,7 @@ export default async function InvoicePage({
   const btn = "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium";
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl pb-24">
       {unavailableLines.length ? (
         <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           ⚠ {unavailableLines.length} item{unavailableLines.length === 1 ? "" : "s"} currently unavailable: {unavailableLines.map((l) => l.description).join(", ")}
@@ -143,22 +145,39 @@ export default async function InvoicePage({
         </div>
       ) : null}
 
-      {/* Header: customer name big, invoice number small/grey, status chip, actions */}
+      {/* Header + invoice-level actions */}
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl text-olive-900">
-            {customerName ?? "New invoice"}
-            <span className="ml-2 align-middle text-base font-normal text-olive-500">{invoice.externalNumber ?? invoice.number}</span>
-            {invoice.externalNumber ? <span className="ml-1 align-middle text-xs font-normal text-olive-400">({invoice.number})</span> : null}
-            <span className={`ml-2 inline-block align-middle rounded-full px-2 py-0.5 text-xs font-medium ${disp.badge}`}>{disp.label}</span>
-          </h1>
-          <p className="mt-1 text-sm text-olive-600">
-            Issued {dateFmt(invoice.issueDate)}{invoice.dueDate ? ` · due ${dateFmt(invoice.dueDate)}` : ""}
-            {invoice.deliveredAt ? ` · delivered ${dateFmt(invoice.deliveredAt)}` : ""}
-            {invoice.orderRequest ? <> · from <Link href={`/admin/orders/${invoice.orderRequest.id}`} className="hover:underline">{invoice.orderRequest.reference}</Link></> : null}
-          </p>
+        <div className="min-w-0 flex-1">
+          {editing ? (
+            <InvoiceHeader
+              invoiceId={id}
+              current={current}
+              customers={customers}
+              number={invoice.externalNumber ?? invoice.number}
+              terms={invoice.terms ?? ""}
+              issueDate={toInput(invoice.issueDate)}
+              salesRep={invoice.salesRep ?? ""}
+              defaultSalesRep={user.name ?? ""}
+              statusLabel={disp.label}
+              statusBadge={disp.badge}
+            />
+          ) : (
+            <div>
+              <h1 className="font-display text-2xl text-olive-900">
+                {customerName ?? "New invoice"}
+                <span className="ml-2 align-middle text-base font-normal text-olive-500">{invoice.externalNumber ?? invoice.number}</span>
+                {invoice.externalNumber ? <span className="ml-1 align-middle text-xs font-normal text-olive-400">({invoice.number})</span> : null}
+                <span className={`ml-2 inline-block align-middle rounded-full px-2 py-0.5 text-xs font-medium ${disp.badge}`}>{disp.label}</span>
+              </h1>
+              <p className="mt-1 text-sm text-olive-600">
+                Issued {dateFmt(invoice.issueDate)}{invoice.dueDate ? ` · due ${dateFmt(invoice.dueDate)}` : ""}
+                {invoice.deliveredAt ? ` · delivered ${dateFmt(invoice.deliveredAt)}` : ""}
+                {invoice.orderRequest ? <> · from <Link href={`/admin/orders/${invoice.orderRequest.id}`} className="hover:underline">{invoice.orderRequest.reference}</Link></> : null}
+              </p>
+            </div>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <a href={`/admin/invoices/${id}/pdf`} target="_blank" rel="noreferrer" className={`${btn} border border-olive-200 text-olive-700 hover:bg-olive-50`}>
             <Download className="h-4 w-4" /> PDF
           </a>
@@ -167,7 +186,8 @@ export default async function InvoicePage({
               <Pencil className="h-4 w-4" /> Edit
             </Link>
           ) : null}
-          {!isVoid && c ? (
+          {/* In edit mode, Send lives in the sticky bottom bar; here only for read-only. */}
+          {!editing && !isVoid && c ? (
             <form method="post" action={`/admin/invoices/${id}/send`}>
               <button className={`${btn} bg-olive-900 text-white hover:bg-olive-800`}>
                 <Send className="h-4 w-4" /> {invoice.sentAt ? "Resend" : "Send"}
@@ -189,11 +209,9 @@ export default async function InvoicePage({
         </div>
       </div>
 
-      {/* Customer search (edit mode only) */}
-      {editing ? (
-        <div className="mt-3">
-          <CustomerSearchBar invoiceId={id} current={current} customers={customers} />
-        </div>
+      {/* Hidden Send form the sticky bar's Send button targets (edit mode). */}
+      {editing && !isVoid && c ? (
+        <form id="invoice-send-form" method="post" action={`/admin/invoices/${id}/send`} className="hidden" />
       ) : null}
 
       {/* Customer link */}
@@ -216,21 +234,17 @@ export default async function InvoicePage({
       {editing ? (
         <InvoiceEditForm
           action={`/admin/invoices/${id}/save`}
-          cancelHref={isImported ? `/admin/invoices/${id}` : "/admin/invoices"}
           invoiceId={id}
-          number={invoice.number}
           customerId={c?.id ?? null}
           customerRole={(c?.role as "CUSTOMER" | "WHOLESALE" | undefined) ?? null}
           categories={categories}
-          issueDate={toInput(invoice.issueDate)}
-          dueDate={toInput(invoice.dueDate)}
-          terms={invoice.terms ?? ""}
-          salesRep={invoice.salesRep ?? ""}
           notes={invoice.notes ?? ""}
           discount={dollarsOrBlank(invoice.discountCents)}
           shipping={dollarsOrBlank(invoice.shippingCents)}
           tax={dollarsOrBlank(invoice.taxCents)}
           lines={invoice.lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents, isCredit: l.isCredit, creditReason: l.creditReason }))}
+          sendFormId={!isVoid && c ? "invoice-send-form" : undefined}
+          sendLabel={invoice.sentAt ? "Resend" : "Send"}
         />
       ) : (
         <InvoiceReadOnly
@@ -250,14 +264,16 @@ export default async function InvoicePage({
 
       {/* Payments */}
       <section className="mt-6">
-        <div className="flex items-baseline justify-between">
-          <h2 className="font-display text-lg text-olive-900">Payments</h2>
-          <p className="text-sm text-olive-600">Paid {formatPrice(invoice.paidCents)} · <span className={balance > 0 ? "font-semibold text-red-700" : "text-olive-500"}>Balance {formatPrice(Math.max(0, balance))}</span></p>
-        </div>
+        <CollapsibleSection
+          title="Payments"
+          summary={<>Paid {formatPrice(invoice.paidCents)} · <span className={balance > 0 ? "font-semibold text-red-700" : "text-olive-500"}>Balance {formatPrice(Math.max(0, balance))}</span></>}
+          defaultOpen={balance > 0 && !!invoice.sentAt}
+          tone={balance <= 0 && invoice.paidCents > 0 ? "good" : "default"}
+        >
         {invoice.payments.length === 0 ? (
-          <p className="mt-2 text-sm text-olive-500">No payments recorded yet.</p>
+          <p className="text-sm text-olive-500">No payments recorded yet.</p>
         ) : (
-          <div className="mt-2 overflow-hidden rounded-xl border border-olive-100 bg-white">
+          <div className="overflow-hidden rounded-xl border border-olive-100 bg-white">
             <table className="w-full text-sm">
               <tbody>
                 {invoice.payments.map((p) => (
@@ -274,7 +290,7 @@ export default async function InvoicePage({
         )}
 
         {!isVoid ? (
-          <form method="post" action={`/admin/invoices/${id}/payment`} encType="multipart/form-data" className="mt-3 rounded-xl border border-olive-100 bg-white p-4">
+          <form method="post" action={`/admin/invoices/${id}/payment`} encType="multipart/form-data" className="mt-3">
             <p className="text-sm font-medium text-olive-800">Record a payment</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-4">
               <div>
@@ -306,13 +322,19 @@ export default async function InvoicePage({
             </div>
           </form>
         ) : null}
+        </CollapsibleSection>
       </section>
 
       {/* Delivery */}
       <section className="mt-6">
-        <h2 className="font-display text-lg text-olive-900">Delivery</h2>
+        <CollapsibleSection
+          title="Delivery"
+          summary={invoice.deliveredAt ? `Delivered ${dateFmt(invoice.deliveredAt)}` : "Not delivered yet"}
+          defaultOpen={false}
+          tone={invoice.deliveredAt ? "good" : "default"}
+        >
         {invoice.deliveredAt ? (
-          <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-sm">
             <p className="font-medium text-emerald-800">Delivered {dateFmt(invoice.deliveredAt)}{invoice.deliveredBy ? ` · received by ${invoice.deliveredBy}` : ""}</p>
             {invoice.deliveryNote ? <p className="mt-1 text-olive-600">{invoice.deliveryNote}</p> : null}
             <form method="post" action={`/admin/invoices/${id}/deliver`} className="mt-2">
@@ -321,7 +343,7 @@ export default async function InvoicePage({
             </form>
           </div>
         ) : (
-          <form method="post" action={`/admin/invoices/${id}/deliver`} className="mt-2 rounded-xl border border-olive-100 bg-white p-4">
+          <form method="post" action={`/admin/invoices/${id}/deliver`}>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <label className="text-xs text-olive-500">Delivered on</label>
@@ -338,6 +360,7 @@ export default async function InvoicePage({
             <input name="deliveryNote" placeholder="Optional note (e.g. left at receiving dock)" className="mt-3 h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none" />
           </form>
         )}
+        </CollapsibleSection>
       </section>
 
       {/* Signature */}

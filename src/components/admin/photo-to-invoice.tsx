@@ -16,10 +16,12 @@ export function PhotoToInvoice({
   customerId,
   categories,
   onAddLine,
+  renderTrigger,
 }: {
   customerId: string | null;
   categories: { slug: string; name: string }[];
   onAddLine: (line: InvoiceLineInput) => void;
+  renderTrigger?: (open: () => void, busy: boolean) => React.ReactNode;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const filesRef = useRef<File[]>([]);
@@ -100,9 +102,13 @@ export function PhotoToInvoice({
 
   return (
     <>
-      <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60">
-        <Camera className="h-4 w-4" /> {busy ? "Reading…" : "From photo"}
-      </button>
+      {renderTrigger ? (
+        renderTrigger(() => fileRef.current?.click(), busy)
+      ) : (
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60">
+          <Camera className="h-4 w-4" /> {busy ? "Reading…" : "From photo"}
+        </button>
+      )}
       <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { void onPick(e.target.files); e.target.value = ""; }} />
       {note && !current ? <p className="mt-1 text-right text-xs text-olive-500">{note}</p> : null}
 

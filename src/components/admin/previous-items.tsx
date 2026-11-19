@@ -22,7 +22,7 @@ export interface InvoiceLineInput { description: string; quantity: number; unitP
 
 const money = (c: number | null) => (c != null ? `$${(c / 100).toFixed(2)}` : "—");
 
-export function PreviousItems({ customerId, onAdd }: { customerId: string | null; onAdd: (lines: InvoiceLineInput[]) => void }) {
+export function PreviousItems({ customerId, onAdd, renderTrigger }: { customerId: string | null; onAdd: (lines: InvoiceLineInput[]) => void; renderTrigger?: (open: () => void) => React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<PrevItem[]>([]);
@@ -72,14 +72,18 @@ export function PreviousItems({ customerId, onAdd }: { customerId: string | null
 
   return (
     <>
-      <button
-        type="button"
-        onClick={load}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50"
-      >
-        <History className="h-4 w-4" /> Previous items
-      </button>
-      {note ? <p className="mt-1 text-right text-xs text-amber-700">{note}</p> : null}
+      {renderTrigger ? (
+        renderTrigger(load)
+      ) : (
+        <button
+          type="button"
+          onClick={load}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50"
+        >
+          <History className="h-4 w-4" /> Previous items
+        </button>
+      )}
+      {note && !renderTrigger ? <p className="mt-1 text-right text-xs text-amber-700">{note}</p> : null}
 
       {open ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8" onClick={() => setOpen(false)}>

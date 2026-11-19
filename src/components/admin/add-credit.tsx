@@ -22,7 +22,7 @@ export interface CreditInput {
 const inputCls = "h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none";
 const money = (c: number | null) => (c != null ? `$${(c / 100).toFixed(2)}` : "—");
 
-export function AddCredit({ customerId, onAdd }: { customerId: string | null; onAdd: (c: CreditInput) => void }) {
+export function AddCredit({ customerId, onAdd, renderTrigger }: { customerId: string | null; onAdd: (c: CreditInput) => void; renderTrigger?: (open: () => void) => React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [otherNote, setOtherNote] = useState("");
@@ -72,13 +72,17 @@ export function AddCredit({ customerId, onAdd }: { customerId: string | null; on
 
   return (
     <>
-      <button
-        type="button"
-        onClick={openModal}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50"
-      >
-        <Undo2 className="h-4 w-4" /> Add credit
-      </button>
+      {renderTrigger ? (
+        renderTrigger(openModal)
+      ) : (
+        <button
+          type="button"
+          onClick={openModal}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50"
+        >
+          <Undo2 className="h-4 w-4" /> Add credit
+        </button>
+      )}
 
       {open ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8" onClick={() => setOpen(false)}>

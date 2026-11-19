@@ -24,9 +24,11 @@ const cell = "h-9 w-full rounded-md border border-olive-200 px-2 text-sm focus:b
 export function InvoiceAssist({
   getLines,
   onApply,
+  renderTrigger,
 }: {
   getLines: () => { description: string; quantity: number }[];
   onApply: (rows: AssistRow[], mode: "cleanup" | "photo") => void;
+  renderTrigger?: (open: () => void, busy: boolean) => React.ReactNode;
 }) {
   const [busy, setBusy] = useState<null | "cleanup" | "photo">(null);
   const [mode, setMode] = useState<"cleanup" | "photo">("cleanup");
@@ -74,16 +76,20 @@ export function InvoiceAssist({
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={runCleanup}
-          disabled={busy !== null}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
-        >
-          <Wand2 className="h-4 w-4" /> {busy === "cleanup" ? "Working…" : "Pro clean-up"}
-        </button>
-      </div>
+      {renderTrigger ? (
+        renderTrigger(runCleanup, busy === "cleanup")
+      ) : (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={runCleanup}
+            disabled={busy !== null}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
+          >
+            <Wand2 className="h-4 w-4" /> {busy === "cleanup" ? "Working…" : "Pro clean-up"}
+          </button>
+        </div>
+      )}
       {note ? <p className="mt-1 text-right text-xs text-olive-500">{note}</p> : null}
 
       {rows ? (

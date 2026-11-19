@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Mic, Radio, Square, Undo2, UserCheck, UserPlus, Volume2, VolumeX, X } from "lucide-react";
+import { Check, Mic, Square, Undo2, UserCheck, UserPlus, Volume2, VolumeX, X } from "lucide-react";
 
 import { CREDIT_REASONS } from "@/lib/invoice-constants";
 
@@ -62,14 +62,6 @@ const PRICE_TAG: Record<string, { label: string; cls: string }> = {
 };
 
 const money = (c: number | null) => (c != null ? `$${(c / 100).toFixed(2)}` : "—");
-
-// STT confidence → a short, honest chip. null = deployment didn't return logprobs.
-function confidenceChip(conf: number | null | undefined) {
-  if (conf == null) return null;
-  if (conf >= 0.75) return { label: "heard clearly", cls: "bg-emerald-100 text-emerald-700" };
-  if (conf >= 0.5) return { label: "fairly sure", cls: "bg-amber-100 text-amber-800" };
-  return { label: "not sure — double-check", cls: "bg-red-100 text-red-700" };
-}
 
 const QUICK_QTY = [1, 2, 3, 6, 12, 24];
 const ciCls = "h-9 w-full rounded-lg border border-olive-200 px-2.5 text-sm focus:border-olive-500 focus:outline-none";
@@ -174,9 +166,6 @@ export function VoiceOrder({
   customerId?: string | null;
   invoiceId?: string | null;
 }) {
-  const [status, setStatus] = useState<"idle" | "recording" | "transcribing" | "matching">("idle");
-  const [transcript, setTranscript] = useState("");
-  const [confidence, setConfidence] = useState<number | null>(null);
   const [queue, setQueue] = useState<VoiceItem[]>([]);
   const [tally, setTally] = useState({ added: 0, skipped: 0 });
   const [done, setDone] = useState(false);
@@ -192,8 +181,6 @@ export function VoiceOrder({
   const [newBusiness, setNewBusiness] = useState("");
   const [assignId, setAssignId] = useState("");
 
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
   const custFormRef = useRef<HTMLFormElement | null>(null);
   const newFormRef = useRef<HTMLFormElement | null>(null);
 
@@ -267,8 +254,7 @@ export function VoiceOrder({
       sessionStorage.removeItem(`voiceQueue:${invoiceId}`);
       const data = JSON.parse(raw) as { items?: VoiceItem[]; transcript?: string; confidence?: number | null; heardCustomer?: string | null };
       setCustomerHandled(true);
-      setTranscript(data.transcript ?? "");
-      setConfidence(data.confidence ?? null);
+      setLiveTranscript(data.transcript ?? "");
       setHeardCustomer(data.heardCustomer ?? null);
       setTally({ added: 0, skipped: 0 });
       const items = Array.isArray(data.items) ? data.items : [];
@@ -699,85 +685,13 @@ export function VoiceOrder({
   // Stop the live session if the component unmounts.
   useEffect(() => () => { if (liveRef.current) { liveRef.current = false; teardownLive(); } }, []);
 
-  const process = useCallback(
-    async (blob: Blob) => {
-      setStatus("transcribing");
-      setNote(null);
-      try {
-        const afd = new FormData();
-        afd.append("audio", blob, "order.webm");
-        const tRes = await fetch("/admin/invoices/voice/transcribe", { method: "POST", body: afd });
-        const tData = await tRes.json();
-        if (tData.configured === false) { setNote("Voice ordering needs an OPENAI_API_KEY — add it under /developers."); setStatus("idle"); return; }
-        if (!tData.text) { setNote("Didn't catch any speech — tap and try again."); setStatus("idle"); return; }
-        setTranscript(tData.text);
-        setConfidence(typeof tData.confidence === "number" ? tData.confidence : null);
-
-        // A remove/edit command? Act on it instead of adding items.
-        const cmd = parseCommand(tData.text);
-        if (cmd && handleCommand(cmd)) { setStatus("idle"); return; }
-
-        setStatus("matching");
-        const mfd = new FormData();
-        mfd.append("transcript", tData.text);
-        if (customerId) mfd.append("customerId", customerId);
-        const mRes = await fetch("/admin/invoices/voice/match", { method: "POST", body: mfd });
-        const mData = await mRes.json();
-        if (mData.configured === false) { setNote("Matching needs an ANTHROPIC_API_KEY — add it under /developers."); setStatus("idle"); return; }
-        setHeardCustomer(mData.heardCustomer || mData.customer?.label || null);
-        setPendingCustomer(mData.customer?.id ? { id: mData.customer.id, label: mData.customer.label } : null);
-        setCustomerAlts(Array.isArray(mData.customerAlternatives) ? mData.customerAlternatives : []);
-        setCustomerConfident(mData.customerConfident !== false);
-        setCustomerHandled(false);
-        setCustMode("confirm");
-        setNewBusiness(mData.heardCustomer || "");
-        const items: VoiceItem[] = clearDefaultReason(Array.isArray(mData.items) ? mData.items : []);
-        if (items.length === 0 && !mData.customer?.id) setNote("Couldn't pull any items out of that — tap and try again.");
-        setQueue(items);
-        setTally({ added: 0, skipped: 0 });
-        setDone(false);
-      } catch {
-        setNote("Couldn't process the recording — tap and try again.");
-      } finally {
-        setStatus("idle");
-      }
-    },
-    [customerId],
-  );
-
-  const start = async () => {
-    setNote(null);
-    setTranscript("");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
-      rec.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
-        if (blob.size) void process(blob);
-      };
-      recorderRef.current = rec;
-      rec.start();
-      setStatus("recording");
-    } catch {
-      setNote("Couldn't access the microphone. Allow mic access and tap again.");
-    }
-  };
-
-  const stop = () => {
-    recorderRef.current?.stop();
-    recorderRef.current = null;
-  };
-
   // Stash the in-progress queue so it resumes after the customer-assign reload.
   const stashQueue = (label: string | null) => {
     if (!invoiceId) return;
     try {
       sessionStorage.setItem(
         `voiceQueue:${invoiceId}`,
-        JSON.stringify({ items: queue, transcript, confidence, heardCustomer: label }),
+        JSON.stringify({ items: queue, transcript: liveTranscript, confidence: null, heardCustomer: label }),
       );
     } catch { /* ignore */ }
   };
@@ -866,11 +780,6 @@ export function VoiceOrder({
     }
   };
 
-  const recording = status === "recording";
-  const busy = status === "transcribing" || status === "matching";
-  const btnLabel = recording ? "Listening… tap to stop" : busy ? (status === "transcribing" ? "Transcribing…" : "Matching…") : "Speak";
-  const conf = confidenceChip(confidence);
-
   const qtyNum = Math.max(0, parseInt(qty, 10) || 0);
   const isCredit = Boolean(current?.isCredit);
   const effReason = current?.creditReason || reason;
@@ -878,50 +787,43 @@ export function VoiceOrder({
 
   return (
     <>
-      {/* The one button — all status lives inside it; red while recording. */}
-      <span className="inline-flex items-center gap-1">
-        <button
-          type="button"
-          onClick={recording ? stop : start}
-          disabled={busy}
-          aria-pressed={recording}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-70 ${
-            recording
-              ? "border-red-400 bg-red-600 text-white hover:bg-red-700"
-              : "border-olive-300 bg-white text-olive-800 hover:bg-olive-50"
-          }`}
-        >
-          {recording ? <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-white" /> : <Mic className="h-4 w-4" />}
-          {btnLabel}
-        </button>
-        <button
-          type="button"
-          onClick={live ? stopLive : startLive}
-          aria-pressed={live}
-          disabled={recording || busy}
-          title="Live listening — one tap to start, one tap to stop"
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60 ${
-            live ? "border-red-400 bg-red-600 text-white hover:bg-red-700" : "border-olive-300 bg-white text-olive-800 hover:bg-olive-50"
-          }`}
-        >
-          {live ? <Square className="h-4 w-4" /> : <Radio className="h-4 w-4" />} {live ? "Stop" : "Live"}
-        </button>
-        <button
-          type="button"
-          onClick={toggleVoice}
-          aria-pressed={voiceOn}
-          title={voiceOn ? "Spoken replies on — tap to mute" : "Spoken replies off — tap to unmute"}
-          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
-            voiceOn ? "border-olive-300 bg-white text-olive-700 hover:bg-olive-50" : "border-olive-200 bg-olive-50 text-olive-400"
-          }`}
-        >
-          {voiceOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-        </button>
-      </span>
+      {/* One floating mic, bottom-left. Tap to start/stop live listening; the
+          small badge mutes/unmutes spoken replies. Sits over the sticky save
+          bar's reserved left gutter. */}
+      <div className="fixed bottom-3 left-3 z-[45] flex flex-col items-center">
+        {note ? (
+          <p className="mb-2 max-w-[70vw] rounded-lg bg-olive-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg sm:max-w-xs">{note}</p>
+        ) : null}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={live ? stopLive : startLive}
+            aria-pressed={live}
+            aria-label={live ? "Stop live listening" : "Start live listening"}
+            title={live ? "Listening — tap to stop" : "Tap to speak your order"}
+            className={`flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-colors ${
+              live ? "bg-red-600 text-white hover:bg-red-700" : "bg-olive-900 text-white hover:bg-olive-800"
+            }`}
+          >
+            {live ? <Square className="h-5 w-5" /> : <Mic className="h-6 w-6" />}
+          </button>
+          <button
+            type="button"
+            onClick={toggleVoice}
+            aria-pressed={voiceOn}
+            title={voiceOn ? "Spoken replies on — tap to mute" : "Spoken replies off — tap to unmute"}
+            className={`absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white shadow ${
+              voiceOn ? "bg-olive-600 text-white" : "bg-olive-200 text-olive-500"
+            }`}
+          >
+            {voiceOn ? <Volume2 className="h-3 w-3" /> : <VolumeX className="h-3 w-3" />}
+          </button>
+        </div>
+      </div>
 
-      {/* Live listening bar — waveform + running transcript + Stop. */}
+      {/* Live listening bar — waveform + running transcript + Stop. Sits above the sticky save bar. */}
       {live ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-olive-200 bg-white/95 px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.08)] backdrop-blur">
+        <div className="fixed inset-x-0 bottom-[4.5rem] z-40 border-y border-olive-200 bg-white/95 px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.08)] backdrop-blur">
           <div className="mx-auto flex max-w-2xl items-center gap-3">
             <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-red-600">
               <span className="h-2 w-2 animate-pulse rounded-full bg-red-600" /> Live
@@ -949,7 +851,6 @@ export function VoiceOrder({
           </p>
         </div>
       ) : null}
-      {note ? <p className="mt-1 w-full text-right text-xs text-olive-500">{note}</p> : null}
 
       {/* Hidden form that assigns an existing/alternative customer (POST → reload). */}
       {invoiceId ? (
@@ -1059,7 +960,6 @@ export function VoiceOrder({
 
             <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-olive-500">
               Heard: <span className="text-olive-700">&ldquo;{current.heard}&rdquo;</span>
-              {conf ? <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${conf.cls}`}>{conf.label}</span> : null}
             </p>
 
             <div className="mt-3 flex gap-3">
@@ -1225,7 +1125,7 @@ export function VoiceOrder({
             {heardCustomer && !customerId ? (
               <p className="mt-1 text-sm text-olive-700">For: <span className="font-medium">{heardCustomer}</span> <span className="text-xs text-olive-400">— pick them in the customer bar</span></p>
             ) : null}
-            {transcript ? <p className="mt-2 text-xs text-olive-500">Heard: &ldquo;{transcript}&rdquo;</p> : null}
+            {liveTranscript ? <p className="mt-2 text-xs text-olive-500">Heard: &ldquo;{liveTranscript}&rdquo;</p> : null}
             <button type="button" onClick={() => setDone(false)} className="mt-4 w-full rounded-lg bg-olive-900 py-2.5 text-sm font-medium text-white hover:bg-olive-800">Done</button>
           </div>
         </div>

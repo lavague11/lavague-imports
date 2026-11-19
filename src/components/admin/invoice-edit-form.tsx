@@ -1,24 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Plus } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Camera, History, Plus, Save, Send, StickyNote, Undo2, Wand2, X } from "lucide-react";
 
 import { AddCredit, type CreditInput } from "@/components/admin/add-credit";
 import { InvoiceAssist, type AssistRow } from "@/components/admin/invoice-assist";
+import { MoreMenu, menuRowCls } from "@/components/admin/more-menu";
 import { NotesDictation } from "@/components/admin/notes-dictation";
 import { PhotoToInvoice } from "@/components/admin/photo-to-invoice";
 import { PreviousItems, type InvoiceLineInput } from "@/components/admin/previous-items";
 import { LineRow } from "@/components/admin/line-row";
+import { SAVE_FORM_ID } from "@/components/admin/invoice-header";
 import { VoiceOrder, type VoiceItem } from "@/components/admin/voice-order";
 
-import {
-  SALES_REPS,
-  TERMS_OPTIONS,
-  WHOLESALE_MINIMUM_CENTS,
-  dollarsToCents,
-  termsDueDays,
-} from "@/lib/invoice-constants";
+import { WHOLESALE_MINIMUM_CENTS, dollarsToCents } from "@/lib/invoice-constants";
 
 export interface EditLine {
   description: string;
@@ -30,62 +25,45 @@ export interface EditLine {
 
 export interface InvoiceEditFormProps {
   action: string;
-  cancelHref: string;
   invoiceId: string;
-  number: string;
   customerId: string | null;
   customerRole: "CUSTOMER" | "WHOLESALE" | null;
   categories: { slug: string; name: string }[];
-  issueDate: string; // yyyy-mm-dd
-  dueDate: string;
-  terms: string;
-  salesRep: string;
   notes: string;
   discount: string; // dollars
   shipping: string;
   tax: string;
   lines: EditLine[];
+  sendFormId?: string; // when set, a Send button appears in the sticky bar
+  sendLabel?: string;
 }
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const dollars = (cents: number) => (cents / 100).toFixed(2);
-const addDays = (iso: string, days: number) => {
-  const d = new Date(iso + "T12:00:00");
-  if (Number.isNaN(d.getTime())) return "";
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-};
 
 interface Row { description: string; qty: string; unit: string; isCredit?: boolean; creditReason?: string }
 
 const BLANK: Row = { description: "", qty: "1", unit: "" };
 const isBlankRow = (r: Row) => !r.description.trim() && !r.unit.trim();
 
-// Place new rows so they fill the bottom blank line / sit above it, leaving
-// exactly ONE blank line at the end. Drops any trailing blanks first.
+// Append incoming rows after the existing ones, dropping any trailing blank
+// placeholder first so added items don't leave a stray empty row behind.
 function placeRows(prev: Row[], incoming: Row[]): Row[] {
   const base = [...prev];
   while (base.length && isBlankRow(base[base.length - 1])) base.pop();
-  return [...base, ...incoming, { ...BLANK }];
+  return [...base, ...incoming];
 }
 
 export function InvoiceEditForm(props: InvoiceEditFormProps) {
   const [rows, setRows] = useState<Row[]>(
-    props.lines.length
-      ? props.lines.map((l) => ({ description: l.description, qty: String(l.quantity), unit: dollars(Math.abs(l.unitPriceCents)), isCredit: l.isCredit, creditReason: l.creditReason ?? undefined }))
-      : [{ description: "", qty: "1", unit: "" }],
+    props.lines.map((l) => ({ description: l.description, qty: String(l.quantity), unit: dollars(Math.abs(l.unitPriceCents)), isCredit: l.isCredit, creditReason: l.creditReason ?? undefined })),
   );
-  const [issueDate, setIssueDate] = useState(props.issueDate);
-  const [terms, setTerms] = useState(props.terms || "Due on receipt");
-  // Due date is derived from terms + issue date and shown read-only.
-  const dueDate = useMemo(() => {
-    const days = termsDueDays(terms);
-    return days != null && issueDate ? addDays(issueDate, days) : issueDate || "";
-  }, [terms, issueDate]);
-  const [detailsOpen, setDetailsOpen] = useState(true);
   const [discount, setDiscount] = useState(props.discount);
   const [shipping, setShipping] = useState(props.shipping);
   const [tax, setTax] = useState(props.tax);
+  const [notes, setNotes] = useState(props.notes);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   const [undo, setUndo] = useState<{ kind: "remove" | "edit"; row: Row; index: number } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -99,10 +77,9 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
 
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const addRow = () => setRows((rs) => [...rs, { description: "", qty: "1", unit: "" }]);
+  const addRow = () => setRows((rs) => [...rs, { ...BLANK }]);
   const removeRow = (i: number) => {
     setRows((rs) => {
-      if (rs.length <= 1) return [{ description: "", qty: "1", unit: "" }]; // clear the last line instead of deleting
       armUndo({ kind: "remove", row: rs[i], index: i });
       return rs.filter((_, j) => j !== i);
     });
@@ -133,7 +110,6 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     });
     return bestScore > 0 ? best : -1;
   };
-  // Voice command: remove a line by name. Returns the removed line's name, or null.
   const removeLineByName = (query: string): string | null => {
     const i = findRowByName(query);
     if (i < 0) return null;
@@ -141,7 +117,6 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     removeRow(i);
     return name;
   };
-  // Voice command: set a line's quantity by name. Returns the line's name, or null.
   const editLineByName = (query: string, qty: number): string | null => {
     const i = findRowByName(query);
     if (i < 0 || qty < 1) return null;
@@ -149,16 +124,6 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     setRow(i, { qty: String(qty) });
     return rows[i].description;
   };
-
-  // Keep EXACTLY one blank line at the bottom: add one when the last row fills
-  // up, and collapse any extra trailing blanks down to a single one.
-  useEffect(() => {
-    if (rows.length === 0) { setRows([{ ...BLANK }]); return; }
-    let trailing = 0;
-    for (let i = rows.length - 1; i >= 0 && isBlankRow(rows[i]); i -= 1) trailing += 1;
-    if (trailing === 0) setRows((rs) => [...rs, { ...BLANK }]);
-    else if (trailing > 1) setRows((rs) => rs.slice(0, rs.length - (trailing - 1)));
-  }, [rows]);
 
   // AI assist: current lines for "Pro clean-up", and applying the reviewed rows.
   const assistLines = () => rows.map((r) => ({ description: r.description, quantity: Math.max(1, parseInt(r.qty, 10) || 1) }));
@@ -172,7 +137,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     else setRows((prev) => placeRows(prev, mapped));
   };
 
-  // Voice order: add one spoken line at a time (replacing a lone empty starter row).
+  // Voice order: add one spoken line at a time.
   const addVoiceLine = (item: VoiceItem) => {
     const isCredit = Boolean(item.isCredit);
     const description = isCredit
@@ -188,8 +153,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     setRows((prev) => placeRows(prev, [row]));
   };
 
-  // Add one or more lines at once (Previous items / Repeat last order).
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  // Add one or more lines at once (Previous items / Repeat last order / photo).
   const addLines = (lines: InvoiceLineInput[]) => {
     const mapped: Row[] = lines.map((l) => ({ description: l.description, qty: String(l.quantity || 1), unit: l.unitPriceCents ? (l.unitPriceCents / 100).toFixed(2) : "" }));
     setRows((prev) => placeRows(prev, mapped));
@@ -201,7 +165,6 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     setRows((prev) => placeRows(prev, [row]));
   };
 
-  // Magnitude of a row (positive); credits count against the total.
   const lineTotal = (r: Row) => Math.max(0, Math.round(Number(r.qty) || 0)) * dollarsToCents(r.unit);
   const subtotalCents = useMemo(() => rows.filter((r) => !r.isCredit).reduce((s, r) => s + lineTotal(r), 0), [rows]);
   const creditsCents = useMemo(() => rows.filter((r) => r.isCredit).reduce((s, r) => s + lineTotal(r), 0), [rows]);
@@ -209,6 +172,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     Math.max(0, subtotalCents - dollarsToCents(discount) + dollarsToCents(shipping) + dollarsToCents(tax) - creditsCents);
 
   const belowMinimum = props.customerRole === "WHOLESALE" && subtotalCents > 0 && subtotalCents < WHOLESALE_MINIMUM_CENTS;
+  const hasItems = rows.some((r) => r.description.trim() || r.unit.trim());
 
   // Block save if any filled line is missing a name or a price.
   const onSubmit = (e: React.FormEvent) => {
@@ -223,148 +187,190 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     }
   };
 
-  const inputCls = "h-10 w-full rounded-lg border border-olive-200 px-3 text-sm focus:border-olive-500 focus:outline-none";
+  const saveNotes = () => {
+    if (notesRef.current) setNotes(notesRef.current.value);
+    setNotesOpen(false);
+  };
+
+  // The ⋯ menu's rows fire these; the action components stay mounted (outside
+  // the dropdown) so their modals survive the menu closing.
+  const openPrevItems = useRef<(() => void) | null>(null);
+  const openPhoto = useRef<(() => void) | null>(null);
+  const openCleanup = useRef<(() => void) | null>(null);
 
   return (
-    <form method="post" action={props.action} onSubmit={onSubmit} className="mt-4 space-y-5">
-      <div className="rounded-xl border border-olive-100 bg-white">
-        <button
-          type="button"
-          onClick={() => setDetailsOpen((o) => !o)}
-          aria-expanded={detailsOpen}
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
-        >
-          <span className="text-sm font-medium text-olive-800">Invoice details</span>
-          <span className="flex min-w-0 items-center gap-2 text-xs text-olive-500">
-            {!detailsOpen ? (
-              <span className="truncate">{props.number || "—"} · {terms}{(props.salesRep || "Waleed") ? ` · ${props.salesRep || "Waleed"}` : ""}</span>
-            ) : null}
-            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${detailsOpen ? "rotate-180" : ""}`} />
-          </span>
-        </button>
-        <div className={`${detailsOpen ? "block" : "hidden"} border-t border-olive-100 p-4`}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="text-xs text-olive-500">Invoice number</label>
-            <input name="number" defaultValue={props.number} className={`${inputCls} font-medium`} placeholder="LV-0001" />
-            <p className="mt-1 text-xs text-olive-400">Editable — must be unique.</p>
+    <>
+      <form id={SAVE_FORM_ID} method="post" action={props.action} onSubmit={onSubmit} className="mt-4 space-y-5 pb-24">
+        {belowMinimum ? (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Subtotal {money(subtotalCents)} is below the ${WHOLESALE_MINIMUM_CENTS / 100} wholesale minimum. You can still save, but review before sending.
           </div>
-          <div>
-            <label className="text-xs text-olive-500">Terms</label>
-            <select name="terms" value={terms} onChange={(e) => setTerms(e.target.value)} className={inputCls}>
-              {TERMS_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-olive-500">Due date</label>
-            <input type="date" name="dueDate" value={dueDate} readOnly className={`${inputCls} bg-olive-50/60 text-olive-600`} />
-            <p className="mt-1 text-xs text-olive-400">Auto-calculated from terms.</p>
-          </div>
-          <div>
-            <label className="text-xs text-olive-500">Issue date</label>
-            <input type="date" name="issueDate" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className={inputCls} />
-          </div>
-          <div>
-            <label className="text-xs text-olive-500">Sales rep</label>
-            <input name="salesRep" list="sales-reps" defaultValue={props.salesRep || "Waleed"} placeholder="Team member" className={inputCls} />
-            <datalist id="sales-reps">
-              {SALES_REPS.map((r) => <option key={r} value={r} />)}
-            </datalist>
-          </div>
-        </div>
-        </div>
-      </div>
+        ) : null}
 
-      {belowMinimum ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Subtotal {money(subtotalCents)} is below the ${WHOLESALE_MINIMUM_CENTS / 100} wholesale minimum. You can still save, but review before sending.
-        </div>
-      ) : null}
+        {/* Line items */}
+        <div className="invoice-lines overflow-hidden rounded-xl border border-olive-100 bg-white">
+          {!props.customerId && !hasItems ? (
+            <p className="px-4 py-6 text-center text-sm text-olive-500">Pick a customer above to get started, then tap the mic or add a line.</p>
+          ) : rows.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-olive-500">No items yet — tap the mic, add a line, or pull in previous items.</p>
+          ) : (
+            rows.map((r, i) => (
+              <LineRow
+                key={i}
+                index={i}
+                description={r.description}
+                qty={r.qty}
+                unit={r.unit}
+                isCredit={r.isCredit}
+                creditReason={r.creditReason}
+                customerId={props.customerId}
+                onChange={(patch) => setRow(i, patch)}
+                onRemove={() => removeRow(i)}
+              />
+            ))
+          )}
 
-      {/* Line items */}
-      <div className="invoice-lines overflow-hidden rounded-xl border border-olive-100 bg-white">
-        {/* Column header — only shows when the container is wide enough for the row layout */}
-        <div className="invoice-head-row border-b border-olive-100 bg-olive-50/60 px-4 py-2 text-xs text-olive-600">
-          <span className="il-name">Description</span>
-          <span className="il-qty text-center">Qty</span>
-          <span className="il-price text-right">Unit price</span>
-          <span className="il-total text-right">Total</span>
-        </div>
-        {rows.map((r, i) => (
-          <LineRow
-            key={i}
-            index={i}
-            description={r.description}
-            qty={r.qty}
-            unit={r.unit}
-            isCredit={r.isCredit}
-            creditReason={r.creditReason}
-            customerId={props.customerId}
-            onChange={(patch) => setRow(i, patch)}
-            onRemove={() => removeRow(i)}
-          />
-        ))}
-        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <button type="button" onClick={addRow} className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-olive-700 hover:text-olive-900">
-            <Plus className="h-4 w-4" /> Add line
-          </button>
-          {/* Mobile: tidy 2-up grid, each button centered in its cell. Desktop: inline wrap. */}
-          <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex sm:flex-wrap sm:items-center sm:justify-end [&>div]:flex [&>div]:justify-center sm:[&>div]:block">
-            <div><VoiceOrder onAddLine={addVoiceLine} onRemoveLine={removeLineByName} onEditLine={editLineByName} customerId={props.customerId} invoiceId={props.invoiceId} /></div>
-            <div><PreviousItems customerId={props.customerId} onAdd={addLines} /></div>
-            <div><AddCredit customerId={props.customerId} onAdd={addCredit} /></div>
-            <div><InvoiceAssist getLines={assistLines} onApply={applyAssist} /></div>
-            <div><PhotoToInvoice customerId={props.customerId} categories={props.categories} onAddLine={(line) => addLines([line])} /></div>
+          <div className="flex items-center justify-between gap-2 border-t border-olive-50 px-4 py-3">
+            <button type="button" onClick={addRow} className="inline-flex items-center gap-1.5 text-sm font-medium text-olive-700 hover:text-olive-900">
+              <Plus className="h-4 w-4" /> Add line
+            </button>
+            {/* Secondary ways to add items live behind a single ⋯ menu. */}
+            <MoreMenu triggerLabel="More">
+              {(close) => (
+                <>
+                  {props.customerId ? (
+                    <button type="button" onClick={() => { close(); openPrevItems.current?.(); }} className={menuRowCls}>
+                      <History className="h-4 w-4 text-olive-500" /> Previous items
+                    </button>
+                  ) : null}
+                  <button type="button" onClick={() => { close(); openPhoto.current?.(); }} className={menuRowCls}>
+                    <Camera className="h-4 w-4 text-olive-500" /> From photo
+                  </button>
+                  {hasItems ? (
+                    <button type="button" onClick={() => { close(); openCleanup.current?.(); }} className={menuRowCls}>
+                      <Wand2 className="h-4 w-4 text-olive-500" /> Pro clean-up
+                    </button>
+                  ) : null}
+                </>
+              )}
+            </MoreMenu>
           </div>
-        </div>
-      </div>
 
-      {/* Adjustments + totals */}
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="rounded-xl border border-olive-100 bg-white p-4">
-          <label className="text-xs text-olive-500">Notes (shown on the invoice)</label>
-          <div className="relative mt-1">
-            <textarea ref={notesRef} name="notes" defaultValue={props.notes} rows={4} className="w-full rounded-lg border border-olive-200 px-3 py-2 pr-11 text-sm focus:border-olive-500 focus:outline-none" placeholder="Payment instructions, PO details, thanks…" />
-            <NotesDictation targetRef={notesRef} />
-          </div>
+          {/* Always-mounted action components (triggers hidden); the ⋯ rows above
+              invoke them by ref so their modals persist when the menu closes. */}
+          <PreviousItems customerId={props.customerId} onAdd={addLines} renderTrigger={(open) => { openPrevItems.current = open; return null; }} />
+          <PhotoToInvoice customerId={props.customerId} categories={props.categories} onAddLine={(line) => addLines([line])} renderTrigger={(open) => { openPhoto.current = open; return null; }} />
+          <InvoiceAssist getLines={assistLines} onApply={applyAssist} renderTrigger={(open) => { openCleanup.current = open; return null; }} />
         </div>
-        <div className="rounded-xl border border-olive-100 bg-white p-4 text-sm">
-          <Row label="Subtotal" value={money(subtotalCents)} />
-          <Adjust label="Discount" name="discount" value={discount} onChange={setDiscount} />
-          <Adjust label="Delivery" name="shipping" value={shipping} onChange={setShipping} />
-          <Adjust label="Tax" name="tax" value={tax} onChange={setTax} />
-          {creditsCents > 0 ? (
-            <div className="flex items-center justify-between py-1 text-amber-700">
-              <span>Credits</span><span>−{money(creditsCents)}</span>
+
+        {/* Notes + totals */}
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="rounded-xl border border-olive-100 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-olive-800">Notes</span>
+              <button type="button" onClick={() => setNotesOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-3 py-1.5 text-sm font-medium text-olive-800 hover:bg-olive-50">
+                <StickyNote className="h-4 w-4" /> {notes.trim() ? "Edit note" : "Add a note"}
+              </button>
             </div>
-          ) : null}
-          <div className="mt-2 flex items-center justify-between border-t border-olive-100 pt-2 text-base font-semibold text-olive-900">
-            <span>Total</span><span>{money(totalCents)}</span>
+            {notes.trim() ? (
+              <p className="mt-2 whitespace-pre-wrap text-sm text-olive-600">{notes}</p>
+            ) : (
+              <p className="mt-2 text-sm text-olive-400">Payment instructions, PO details, a thank-you — shown on the invoice.</p>
+            )}
+            {/* Always submit the current note with the form. */}
+            <input type="hidden" name="notes" value={notes} />
+          </div>
+
+          <div className="rounded-xl border border-olive-100 bg-white p-4 text-sm">
+            <SummaryRow label="Subtotal" value={money(subtotalCents)} />
+            <Adjust label="Discount" name="discount" value={discount} onChange={setDiscount} />
+            <Adjust label="Delivery" name="shipping" value={shipping} onChange={setShipping} />
+            <Adjust label="Tax" name="tax" value={tax} onChange={setTax} />
+            {creditsCents > 0 ? (
+              <div className="flex items-center justify-between py-1 text-amber-700">
+                <span>Credits</span><span>−{money(creditsCents)}</span>
+              </div>
+            ) : null}
+            <div className="mt-1 flex justify-end">
+              <AddCredit
+                customerId={props.customerId}
+                onAdd={addCredit}
+                renderTrigger={(open) => (
+                  <button type="button" onClick={open} className="inline-flex items-center gap-1 text-xs font-medium text-olive-600 hover:text-olive-900">
+                    <Undo2 className="h-3.5 w-3.5" /> Add credit
+                  </button>
+                )}
+              />
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t border-olive-100 pt-2 text-base font-semibold text-olive-900">
+              <span>Total</span><span>{money(totalCents)}</span>
+            </div>
+          </div>
+        </div>
+
+        {saveError ? (
+          <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-right text-sm text-red-700">{saveError}</p>
+        ) : null}
+      </form>
+
+      {/* Voice: one floating mic (renders itself, bottom-left). */}
+      <VoiceOrder onAddLine={addVoiceLine} onRemoveLine={removeLineByName} onEditLine={editLineByName} customerId={props.customerId} invoiceId={props.invoiceId} />
+
+      {/* Sticky bottom bar — live total + Save / Send, beside the mic. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-olive-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 py-2.5 pl-20 pr-4">
+          <div className="min-w-0">
+            <p className="text-[11px] text-olive-500">Total</p>
+            <p className="text-lg font-semibold leading-tight text-olive-900">{money(totalCents)}</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {props.sendFormId ? (
+              <button type="submit" form={props.sendFormId} className="inline-flex items-center gap-1.5 rounded-lg border border-olive-300 bg-white px-4 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50">
+                <Send className="h-4 w-4" /> {props.sendLabel ?? "Send"}
+              </button>
+            ) : null}
+            <button type="submit" form={SAVE_FORM_ID} className="inline-flex items-center gap-1.5 rounded-lg bg-olive-900 px-5 py-2 text-sm font-medium text-white hover:bg-olive-800">
+              <Save className="h-4 w-4" /> Save
+            </button>
           </div>
         </div>
       </div>
 
-      {saveError ? (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-right text-sm text-red-700">{saveError}</p>
+      {/* Notes popup — type or dictate, preview after. */}
+      {notesOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center" onClick={() => setNotesOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-olive-100 px-4 py-3">
+              <h3 className="inline-flex items-center gap-2 font-display text-lg text-olive-900"><StickyNote className="h-5 w-5 text-olive-700" /> Note</h3>
+              <button type="button" onClick={() => setNotesOpen(false)} aria-label="Close" className="text-olive-400 hover:text-olive-700"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="px-4 py-3">
+              <div className="relative">
+                <textarea ref={notesRef} defaultValue={notes} rows={5} autoFocus className="w-full rounded-lg border border-olive-200 px-3 py-2 pr-11 text-sm focus:border-olive-500 focus:outline-none" placeholder="Type or tap the mic to dictate…" />
+                <NotesDictation targetRef={notesRef} />
+              </div>
+              <p className="mt-1 text-xs text-olive-400">Shown on the invoice the customer sees.</p>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-olive-100 px-4 py-3">
+              <button type="button" onClick={() => setNotesOpen(false)} className="rounded-lg border border-olive-200 px-4 py-2 text-sm text-olive-700 hover:bg-olive-50">Cancel</button>
+              <button type="button" onClick={saveNotes} className="rounded-lg bg-olive-900 px-5 py-2 text-sm font-medium text-white hover:bg-olive-800">Save note</button>
+            </div>
+          </div>
+        </div>
       ) : null}
-
-      <div className="flex items-center justify-end gap-3">
-        <Link href={props.cancelHref} className="rounded-lg border border-olive-200 px-4 py-2 text-sm text-olive-700 hover:bg-olive-50">Cancel</Link>
-        <button type="submit" className="rounded-lg bg-olive-900 px-5 py-2 text-sm font-medium text-white hover:bg-olive-800">Save invoice</button>
-      </div>
 
       {/* Undo toast after removing a line */}
       {undo ? (
-        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-olive-900 px-4 py-2 text-sm text-white shadow-lg">
+        <div className="fixed bottom-24 left-1/2 z-[55] flex -translate-x-1/2 items-center gap-3 rounded-full bg-olive-900 px-4 py-2 text-sm text-white shadow-lg">
           {undo.kind === "edit" ? "Line updated" : "Line removed"}
           <button type="button" onClick={doUndo} className="font-semibold text-emerald-300 underline">Undo</button>
         </div>
       ) : null}
-    </form>
+    </>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between py-1 text-olive-600">
       <span>{label}</span><span className="text-olive-800">{value}</span>
