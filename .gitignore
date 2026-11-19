@@ -57,3 +57,6 @@ skills-lock.json
 
 # Local working spreadsheets (cost sheets, contact imports — not for the repo)
 Spreadsheets/
+
+# Local migration artifacts (never commit — may contain sensitive data)
+scripts/migrations/backup_*.json

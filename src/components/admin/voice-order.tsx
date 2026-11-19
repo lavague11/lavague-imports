@@ -5,6 +5,15 @@ import { Check, Mic, Undo2, UserCheck, X } from "lucide-react";
 
 import { CREDIT_REASONS } from "@/lib/invoice-constants";
 
+export interface CatalogHit {
+  name: string;
+  brand: string | null;
+  sku: string;
+  packSize: string;
+  priceCents: number | null;
+  imageUrl: string | null;
+}
+
 export interface VoiceItem {
   heard: string;
   name: string;
@@ -20,6 +29,7 @@ export interface VoiceItem {
   imageUrl: string | null;
   isCredit?: boolean;
   creditReason?: string;
+  alternatives?: CatalogHit[];
 }
 
 interface DetectedCustomer { id: string; label: string }
@@ -79,6 +89,15 @@ export function VoiceOrder({
   const [qty, setQty] = useState("");
   const [reason, setReason] = useState("");
 
+  // "Change match" panel: pick an alternative, search the catalog, or create a
+  // new product (only when tapped, after a duplicate check).
+  const [changing, setChanging] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [results, setResults] = useState<CatalogHit[]>([]);
+  const [dupe, setDupe] = useState<CatalogHit | null>(null);
+  const [creating, setCreating] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const current = queue[0] ?? null;
   const askingCustomer = Boolean(
     pendingCustomer && !customerHandled && invoiceId && pendingCustomer.id !== customerId,
@@ -105,12 +124,78 @@ export function VoiceOrder({
     }
   }, [invoiceId]);
 
-  // Reset the editable fields whenever a new card comes to the front.
+  // Reset the editable fields whenever a new card comes to the front. Auto-open
+  // the "change match" panel when nothing matched, so the admin can fix it.
   useEffect(() => {
     if (!current) return;
     setQty(current.quantitySpoken ? String(current.quantity || 1) : "");
     setReason("");
+    setChanging(!current.isCredit && current.matchTag === "not in catalog");
+    setSearchQ("");
+    setResults([]);
+    setDupe(null);
+    setCreating(false);
   }, [current]);
+
+  // Adopt a catalog product onto the front card (keeps a spoken price).
+  const adopt = (hit: CatalogHit) => {
+    setQueue((qq) => {
+      if (!qq.length) return qq;
+      const [first, ...rest] = qq;
+      const keepSpoken = first.priceSource === "spoken";
+      return [
+        {
+          ...first,
+          name: hit.name,
+          brand: hit.brand ?? "",
+          sku: hit.sku,
+          packSize: hit.packSize,
+          imageUrl: hit.imageUrl,
+          priceCents: keepSpoken ? first.priceCents : hit.priceCents,
+          priceSource: keepSpoken ? "spoken" : hit.priceCents != null ? "catalog" : "none",
+          matchTag: "matched",
+        },
+        ...rest,
+      ];
+    });
+    setChanging(false);
+    setDupe(null);
+    setResults([]);
+    setSearchQ("");
+  };
+
+  const runSearch = (q: string) => {
+    setSearchQ(q);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (q.trim().length < 2) { setResults([]); return; }
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/admin/invoices/voice/search?q=${encodeURIComponent(q.trim())}`);
+        const d = await r.json();
+        setResults(Array.isArray(d.results) ? d.results : []);
+      } catch { /* ignore */ }
+    }, 250);
+  };
+
+  // Create a new product from the current card — only on tap. The server checks
+  // for a duplicate first; if one comes back (and we didn't force), offer it.
+  const createNew = async (force: boolean) => {
+    if (!current || creating) return;
+    setCreating(true);
+    try {
+      const fd = new FormData();
+      fd.append("name", current.name || current.heard);
+      fd.append("brand", current.brand || "");
+      fd.append("size", current.packSize || "");
+      if (force) fd.append("force", "1");
+      const r = await fetch("/admin/invoices/voice/create-product", { method: "POST", body: fd });
+      const d = await r.json();
+      if (d.duplicate && !force) { setDupe(d.duplicate); return; }
+      if (d.created) adopt(d.created);
+    } catch { /* ignore */ } finally {
+      setCreating(false);
+    }
+  };
 
   const process = useCallback(
     async (blob: Blob) => {
@@ -366,6 +451,57 @@ export function VoiceOrder({
               </div>
             ) : null}
 
+            {/* Change match — alternatives, catalog search, or create new (on tap). */}
+            {!isCredit ? (
+              <div className="mt-3">
+                <button type="button" onClick={() => setChanging((v) => !v)} className="text-xs font-medium text-olive-600 underline underline-offset-2 hover:text-olive-900">
+                  {current.matchTag === "matched" ? "Not the right item? Change" : "Find or create the right item"}
+                </button>
+
+                {changing ? (
+                  <div className="mt-2 space-y-2 rounded-lg border border-olive-100 bg-olive-50/50 p-2">
+                    {dupe ? (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-2">
+                        <p className="text-xs text-amber-800">
+                          Looks like <span className="font-semibold">{dupe.name}</span>{dupe.packSize ? ` · ${dupe.packSize}` : ""} already exists — use it?
+                        </p>
+                        <div className="mt-1.5 flex gap-1.5">
+                          <button type="button" onClick={() => adopt(dupe)} className="rounded-lg bg-olive-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-olive-800">Use it</button>
+                          <button type="button" onClick={() => createNew(true)} disabled={creating} className="rounded-lg border border-olive-300 px-2.5 py-1 text-xs font-medium text-olive-700 hover:bg-white disabled:opacity-60">Create anyway</button>
+                          <button type="button" onClick={() => setDupe(null)} className="rounded-lg px-2 py-1 text-xs text-olive-500 hover:text-olive-800">Back</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {(current.alternatives?.length ? current.alternatives : []).map((a) => (
+                          <HitButton key={`alt-${a.sku}`} hit={a} onPick={adopt} />
+                        ))}
+                        <input
+                          value={searchQ}
+                          onChange={(e) => runSearch(e.target.value)}
+                          placeholder="Search the catalog…"
+                          className="h-9 w-full rounded-lg border border-olive-200 px-2.5 text-sm focus:border-olive-500 focus:outline-none"
+                        />
+                        {results.map((a) => <HitButton key={`res-${a.sku}`} hit={a} onPick={adopt} />)}
+                        {current.alternatives?.length === 0 && results.length === 0 && searchQ.trim().length >= 2 ? (
+                          <p className="px-1 text-[11px] text-olive-400">No catalog matches.</p>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => createNew(false)}
+                          disabled={creating}
+                          className="w-full rounded-lg border border-dashed border-olive-300 px-2 py-2 text-xs font-medium text-olive-700 hover:bg-white disabled:opacity-60"
+                        >
+                          {creating ? "Creating…" : `+ Create “${current.name || current.heard}” as a new product`}
+                        </button>
+                        <p className="px-1 text-[10px] text-olive-400">New products are saved hidden and flagged “Needs review” for later approval.</p>
+                      </>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="mt-4 flex gap-2">
               <button type="button" onClick={() => answer(true)} disabled={yesBlocked} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-olive-900 py-3 text-base font-semibold text-white hover:bg-olive-800 disabled:opacity-50">
                 <Check className="h-5 w-5" /> Yes, add it
@@ -395,5 +531,29 @@ export function VoiceOrder({
         </div>
       ) : null}
     </>
+  );
+}
+
+// One catalog product as a tappable row in the "change match" panel.
+function HitButton({ hit, onPick }: { hit: CatalogHit; onPick: (h: CatalogHit) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onPick(hit)}
+      className="flex w-full items-center gap-2 rounded-lg border border-olive-100 bg-white px-2 py-1.5 text-left hover:border-olive-300"
+    >
+      {hit.imageUrl ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={hit.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+      ) : (
+        <div className="h-8 w-8 shrink-0 rounded bg-olive-100" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium text-olive-900">{hit.name}</span>
+        <span className="block truncate text-[11px] text-olive-500">
+          {[hit.brand, hit.packSize].filter(Boolean).join(" · ") || "—"} · {money(hit.priceCents)}
+        </span>
+      </span>
+    </button>
   );
 }
