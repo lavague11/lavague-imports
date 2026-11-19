@@ -180,7 +180,19 @@ ${transcript}`;
           if (lp) { priceCents = lp.cents; priceSource = "last"; }
         }
 
-        return { ...it, priceCents, priceSource, imageUrl };
+        // Up to 3 catalog alternatives for this item, so the card can offer a
+        // "change match" without a round-trip. Scored by name-word overlap.
+        const q = `${String(it.brand ?? "")} ${String(it.name ?? "")}`.toLowerCase();
+        const qWords = q.split(/[^a-z0-9؀-ۿ]+/i).filter((w) => w.length >= 3);
+        const alternatives = cands
+          .filter((c) => c.sku && c.sku !== sku)
+          .map((c) => ({ c, score: qWords.filter((w) => c.name.toLowerCase().includes(w)).length }))
+          .filter((x) => x.score > 0)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3)
+          .map((x) => ({ name: x.c.name, brand: x.c.brand, sku: x.c.sku, packSize: x.c.packSize, priceCents: x.c.priceCents, imageUrl: x.c.imageUrl }));
+
+        return { ...it, sku, priceCents, priceSource, imageUrl, alternatives };
       }),
     );
 
