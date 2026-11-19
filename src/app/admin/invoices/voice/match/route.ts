@@ -186,7 +186,8 @@ ${transcript}`;
 
         // Tag-first resolution: history → tag → fuzzy → fallback.
         const r = await resolveSpokenItem(prisma, {
-          name: String(it.name ?? ""), brand: String(it.brand ?? ""), size: String(it.packSize ?? ""), customerId,
+          name: String(it.name ?? ""), brand: String(it.brand ?? ""), size: String(it.packSize ?? ""),
+          heard: String(it.heard ?? ""), customerId,
         });
 
         let sku = "";
