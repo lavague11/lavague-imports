@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Mic, Undo2, UserCheck, UserPlus, X } from "lucide-react";
+import { Check, Mic, Undo2, UserCheck, UserPlus, Volume2, VolumeX, X } from "lucide-react";
 
 import { CREDIT_REASONS } from "@/lib/invoice-constants";
 
@@ -59,6 +59,55 @@ function confidenceChip(conf: number | null | undefined) {
 const QUICK_QTY = [1, 2, 3, 6, 12, 24];
 const ciCls = "h-9 w-full rounded-lg border border-olive-200 px-2.5 text-sm focus:border-olive-500 focus:outline-none";
 
+const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
+const sayMoney = (c: number | null) => (c != null ? `${(c / 100).toFixed(2)} dollars` : "");
+const unitWord = (unit: "piece" | "case", qty: number) =>
+  unit === "case" ? (qty === 1 ? "case" : "cases") : qty === 1 ? "piece" : "pieces";
+
+// What the assistant reads aloud for a card.
+function cardPhrase(it: VoiceItem): string {
+  if (it.isCredit) {
+    const nm = it.name && it.name !== "Credit" ? `, ${it.name}` : "";
+    const amt = it.priceCents != null ? `, ${sayMoney(it.priceCents)} each` : "";
+    return `Credit, ${it.creditReason || "other"}${nm}${amt}. Add this credit?`;
+  }
+  const parts = [it.name, it.brand].filter(Boolean).join(", ");
+  const price = it.priceCents != null ? `, ${sayMoney(it.priceCents)} each` : "";
+  if (it.quantitySpoken) {
+    return `${it.quantity} ${unitWord(it.unit, it.quantity)} ${parts}${price}. Is this the item?`;
+  }
+  return `${parts}${price}. How many ${it.unit === "case" ? "cases" : "pieces"}?`;
+}
+
+// Parse a spoken answer to an item card (English + Arabic).
+type Answer =
+  | { kind: "yes" }
+  | { kind: "no" }
+  | { kind: "select"; n: number }
+  | { kind: "qty"; n: number }
+  | { kind: "unknown" };
+
+function parseAnswer(raw: string): Answer {
+  const text = raw.trim();
+  const t = text.toLowerCase();
+  if (!t) return { kind: "unknown" };
+  // Pick an alternative: "the second one", "number two", etc.
+  const ord = /\b(first|1st)\b/.test(t) ? 1 : /\b(second|2nd)\b/.test(t) ? 2 : /\b(third|3rd)\b/.test(t) ? 3 : 0;
+  if (ord) return { kind: "select", n: ord };
+  // Quantity: "make it 3", "3 cases", or a bare number.
+  const mk = t.match(/\bmake it (\d{1,3})\b/) || t.match(/\b(\d{1,3})\s*(?:cases?|pieces?|pcs?|units?|box(?:es)?)\b/) || t.match(/^(\d{1,3})$/);
+  if (mk) return { kind: "qty", n: parseInt(mk[1], 10) };
+  // Yes (English + Arabic).
+  if (/\b(yes|yeah|yep|yup|correct|right|sure|add it|add|aywa|aiwa|na3am|naam|tamam|sah|sahih)\b/.test(t) || /نعم|ايوه|أيوة|ايوة|تمام|صح|اه|اوك/.test(text)) {
+    return { kind: "yes" };
+  }
+  // No / skip (English + Arabic).
+  if (/\b(no|nope|nah|skip|wrong|next|la|laa|mush|mish)\b/.test(t) || /\bلا\b|^لا|مش|خطأ|تخطي/.test(text)) {
+    return { kind: "no" };
+  }
+  return { kind: "unknown" };
+}
+
 export function VoiceOrder({
   onAddLine,
   customerId,
@@ -103,6 +152,27 @@ export function VoiceOrder({
   const [dupe, setDupe] = useState<CatalogHit | null>(null);
   const [creating, setCreating] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Spoken replies (TTS) + tap-to-answer-by-voice.
+  const [voiceOn, setVoiceOn] = useState(true);
+  const voiceOnRef = useRef(true);
+  const [answering, setAnswering] = useState(false);
+  const lastSpokenRef = useRef<string>("");
+
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("voiceReplies");
+      if (v === "off") { setVoiceOn(false); voiceOnRef.current = false; }
+    } catch { /* ignore */ }
+  }, []);
+  const toggleVoice = () =>
+    setVoiceOn((v) => {
+      const nv = !v;
+      voiceOnRef.current = nv;
+      try { localStorage.setItem("voiceReplies", nv ? "on" : "off"); } catch { /* ignore */ }
+      if (!nv && typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      return nv;
+    });
 
   const current = queue[0] ?? null;
   // Ask about the customer when a name was heard and it's unresolved: a detected
@@ -234,6 +304,86 @@ export function VoiceOrder({
     }
   };
 
+  // Read a phrase aloud (browser TTS). Resolves when done; no-op when muted.
+  const speak = (text: string) =>
+    new Promise<void>((resolve) => {
+      if (!voiceOnRef.current || typeof window === "undefined" || !("speechSynthesis" in window) || !text) {
+        resolve();
+        return;
+      }
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = hasArabic(text) ? "ar-SA" : "en-US";
+        u.rate = 1.05;
+        u.onend = () => resolve();
+        u.onerror = () => resolve();
+        window.speechSynthesis.speak(u);
+      } catch {
+        resolve();
+      }
+    });
+
+  // Record a short answer and stop on silence (or after 7s); transcribe it.
+  const listenForAnswer = async (): Promise<string> => {
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      return "";
+    }
+    return new Promise<string>((resolve) => {
+      const rec = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      let ac: AudioContext | null = null;
+      let heardVoice = false;
+      rec.onstop = async () => {
+        stream.getTracks().forEach((tk) => tk.stop());
+        try { await ac?.close(); } catch { /* ignore */ }
+        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        if (!blob.size || !heardVoice) { resolve(""); return; }
+        try {
+          const fd = new FormData();
+          fd.append("audio", blob, "answer.webm");
+          const r = await fetch("/admin/invoices/voice/transcribe", { method: "POST", body: fd });
+          const d = await r.json();
+          resolve(typeof d.text === "string" ? d.text : "");
+        } catch {
+          resolve("");
+        }
+      };
+      try {
+        ac = new AudioContext();
+        const srcNode = ac.createMediaStreamSource(stream);
+        const analyser = ac.createAnalyser();
+        analyser.fftSize = 512;
+        srcNode.connect(analyser);
+        const data = new Uint8Array(analyser.fftSize);
+        const started = Date.now();
+        let lastVoice = Date.now();
+        const tick = () => {
+          if (rec.state !== "recording") return;
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (const v of data) { const n = (v - 128) / 128; sum += n * n; }
+          const rms = Math.sqrt(sum / data.length);
+          const now = Date.now();
+          if (rms > 0.035) { lastVoice = now; heardVoice = true; }
+          if ((heardVoice && now - lastVoice > 1200) || now - started > 7000) { rec.stop(); return; }
+          requestAnimationFrame(tick);
+        };
+        rec.start();
+        requestAnimationFrame(tick);
+      } catch {
+        // No analyser → fall back to a fixed 4s window.
+        heardVoice = true;
+        rec.start();
+        setTimeout(() => { if (rec.state === "recording") rec.stop(); }, 4000);
+      }
+    });
+  };
+
   const process = useCallback(
     async (blob: Blob) => {
       setStatus("transcribing");
@@ -341,9 +491,11 @@ export function VoiceOrder({
         const item: VoiceItem = { ...first, quantity: q };
         onAddLine(first.isCredit ? { ...item, creditReason: effReason } : item);
       }
+      void speak(yes ? "Added." : "Skipped.");
       setTally((t) => ({ added: t.added + (yes ? 1 : 0), skipped: t.skipped + (yes ? 0 : 1) }));
       setQueue((qq) => { const rest = qq.slice(1); if (rest.length === 0) setDone(true); return rest; });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [queue, qty, reason, onAddLine],
   );
 
@@ -358,6 +510,33 @@ export function VoiceOrder({
     return () => window.removeEventListener("keydown", h);
   }, [current, askingCustomer, answer]);
 
+  // Speak each card as it comes to the front (TTS). Re-speaks when the content
+  // changes (e.g. after switching to an alternative).
+  useEffect(() => {
+    if (!current || askingCustomer) return;
+    const phrase = cardPhrase(current);
+    if (phrase === lastSpokenRef.current) return;
+    lastSpokenRef.current = phrase;
+    void speak(phrase);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, askingCustomer]);
+
+  // Tap-to-answer: record a short reply, transcribe, and act on it.
+  const answerByVoice = async () => {
+    if (!current || answering) return;
+    setAnswering(true);
+    try {
+      const a = parseAnswer(await listenForAnswer());
+      if (a.kind === "yes") answer(true);
+      else if (a.kind === "no") answer(false);
+      else if (a.kind === "select") { const alt = current.alternatives?.[a.n - 1]; if (alt) adopt(alt); }
+      else if (a.kind === "qty") setQty(String(a.n));
+      else void speak("Sorry, I didn't catch that.");
+    } finally {
+      setAnswering(false);
+    }
+  };
+
   const recording = status === "recording";
   const busy = status === "transcribing" || status === "matching";
   const btnLabel = recording ? "Listening… tap to stop" : busy ? (status === "transcribing" ? "Transcribing…" : "Matching…") : "Speak";
@@ -371,20 +550,33 @@ export function VoiceOrder({
   return (
     <>
       {/* The one button — all status lives inside it; red while recording. */}
-      <button
-        type="button"
-        onClick={recording ? stop : start}
-        disabled={busy}
-        aria-pressed={recording}
-        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-70 ${
-          recording
-            ? "border-red-400 bg-red-600 text-white hover:bg-red-700"
-            : "border-olive-300 bg-white text-olive-800 hover:bg-olive-50"
-        }`}
-      >
-        {recording ? <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-white" /> : <Mic className="h-4 w-4" />}
-        {btnLabel}
-      </button>
+      <span className="inline-flex items-center gap-1">
+        <button
+          type="button"
+          onClick={recording ? stop : start}
+          disabled={busy}
+          aria-pressed={recording}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-70 ${
+            recording
+              ? "border-red-400 bg-red-600 text-white hover:bg-red-700"
+              : "border-olive-300 bg-white text-olive-800 hover:bg-olive-50"
+          }`}
+        >
+          {recording ? <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-white" /> : <Mic className="h-4 w-4" />}
+          {btnLabel}
+        </button>
+        <button
+          type="button"
+          onClick={toggleVoice}
+          aria-pressed={voiceOn}
+          title={voiceOn ? "Spoken replies on — tap to mute" : "Spoken replies off — tap to unmute"}
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${
+            voiceOn ? "border-olive-300 bg-white text-olive-700 hover:bg-olive-50" : "border-olive-200 bg-olive-50 text-olive-400"
+          }`}
+        >
+          {voiceOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+        </button>
+      </span>
       {note ? <p className="mt-1 w-full text-right text-xs text-olive-500">{note}</p> : null}
 
       {/* Hidden form that assigns an existing/alternative customer (POST → reload). */}
@@ -621,8 +813,22 @@ export function VoiceOrder({
                 <X className="h-5 w-5" /> Skip
               </button>
             </div>
+            <button
+              type="button"
+              onClick={answerByVoice}
+              disabled={answering}
+              className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-olive-300 bg-white py-2.5 text-sm font-medium text-olive-800 hover:bg-olive-50 disabled:opacity-60"
+            >
+              {answering ? (
+                <><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> Listening…</>
+              ) : (
+                <><Mic className="h-4 w-4" /> Answer by voice</>
+              )}
+            </button>
             <p className="mt-2 text-center text-[11px] text-olive-400">
-              {qtyNum < 1 ? "Enter a quantity to add this item" : isCredit && !effReason ? "Pick a reason to add this credit" : "Enter = Yes · Esc = Skip"}
+              {answering
+                ? "Say “yes”, “no”, “the second one”, or “make it 3”"
+                : qtyNum < 1 ? "Enter a quantity to add this item" : isCredit && !effReason ? "Pick a reason to add this credit" : "Enter = Yes · Esc = Skip"}
             </p>
           </div>
         </div>
