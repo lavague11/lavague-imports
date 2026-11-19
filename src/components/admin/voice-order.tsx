@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Mic, Undo2, UserCheck, X } from "lucide-react";
+import { Check, Mic, Undo2, UserCheck, UserPlus, X } from "lucide-react";
 
 import { CREDIT_REASONS } from "@/lib/invoice-constants";
 
@@ -24,7 +24,7 @@ export interface VoiceItem {
   quantitySpoken?: boolean;
   unit: "piece" | "case";
   priceCents: number | null;
-  priceSource: "spoken" | "catalog" | "none";
+  priceSource: "spoken" | "catalog" | "last" | "none";
   matchTag: "matched" | "best guess" | "not in catalog";
   imageUrl: string | null;
   isCredit?: boolean;
@@ -57,6 +57,7 @@ function confidenceChip(conf: number | null | undefined) {
 }
 
 const QUICK_QTY = [1, 2, 3, 6, 12, 24];
+const ciCls = "h-9 w-full rounded-lg border border-olive-200 px-2.5 text-sm focus:border-olive-500 focus:outline-none";
 
 export function VoiceOrder({
   onAddLine,
@@ -78,12 +79,17 @@ export function VoiceOrder({
 
   // Customer detected by voice, pending a "make this invoice for them?" confirm.
   const [pendingCustomer, setPendingCustomer] = useState<DetectedCustomer | null>(null);
+  const [customerAlts, setCustomerAlts] = useState<DetectedCustomer[]>([]);
+  const [customerConfident, setCustomerConfident] = useState(true);
   const [customerHandled, setCustomerHandled] = useState(false);
+  const [custMode, setCustMode] = useState<"confirm" | "new">("confirm");
+  const [newBusiness, setNewBusiness] = useState("");
+  const [assignId, setAssignId] = useState("");
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const custFormRef = useRef<HTMLFormElement | null>(null);
-  const assignIdRef = useRef<string>("");
+  const newFormRef = useRef<HTMLFormElement | null>(null);
 
   // Per-card edit state.
   const [qty, setQty] = useState("");
@@ -99,9 +105,11 @@ export function VoiceOrder({
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const current = queue[0] ?? null;
-  const askingCustomer = Boolean(
-    pendingCustomer && !customerHandled && invoiceId && pendingCustomer.id !== customerId,
-  );
+  // Ask about the customer when a name was heard and it's unresolved: a detected
+  // match that differs from the current customer, or no match at all (offer new).
+  const detectedDiffers = Boolean(pendingCustomer && pendingCustomer.id !== customerId);
+  const noMatchButHeard = Boolean(!pendingCustomer && heardCustomer && !customerId);
+  const askingCustomer = Boolean(!customerHandled && invoiceId && (detectedDiffers || noMatchButHeard));
 
   // Resume a queue stashed before a customer-assign page reload (same tab).
   useEffect(() => {
@@ -117,12 +125,41 @@ export function VoiceOrder({
       setHeardCustomer(data.heardCustomer ?? null);
       setTally({ added: 0, skipped: 0 });
       const items = Array.isArray(data.items) ? data.items : [];
-      if (items.length) setQueue(items);
-      else setDone(true);
+      if (items.length) {
+        setQueue(items);
+        // The customer is now set — re-price matched, non-spoken items against
+        // their last-paid price for this customer.
+        if (customerId) void repriceQueue(items, customerId);
+      } else {
+        setDone(true);
+      }
     } catch {
       /* ignore */
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId]);
+
+  const repriceQueue = async (items: VoiceItem[], custId: string) => {
+    try {
+      const r = await fetch("/admin/invoices/voice/reprice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: custId, items: items.map((i) => ({ sku: i.sku, name: i.name })) }),
+      });
+      const d = await r.json();
+      const prices: Record<string, number> = d.prices ?? {};
+      if (!Object.keys(prices).length) return;
+      setQueue((qq) =>
+        qq.map((it) => {
+          if (it.priceSource === "spoken" || it.isCredit) return it;
+          const p = prices[it.sku] ?? prices[it.name];
+          return p != null ? { ...it, priceCents: p, priceSource: "last" } : it;
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Reset the editable fields whenever a new card comes to the front. Auto-open
   // the "change match" panel when nothing matched, so the admin can fix it.
@@ -218,9 +255,13 @@ export function VoiceOrder({
         const mRes = await fetch("/admin/invoices/voice/match", { method: "POST", body: mfd });
         const mData = await mRes.json();
         if (mData.configured === false) { setNote("Matching needs an ANTHROPIC_API_KEY — add it under /developers."); setStatus("idle"); return; }
-        setHeardCustomer(mData.customer?.label || mData.heardCustomer || null);
+        setHeardCustomer(mData.heardCustomer || mData.customer?.label || null);
         setPendingCustomer(mData.customer?.id ? { id: mData.customer.id, label: mData.customer.label } : null);
+        setCustomerAlts(Array.isArray(mData.customerAlternatives) ? mData.customerAlternatives : []);
+        setCustomerConfident(mData.customerConfident !== false);
         setCustomerHandled(false);
+        setCustMode("confirm");
+        setNewBusiness(mData.heardCustomer || "");
         const items: VoiceItem[] = Array.isArray(mData.items) ? mData.items : [];
         if (items.length === 0 && !mData.customer?.id) setNote("Couldn't pull any items out of that — tap and try again.");
         setQueue(items);
@@ -261,19 +302,32 @@ export function VoiceOrder({
     recorderRef.current = null;
   };
 
-  // Assign the voice-detected customer. Stash the queue, then full-page POST
-  // (host-safe) to the customer route; the page reloads and we resume the queue.
-  const confirmCustomer = (yes: boolean) => {
-    if (!yes || !pendingCustomer || !invoiceId) { setCustomerHandled(true); return; }
+  // Stash the in-progress queue so it resumes after the customer-assign reload.
+  const stashQueue = (label: string | null) => {
+    if (!invoiceId) return;
     try {
       sessionStorage.setItem(
         `voiceQueue:${invoiceId}`,
-        JSON.stringify({ items: queue, transcript, confidence, heardCustomer: pendingCustomer.label }),
+        JSON.stringify({ items: queue, transcript, confidence, heardCustomer: label }),
       );
     } catch { /* ignore */ }
-    assignIdRef.current = pendingCustomer.id;
-    // Let the hidden form pick up the id, then submit on the next tick.
+  };
+
+  // Assign an existing (or alternative) customer. Stash the queue, then full-page
+  // POST (host-safe) to the customer route; the page reloads and we resume.
+  const confirmPick = (pick: DetectedCustomer) => {
+    if (!invoiceId) { setCustomerHandled(true); return; }
+    stashQueue(pick.label);
+    setAssignId(pick.id); // the hidden existing-form reads this
     setTimeout(() => custFormRef.current?.submit(), 0);
+  };
+
+  const keepCurrent = () => setCustomerHandled(true);
+
+  // Create a new customer from the quick-add form, then continue the order.
+  const submitNewCustomer = () => {
+    stashQueue(newBusiness.trim() || heardCustomer);
+    setTimeout(() => newFormRef.current?.submit(), 0);
   };
 
   const answer = useCallback(
@@ -333,36 +387,93 @@ export function VoiceOrder({
       </button>
       {note ? <p className="mt-1 w-full text-right text-xs text-olive-500">{note}</p> : null}
 
-      {/* Hidden form that assigns the detected customer (full-page POST → reload). */}
+      {/* Hidden form that assigns an existing/alternative customer (POST → reload). */}
       {invoiceId ? (
         <form ref={custFormRef} method="post" action={`/admin/invoices/${invoiceId}/customer`} className="hidden">
           <input type="hidden" name="mode" value="existing" />
-          <input type="hidden" name="customerId" value={pendingCustomer?.id ?? ""} />
+          <input type="hidden" name="customerId" value={assignId} />
         </form>
       ) : null}
 
-      {/* Step 1 — "Make this invoice for …?" */}
-      {askingCustomer && pendingCustomer ? (
+      {/* Step 1 — confirm the heard customer (with alternatives), or add a new one. */}
+      {askingCustomer ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <div className="flex items-center gap-2 text-olive-500">
-              <UserCheck className="h-5 w-5 text-olive-600" />
-              <span className="text-xs font-medium">I heard a customer</span>
-            </div>
-            <p className="mt-2 text-sm text-olive-700">Make this invoice for</p>
-            <p className="font-display text-xl text-olive-900">{pendingCustomer.label}?</p>
-            {heardCustomer && heardCustomer !== pendingCustomer.label ? (
-              <p className="mt-1 text-xs text-olive-400">You said: &ldquo;{heardCustomer}&rdquo;</p>
-            ) : null}
-            {queue.length ? <p className="mt-2 text-xs text-olive-500">Then I&apos;ll go through {queue.length} item{queue.length === 1 ? "" : "s"}.</p> : null}
-            <div className="mt-4 flex gap-2">
-              <button type="button" onClick={() => confirmCustomer(true)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-olive-900 py-3 text-base font-semibold text-white hover:bg-olive-800">
-                <Check className="h-5 w-5" /> Yes, set them
-              </button>
-              <button type="button" onClick={() => confirmCustomer(false)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-olive-200 py-3 text-base font-semibold text-olive-700 hover:bg-olive-50">
-                <X className="h-5 w-5" /> Skip
-              </button>
-            </div>
+            {custMode === "confirm" && pendingCustomer ? (
+              <>
+                <div className="flex items-center gap-2 text-olive-500">
+                  <UserCheck className="h-5 w-5 text-olive-600" />
+                  <span className="text-xs font-medium">{customerId ? "Change the customer?" : "I heard a customer"}</span>
+                </div>
+                <p className="mt-2 text-sm text-olive-700">
+                  {customerConfident ? (customerId ? "Change this invoice to" : "Make this invoice for") : "Closest match —"}
+                </p>
+                <p className="font-display text-xl text-olive-900">{pendingCustomer.label}?</p>
+                {heardCustomer && heardCustomer !== pendingCustomer.label ? (
+                  <p className="mt-1 text-xs text-olive-400">You said: &ldquo;{heardCustomer}&rdquo;</p>
+                ) : null}
+                {customerId ? <p className="mt-1 text-xs text-amber-600">This invoice already has a customer — this replaces it.</p> : null}
+                {queue.length ? <p className="mt-2 text-xs text-olive-500">Then I&apos;ll go through {queue.length} item{queue.length === 1 ? "" : "s"}.</p> : null}
+                <div className="mt-4 flex gap-2">
+                  <button type="button" onClick={() => confirmPick(pendingCustomer)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-olive-900 py-3 text-base font-semibold text-white hover:bg-olive-800">
+                    <Check className="h-5 w-5" /> {customerId ? "Yes, change" : "Yes, set them"}
+                  </button>
+                  <button type="button" onClick={keepCurrent} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-olive-200 py-3 text-base font-semibold text-olive-700 hover:bg-olive-50">
+                    <X className="h-5 w-5" /> {customerId ? "Keep current" : "Skip"}
+                  </button>
+                </div>
+                {customerAlts.length ? (
+                  <div className="mt-3">
+                    <p className="mb-1 text-xs text-olive-500">or did you mean:</p>
+                    <div className="space-y-1.5">
+                      {customerAlts.map((a) => (
+                        <button key={a.id} type="button" onClick={() => confirmPick(a)} className="block w-full rounded-lg border border-olive-100 bg-white px-3 py-2 text-left text-sm text-olive-800 hover:border-olive-300">
+                          {a.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <button type="button" onClick={() => setCustMode("new")} className="mt-3 w-full text-center text-xs font-medium text-olive-600 underline underline-offset-2 hover:text-olive-900">
+                  None of these — add a new customer
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 text-olive-500">
+                  <UserPlus className="h-5 w-5 text-olive-600" />
+                  <span className="text-xs font-medium">Add a customer</span>
+                </div>
+                {heardCustomer ? <p className="mt-2 text-xs text-olive-500">Couldn&apos;t find &ldquo;{heardCustomer}&rdquo;. Add them?</p> : null}
+                <form ref={newFormRef} method="post" action={`/admin/invoices/${invoiceId}/customer`} onSubmit={(e) => { e.preventDefault(); submitNewCustomer(); }} className="mt-2 space-y-2">
+                  <input type="hidden" name="mode" value="new" />
+                  <div>
+                    <label className="mb-0.5 block text-[11px] text-olive-500">Business name</label>
+                    <input name="businessName" value={newBusiness} onChange={(e) => setNewBusiness(e.target.value)} autoFocus className={ciCls} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><label className="mb-0.5 block text-[11px] text-olive-500">Contact</label><input name="name" placeholder="Optional" className={ciCls} /></div>
+                    <div><label className="mb-0.5 block text-[11px] text-olive-500">Phone</label><input name="phone" inputMode="tel" placeholder="Optional" className={ciCls} /></div>
+                  </div>
+                  <div><label className="mb-0.5 block text-[11px] text-olive-500">Address</label><input name="street" placeholder="Optional" className={ciCls} /></div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input name="city" placeholder="City" className={ciCls} />
+                    <input name="state" placeholder="State" className={ciCls} />
+                    <input name="zip" placeholder="ZIP" className={ciCls} />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button type="submit" disabled={!newBusiness.trim()} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-olive-900 py-2.5 text-sm font-semibold text-white hover:bg-olive-800 disabled:opacity-50">
+                      <Check className="h-4 w-4" /> Create &amp; use
+                    </button>
+                    {pendingCustomer ? (
+                      <button type="button" onClick={() => setCustMode("confirm")} className="rounded-xl border border-olive-200 px-3 py-2.5 text-sm font-semibold text-olive-700 hover:bg-olive-50">Back</button>
+                    ) : (
+                      <button type="button" onClick={keepCurrent} className="rounded-xl border border-olive-200 px-3 py-2.5 text-sm font-semibold text-olive-700 hover:bg-olive-50">Skip</button>
+                    )}
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       ) : null}

@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { searchTermsFor } from "@/lib/invoice-aliases";
+import { CLOSE_ENOUGH, rankCustomers } from "@/lib/admin/customer-match";
 import { getKey } from "@/lib/vault";
 
 export const runtime = "nodejs";
@@ -66,27 +67,56 @@ async function lastPaid(prisma: PrismaClient, customerId: string, name: string):
   return line ? { cents: line.unitPriceCents, date: line.invoice.issueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }) } : null;
 }
 
-// Fuzzy-match a spoken customer name against the customer list.
-async function matchCustomer(prisma: PrismaClient, spoken: string) {
-  const n = spoken.trim().toLowerCase();
-  if (n.length < 2) return { customer: null, candidates: [] as { id: string; label: string }[] };
+interface CustomerPick { id: string; label: string }
+interface CustomerResolution {
+  customer: CustomerPick | null;
+  alternatives: CustomerPick[];
+  confident: boolean;
+}
+
+// Resolve a spoken (possibly Arabic / misspelled) customer name to the closest
+// customer. Fuzzy-ranks a shortlist, then lets Sonnet pick the best within it
+// (bilingual, typo-tolerant); the fuzzy top is the fallback if the LLM can't run.
+async function resolveCustomer(
+  prisma: PrismaClient,
+  client: Anthropic | null,
+  spoken: string,
+): Promise<CustomerResolution> {
   const rows = await prisma.customer.findMany({
     orderBy: [{ businessName: "asc" }],
     select: { id: true, businessName: true, name: true, phone: true },
-    take: 2000,
+    take: 4000,
   });
-  const scored = rows
-    .map((r) => {
-      const hay = `${r.businessName ?? ""} ${r.name ?? ""} ${r.phone ?? ""}`.toLowerCase();
-      const words = n.split(/\s+/).filter(Boolean);
-      const score = words.filter((w) => hay.includes(w)).length;
-      return { r, score };
-    })
-    .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-    .map((s) => ({ id: s.r.id, label: s.r.businessName || s.r.name || "Customer" }));
-  return { customer: scored[0] ?? null, candidates: scored };
+  const ranked = rankCustomers(rows, spoken, 60);
+  if (ranked.length === 0) return { customer: null, alternatives: [], confident: false };
+
+  let bestId = ranked[0].id;
+  let confident = ranked[0].score >= CLOSE_ENOUGH;
+
+  if (client) {
+    try {
+      const list = ranked.map((r, i) => `${i}. ${r.label}`).join("\n");
+      const prompt = `A wholesale order was dictated aloud. The speaker named a CUSTOMER — possibly in Arabic, transliterated, or misspelled: "${spoken}".\nWhich ONE of the customers below is it? Reply with ONLY JSON: {"index": <number, or -1 if none is a plausible match>, "confidence": <0..1>}.\n\n${list}`;
+      const msg = await client.messages.create({ model: "claude-sonnet-5-5", max_tokens: 80, messages: [{ role: "user", content: prompt }] });
+      const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) {
+        const parsed = JSON.parse(m[0]) as { index?: number; confidence?: number };
+        if (typeof parsed.index === "number" && parsed.index >= 0 && parsed.index < ranked.length) {
+          bestId = ranked[parsed.index].id;
+          confident = (parsed.confidence ?? 0) >= 0.5 || ranked[parsed.index].score >= CLOSE_ENOUGH;
+        } else if (parsed.index === -1) {
+          confident = ranked[0].score >= CLOSE_ENOUGH;
+        }
+      }
+    } catch {
+      /* fall back to the fuzzy top */
+    }
+  }
+
+  const best = ranked.find((r) => r.id === bestId) ?? ranked[0];
+  const alternatives = ranked.filter((r) => r.id !== best.id).slice(0, 2).map((r) => ({ id: r.id, label: r.label }));
+  return { customer: { id: best.id, label: best.label }, alternatives, confident };
 }
 
 function parseJson(text: string, open: string, close: string): unknown {
@@ -197,9 +227,18 @@ ${transcript}`;
     );
 
     const customerName = String(parsed?.customerName ?? "").trim();
-    const customerMatch = customerName ? await matchCustomer(prisma, customerName) : { customer: null, candidates: [] };
+    const resolution = customerName
+      ? await resolveCustomer(prisma, client, customerName)
+      : { customer: null, alternatives: [], confident: false };
 
-    return NextResponse.json({ configured: true, items, heardCustomer: customerName || null, customer: customerMatch.customer, customerCandidates: customerMatch.candidates });
+    return NextResponse.json({
+      configured: true,
+      items,
+      heardCustomer: customerName || null,
+      customer: resolution.customer,
+      customerAlternatives: resolution.alternatives,
+      customerConfident: resolution.confident,
+    });
   } catch (error) {
     console.error("[voice] match failed", error);
     return NextResponse.json({ configured: true, error: "failed" });
