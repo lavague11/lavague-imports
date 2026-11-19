@@ -45,8 +45,18 @@ function transliterate(s: string): string {
 
 // Articles / prepositions to drop, English and (transliterated) Arabic.
 const STOP = new Set([
-  "invoice", "for", "to", "the", "make", "this", "its", "it", "is", "a", "an", "of",
+  "invoice", "for", "to", "the", "make", "this", "its", "it", "is", "a", "an", "of", "and",
   "al", "el", "ll", "la", "le", "li", "lil", "hadha", "hadhi", "da", "di", "dah", "deh",
+]);
+
+// Generic business words — too common to drive a match, so they're dropped too.
+// (Keeps "Blarghwfj Zzz Store" from matching any "… Store".)
+const GENERIC = new Set([
+  "store", "stores", "shop", "shops", "market", "markets", "supermarket", "supermarkets",
+  "mart", "grocery", "groceries", "deli", "halal", "meat", "meats", "food", "foods",
+  "restaurant", "cafe", "bakery", "llc", "inc", "corp", "co", "company", "trading",
+  "wholesale", "international", "intl", "bazaar", "depot", "supply", "distributors",
+  "distribution", "enterprises", "group", "brothers", "bros",
 ]);
 
 /** Canonical comparison form: transliterated, lowercased, de-articled, alnum. */
@@ -55,7 +65,7 @@ export function canon(s: string): string {
   // Split a leading al-/el-/ll-/lil- glued onto a token ("llzaym" → "ll zaym").
   t = t.replace(/\b(lil|ll|al|el|la|le)([a-z]{3,})/g, "$1 $2");
   t = t.replace(/[^a-z0-9\s]+/g, " ");
-  const tokens = t.split(/\s+/).filter((w) => w && !STOP.has(w));
+  const tokens = t.split(/\s+/).filter((w) => w && !STOP.has(w) && !GENERIC.has(w));
   return tokens.join(" ");
 }
 
