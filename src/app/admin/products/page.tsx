@@ -243,14 +243,14 @@ export default async function AdminProducts({
       <BulkBar action={bulkSetActive} brands={brandNames} />
 
       {total === 0 ? (
-        <div className="rounded-xl border border-olive-100 bg-white p-10 text-center">
+        <div className="mt-5 rounded-xl border border-olive-100 bg-white p-10 text-center">
           <p className="text-olive-700">No products match these filters.</p>
           <Link href={clearAllHref} className="mt-3 inline-block rounded-lg border border-olive-300 px-4 py-2 text-sm font-medium text-olive-800 hover:bg-olive-50">
             Clear filters
           </Link>
         </div>
       ) : (
-        <>
+        <div className="mt-5">
         {/* Mobile: product cards (tap to edit, long-press for quick edit, … menu) */}
         <MobileProductList items={mobileItems} />
 
@@ -307,7 +307,7 @@ export default async function AdminProducts({
             </tbody>
           </table>
         </div>
-        </>
+        </div>
       )}
 
       {/* Pagination + page-size */}
