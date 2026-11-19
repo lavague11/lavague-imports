@@ -90,33 +90,44 @@ async function resolveCustomer(
   const ranked = rankCustomers(rows, spoken, 60);
   if (ranked.length === 0) return { customer: null, alternatives: [], confident: false };
 
-  let bestId = ranked[0].id;
-  let confident = ranked[0].score >= CLOSE_ENOUGH;
+  // A candidate must share at least this much with the spoken name to count as a
+  // real match — guards against the LLM force-picking something for an unknown name.
+  const MATCH_FLOOR = 0.2;
+
+  // Fuzzy default: only the top if it's clearly close.
+  let picked = ranked[0].score >= CLOSE_ENOUGH ? ranked[0] : null;
+  let confident = picked != null;
 
   if (client) {
     try {
       const list = ranked.map((r, i) => `${i}. ${r.label}`).join("\n");
-      const prompt = `A wholesale order was dictated aloud. The speaker named a CUSTOMER — possibly in Arabic, transliterated, or misspelled: "${spoken}".\nWhich ONE of the customers below is it? Reply with ONLY JSON: {"index": <number, or -1 if none is a plausible match>, "confidence": <0..1>}.\n\n${list}`;
+      const prompt = `A wholesale order was dictated aloud. The speaker named the CUSTOMER it's for — possibly in Arabic, transliterated, or misspelled: "${spoken}".\nReturn the index of the ONE customer below that is clearly the SAME business (allowing for Arabic transliteration, accent, or spelling). If the spoken name does not clearly match any listed business, return -1 — do NOT guess.\nReply with ONLY JSON: {"index": <number or -1>, "confidence": <0..1>}.\n\n${list}`;
       const msg = await client.messages.create({ model: "claude-sonnet-5-5", max_tokens: 80, messages: [{ role: "user", content: prompt }] });
       const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
       const m = text.match(/\{[\s\S]*\}/);
       if (m) {
         const parsed = JSON.parse(m[0]) as { index?: number; confidence?: number };
         if (typeof parsed.index === "number" && parsed.index >= 0 && parsed.index < ranked.length) {
-          bestId = ranked[parsed.index].id;
-          confident = (parsed.confidence ?? 0) >= 0.5 || ranked[parsed.index].score >= CLOSE_ENOUGH;
+          const cand = ranked[parsed.index];
+          // Accept the LLM's pick only if it also shares enough with the spoken name.
+          if (cand.score >= MATCH_FLOOR) {
+            picked = cand;
+            confident = (parsed.confidence ?? 0) >= 0.5 || cand.score >= CLOSE_ENOUGH;
+          }
         } else if (parsed.index === -1) {
-          confident = ranked[0].score >= CLOSE_ENOUGH;
+          // LLM says none plausible — keep only a strong fuzzy top.
+          picked = ranked[0].score >= CLOSE_ENOUGH ? ranked[0] : null;
+          confident = picked != null;
         }
       }
     } catch {
-      /* fall back to the fuzzy top */
+      /* fall back to the fuzzy default */
     }
   }
 
-  const best = ranked.find((r) => r.id === bestId) ?? ranked[0];
-  const alternatives = ranked.filter((r) => r.id !== best.id).slice(0, 2).map((r) => ({ id: r.id, label: r.label }));
-  return { customer: { id: best.id, label: best.label }, alternatives, confident };
+  if (!picked) return { customer: null, alternatives: [], confident: false };
+  const alternatives = ranked.filter((r) => r.id !== picked!.id).slice(0, 2).map((r) => ({ id: r.id, label: r.label }));
+  return { customer: { id: picked.id, label: picked.label }, alternatives, confident };
 }
 
 function parseJson(text: string, open: string, close: string): unknown {
