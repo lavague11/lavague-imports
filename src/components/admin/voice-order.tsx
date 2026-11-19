@@ -108,12 +108,49 @@ function parseAnswer(raw: string): Answer {
   return { kind: "unknown" };
 }
 
+// A spoken command to change an already-added line (remove / edit quantity).
+type Command =
+  | { kind: "remove"; query: string }
+  | { kind: "editQty"; query: string; n: number };
+
+function parseCommand(raw: string): Command | null {
+  const low = raw.trim().toLowerCase();
+  let m = low.match(/\b(?:remove|delete|cancel|scratch|take off|get rid of|drop)\s+(?:the\s+)?(.+)/);
+  if (m) {
+    const query = m[1].replace(/\b(line|item|from (?:the )?order|please|thanks?)\b/g, "").trim();
+    if (query && !/^(it|that|this)$/.test(query)) return { kind: "remove", query };
+  }
+  m = low.match(/\b(?:change|make|set|update)\s+(?:the\s+)?(.+?)\s+(?:to|at)\s+(\d{1,3})\b/);
+  if (m) {
+    const query = m[1].trim();
+    const n = parseInt(m[2], 10);
+    if (query && n > 0 && !/^(it|that|this)$/.test(query)) return { kind: "editQty", query, n };
+  }
+  return null;
+}
+
+// Map a spoken reason to one of the CREDIT_REASONS, or null.
+function parseReason(raw: string): string | null {
+  const t = raw.toLowerCase();
+  if (/\bdamag|\bbroke|broken|crush/.test(t)) return "Damaged";
+  if (/\bexpir/.test(t)) return "Expired";
+  if (/\breturn/.test(t)) return "Returned";
+  if (/\bshort|missing|didn.?t (?:come|arrive)|not delivered/.test(t)) return "Short delivery";
+  if (/\bcourtesy|free|goodwill|on us\b/.test(t)) return "Courtesy";
+  if (/\bprice|adjust/.test(t)) return "Price adjustment";
+  return null;
+}
+
 export function VoiceOrder({
   onAddLine,
+  onRemoveLine,
+  onEditLine,
   customerId,
   invoiceId,
 }: {
   onAddLine: (item: VoiceItem) => void;
+  onRemoveLine?: (query: string) => string | null;
+  onEditLine?: (query: string, qty: number) => string | null;
   customerId?: string | null;
   invoiceId?: string | null;
 }) {
@@ -185,6 +222,10 @@ export function VoiceOrder({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const speakingRef = useRef(false);
   const liveCustomerRef = useRef<{ customer: DetectedCustomer; alts: DetectedCustomer[]; confident: boolean; heard: string | null } | null>(null);
+  // Keep the line handlers current for commands fired from captured closures.
+  const onRemoveLineRef = useRef(onRemoveLine);
+  const onEditLineRef = useRef(onEditLine);
+  useEffect(() => { onRemoveLineRef.current = onRemoveLine; onEditLineRef.current = onEditLine; });
 
   const current = queue[0] ?? null;
   // Ask about the customer when a name was heard and it's unresolved: a detected
@@ -339,6 +380,23 @@ export function VoiceOrder({
       }
     });
 
+  // Run a spoken remove/edit command against the invoice lines. Returns true if
+  // it consumed the utterance (a handler exists), even when nothing matched.
+  const handleCommand = (cmd: Command): boolean => {
+    if (cmd.kind === "remove") {
+      if (!onRemoveLineRef.current) return false;
+      const name = onRemoveLineRef.current(cmd.query);
+      if (name) void speak(`Removed ${name}.`);
+      else { setNote(`Couldn't find “${cmd.query}” to remove.`); void speak(`I couldn't find ${cmd.query}.`); }
+      return true;
+    }
+    if (!onEditLineRef.current) return false;
+    const name = onEditLineRef.current(cmd.query, cmd.n);
+    if (name) void speak(`Set ${name} to ${cmd.n}.`);
+    else { setNote(`Couldn't find “${cmd.query}”.`); void speak(`I couldn't find ${cmd.query}.`); }
+    return true;
+  };
+
   // Record a short answer and stop on silence (or after 7s); transcribe it.
   const listenForAnswer = async (): Promise<string> => {
     let stream: MediaStream;
@@ -410,6 +468,10 @@ export function VoiceOrder({
       const text = typeof tData.text === "string" ? tData.text.trim() : "";
       if (!text) return;
       setLiveTranscript((prev) => (prev ? `${prev} ${text}` : text));
+
+      // A remove/edit command mid-stream? Act on it instead of adding items.
+      const cmd = parseCommand(text);
+      if (cmd && handleCommand(cmd)) return;
 
       const mfd = new FormData();
       mfd.append("transcript", text);
@@ -561,6 +623,10 @@ export function VoiceOrder({
         setTranscript(tData.text);
         setConfidence(typeof tData.confidence === "number" ? tData.confidence : null);
 
+        // A remove/edit command? Act on it instead of adding items.
+        const cmd = parseCommand(tData.text);
+        if (cmd && handleCommand(cmd)) { setStatus("idle"); return; }
+
         setStatus("matching");
         const mfd = new FormData();
         mfd.append("transcript", tData.text);
@@ -689,7 +755,17 @@ export function VoiceOrder({
     if (!current || answering) return;
     setAnswering(true);
     try {
-      const a = parseAnswer(await listenForAnswer());
+      const text = await listenForAnswer();
+      // A credit still missing its reason? Try to hear one.
+      if (current.isCredit && !(current.creditReason || reason)) {
+        const r = parseReason(text);
+        if (r) { setReason(r); void speak(`${r}.`); return; }
+      }
+      // A remove/edit command?
+      const cmd = parseCommand(text);
+      if (cmd && handleCommand(cmd)) return;
+
+      const a = parseAnswer(text);
       if (a.kind === "yes") answer(true);
       else if (a.kind === "no") answer(false);
       else if (a.kind === "select") { const alt = current.alternatives?.[a.n - 1]; if (alt) adopt(alt); }

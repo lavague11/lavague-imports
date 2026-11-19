@@ -87,9 +87,15 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
   const [shipping, setShipping] = useState(props.shipping);
   const [tax, setTax] = useState(props.tax);
 
-  const [undo, setUndo] = useState<{ row: Row; index: number } | null>(null);
+  const [undo, setUndo] = useState<{ kind: "remove" | "edit"; row: Row; index: number } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const armUndo = (u: { kind: "remove" | "edit"; row: Row; index: number }) => {
+    setUndo(u);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setUndo(null), 10000);
+  };
 
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -97,16 +103,51 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
   const removeRow = (i: number) => {
     setRows((rs) => {
       if (rs.length <= 1) return [{ description: "", qty: "1", unit: "" }]; // clear the last line instead of deleting
-      setUndo({ row: rs[i], index: i });
-      if (undoTimer.current) clearTimeout(undoTimer.current);
-      undoTimer.current = setTimeout(() => setUndo(null), 10000);
+      armUndo({ kind: "remove", row: rs[i], index: i });
       return rs.filter((_, j) => j !== i);
     });
   };
   const doUndo = () => {
     if (!undo) return;
-    setRows((rs) => { const c = [...rs]; c.splice(Math.min(undo.index, c.length), 0, undo.row); return c; });
+    const u = undo;
+    setRows((rs) => {
+      const c = [...rs];
+      if (u.kind === "remove") c.splice(Math.min(u.index, c.length), 0, u.row);
+      else if (u.index < c.length) c[u.index] = u.row;
+      return c;
+    });
     setUndo(null);
+  };
+
+  // Fuzzy-match a spoken name to a line (by description word overlap).
+  const findRowByName = (query: string): number => {
+    const words = query.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+    if (!words.length) return -1;
+    let best = -1;
+    let bestScore = 0;
+    rows.forEach((r, i) => {
+      if (!r.description.trim()) return;
+      const d = r.description.toLowerCase();
+      const score = words.filter((w) => d.includes(w)).length;
+      if (score > bestScore) { bestScore = score; best = i; }
+    });
+    return bestScore > 0 ? best : -1;
+  };
+  // Voice command: remove a line by name. Returns the removed line's name, or null.
+  const removeLineByName = (query: string): string | null => {
+    const i = findRowByName(query);
+    if (i < 0) return null;
+    const name = rows[i].description;
+    removeRow(i);
+    return name;
+  };
+  // Voice command: set a line's quantity by name. Returns the line's name, or null.
+  const editLineByName = (query: string, qty: number): string | null => {
+    const i = findRowByName(query);
+    if (i < 0 || qty < 1) return null;
+    armUndo({ kind: "edit", row: rows[i], index: i });
+    setRow(i, { qty: String(qty) });
+    return rows[i].description;
   };
 
   // Keep EXACTLY one blank line at the bottom: add one when the last row fills
@@ -269,7 +310,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
           </button>
           {/* Mobile: tidy 2-up grid, each button centered in its cell. Desktop: inline wrap. */}
           <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex sm:flex-wrap sm:items-center sm:justify-end [&>div]:flex [&>div]:justify-center sm:[&>div]:block">
-            <div><VoiceOrder onAddLine={addVoiceLine} customerId={props.customerId} invoiceId={props.invoiceId} /></div>
+            <div><VoiceOrder onAddLine={addVoiceLine} onRemoveLine={removeLineByName} onEditLine={editLineByName} customerId={props.customerId} invoiceId={props.invoiceId} /></div>
             <div><PreviousItems customerId={props.customerId} onAdd={addLines} /></div>
             <div><AddCredit customerId={props.customerId} onAdd={addCredit} /></div>
             <div><InvoiceAssist getLines={assistLines} onApply={applyAssist} /></div>
@@ -315,7 +356,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
       {/* Undo toast after removing a line */}
       {undo ? (
         <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-olive-900 px-4 py-2 text-sm text-white shadow-lg">
-          Line removed
+          {undo.kind === "edit" ? "Line updated" : "Line removed"}
           <button type="button" onClick={doUndo} className="font-semibold text-emerald-300 underline">Undo</button>
         </div>
       ) : null}
