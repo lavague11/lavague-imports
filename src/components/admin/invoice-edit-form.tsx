@@ -58,6 +58,17 @@ const addDays = (iso: string, days: number) => {
 
 interface Row { description: string; qty: string; unit: string; isCredit?: boolean; creditReason?: string }
 
+const BLANK: Row = { description: "", qty: "1", unit: "" };
+const isBlankRow = (r: Row) => !r.description.trim() && !r.unit.trim();
+
+// Place new rows so they fill the bottom blank line / sit above it, leaving
+// exactly ONE blank line at the end. Drops any trailing blanks first.
+function placeRows(prev: Row[], incoming: Row[]): Row[] {
+  const base = [...prev];
+  while (base.length && isBlankRow(base[base.length - 1])) base.pop();
+  return [...base, ...incoming, { ...BLANK }];
+}
+
 export function InvoiceEditForm(props: InvoiceEditFormProps) {
   const [rows, setRows] = useState<Row[]>(
     props.lines.length
@@ -98,12 +109,14 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
     setUndo(null);
   };
 
-  // Always keep one blank line open at the bottom.
+  // Keep EXACTLY one blank line at the bottom: add one when the last row fills
+  // up, and collapse any extra trailing blanks down to a single one.
   useEffect(() => {
-    const last = rows[rows.length - 1];
-    if (last && (last.description.trim() || last.unit.trim())) {
-      setRows((rs) => [...rs, { description: "", qty: "1", unit: "" }]);
-    }
+    if (rows.length === 0) { setRows([{ ...BLANK }]); return; }
+    let trailing = 0;
+    for (let i = rows.length - 1; i >= 0 && isBlankRow(rows[i]); i -= 1) trailing += 1;
+    if (trailing === 0) setRows((rs) => [...rs, { ...BLANK }]);
+    else if (trailing > 1) setRows((rs) => rs.slice(0, rs.length - (trailing - 1)));
   }, [rows]);
 
   // AI assist: current lines for "Pro clean-up", and applying the reviewed rows.
@@ -115,7 +128,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
       unit: a.priceCents != null ? (a.priceCents / 100).toFixed(2) : "",
     }));
     if (mode === "cleanup") setRows(mapped.length ? mapped : rows);
-    else setRows((prev) => { const keep = prev.filter((r) => r.description.trim() || r.unit.trim()); return [...keep, ...mapped]; });
+    else setRows((prev) => placeRows(prev, mapped));
   };
 
   // Voice order: add one spoken line at a time (replacing a lone empty starter row).
@@ -131,23 +144,20 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
       isCredit,
       creditReason: isCredit ? item.creditReason || "Other" : undefined,
     };
-    setRows((prev) => (prev.length === 1 && !prev[0].description.trim() && !prev[0].unit.trim() ? [row] : [...prev, row]));
+    setRows((prev) => placeRows(prev, [row]));
   };
 
   // Add one or more lines at once (Previous items / Repeat last order).
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const addLines = (lines: InvoiceLineInput[]) => {
     const mapped: Row[] = lines.map((l) => ({ description: l.description, qty: String(l.quantity || 1), unit: l.unitPriceCents ? (l.unitPriceCents / 100).toFixed(2) : "" }));
-    setRows((prev) => {
-      const base = prev.length === 1 && !prev[0].description.trim() && !prev[0].unit.trim() ? [] : prev;
-      return [...base, ...mapped];
-    });
+    setRows((prev) => placeRows(prev, mapped));
   };
 
   // Add a credit line (negative) from the Add-credit form.
   const addCredit = (c: CreditInput) => {
     const row: Row = { description: c.description, qty: String(c.quantity || 1), unit: (c.amountCentsEach / 100).toFixed(2), isCredit: true, creditReason: c.reason };
-    setRows((prev) => (prev.length === 1 && !prev[0].description.trim() && !prev[0].unit.trim() ? [prev[0], row] : [...prev, row]));
+    setRows((prev) => placeRows(prev, [row]));
   };
 
   // Magnitude of a row (positive); credits count against the total.
