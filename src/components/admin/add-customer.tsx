@@ -9,8 +9,8 @@ const inputCls = "h-10 w-full rounded-lg border border-olive-200 px-3 text-sm fo
 const labelCls = "mb-1 block text-xs font-medium text-olive-600";
 const ACTION = "/admin/customers/create";
 
-export function AddCustomer() {
-  const [open, setOpen] = useState(false);
+export function AddCustomer({ defaultOpen = false }: { defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const [tab, setTab] = useState<"form" | "vcf">("form");
 
   return (

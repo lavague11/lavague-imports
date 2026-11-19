@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FilePlus2, Phone, MessageSquare, Bell, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Phone, MessageSquare, Bell, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 import { DashboardCustomize } from "@/components/admin/dashboard-customize";
 import { DateRangePicker } from "@/components/admin/date-range-picker";
+import { NewMenu } from "@/components/admin/new-menu";
 import { GoalCard } from "@/components/admin/goal-card";
 import { SalesTrendChart } from "@/components/admin/sales-trend-chart";
 import { getCurrentUser } from "@/lib/auth";
@@ -274,11 +275,7 @@ export default async function AdminDashboard({
           <h1 className="font-display text-2xl text-olive-900">Dashboard</h1>
           <p className="mt-1 text-sm text-olive-600">Wholesale · welcome back, {user.name ?? user.email}.</p>
         </div>
-        <form method="post" action="/admin/invoices/create">
-          <button className="inline-flex items-center gap-1.5 rounded-lg bg-olive-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-olive-800">
-            <FilePlus2 className="h-4 w-4" /> New invoice
-          </button>
-        </form>
+        <NewMenu />
       </div>
 
       {view === "wholesale" ? (

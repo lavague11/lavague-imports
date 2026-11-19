@@ -133,7 +133,7 @@ export default async function AdminCustomers({
               );
             })}
           </div>
-          <AddCustomer />
+          <AddCustomer defaultOpen={firstValue(params.add) === "1"} />
         </div>
       </div>
 
