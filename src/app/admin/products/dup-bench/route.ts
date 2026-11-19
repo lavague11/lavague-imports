@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
-import { findSimilarProducts } from "@/lib/admin/duplicate-guard";
+import { findSimilarBatch, findSimilarProducts } from "@/lib/admin/duplicate-guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// Benchmark the shared duplicate guard at scale (PRODUCT_TAGS §5). Runs
-// findSimilarProducts over a sample of real product names and projects a
-// 2,500-row check time. Admin-only, read-only. ?n=150 sets the sample size.
+// Benchmark the duplicate guard (PRODUCT_TAGS §5): the batched in-memory check
+// used for big imports vs the per-row full check used on single-item paths.
+// Admin-only, read-only.
 export async function GET(request: Request) {
   try {
     await requireAdmin();
@@ -19,21 +19,25 @@ export async function GET(request: Request) {
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ error: "db" });
 
-  const n = Math.min(400, Math.max(20, Number(new URL(request.url).searchParams.get("n")) || 150));
-  const sample = await prisma.product.findMany({ select: { name: true, brand: true, barcode: true }, take: n, orderBy: { updatedAt: "desc" } });
+  const all = await prisma.product.findMany({ select: { name: true, brand: true, barcode: true } });
 
-  const t0 = Date.now();
-  for (const p of sample) {
-    await findSimilarProducts(prisma, { name: p.name, brand: p.brand, barcode: p.barcode, size: null });
-  }
-  const totalMs = Date.now() - t0;
-  const perRow = totalMs / (sample.length || 1);
+  // Build a 2,500-row synthetic import from real names (repeat to reach 2,500).
+  const rows: { name: string; brand: string | null; barcode: string | null }[] = [];
+  while (rows.length < 2500 && all.length) rows.push(...all.slice(0, 2500 - rows.length));
+
+  const tb = Date.now();
+  const batch = await findSimilarBatch(prisma, rows);
+  const batchMs = Date.now() - tb;
+
+  // Per-row full check, small sample (for comparison on single-item paths).
+  const sample = all.slice(0, 30);
+  const tp = Date.now();
+  for (const p of sample) await findSimilarProducts(prisma, { name: p.name, brand: p.brand, barcode: p.barcode, size: null });
+  const perRowMs = (Date.now() - tp) / (sample.length || 1);
+
   return NextResponse.json({
-    sampled: sample.length,
-    totalMs,
-    perRowMs: +perRow.toFixed(1),
-    projected2500Ms: Math.round(perRow * 2500),
-    projected2500Sec: +((perRow * 2500) / 1000).toFixed(1),
-    note: "Sequential per-row check. A real bulk import can batch/parallelize; this is the conservative serial figure.",
+    catalogSize: all.length,
+    batched: { rows: rows.length, totalMs: batchMs, perRowMs: +(batchMs / (rows.length || 1)).toFixed(2), flagged: batch.filter((r) => r.exactBarcode || r.similar.length).length },
+    perRowFullCheck: { sampled: sample.length, perRowMs: +perRowMs.toFixed(1), note: "used on single-item paths (voice/manual/photo), not bulk" },
   });
 }
