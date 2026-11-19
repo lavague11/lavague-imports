@@ -134,6 +134,49 @@ model MergeLog {
   undoneAt     DateTime?
 }
 
+// ---------------------------------------------------------------------------
+// Product tags (PRODUCT_TAGS §1). Structured, matchable facets + spoken names.
+// ---------------------------------------------------------------------------
+
+enum TagKind {
+  BRAND
+  TYPE
+  SIZE
+  VARIANT
+  SPOKEN
+}
+
+/// A structured tag on a product (PRODUCT_TAGS §1). Keyed by product SLUG (not
+/// id) so tags survive a catalog re-import, which deletes+recreates non-custom
+/// products with new ids but the same slug. `norm` is the normalized match key
+/// (lowercased, Arabic-normalized; for SIZE, the base-unit magnitude lives in
+/// sizeAmount/sizeUnit). At most one BRAND/TYPE/SIZE/VARIANT per product and 8
+/// tags total — enforced in the write layer.
+model ProductTag {
+  id         String   @id @default(cuid())
+  slug       String // Product.slug (stable across re-import); not FK-cascaded
+  kind       TagKind
+  value      String // display value, e.g. "Harissa", "70 g", "Al Maghribya", "هريسة"
+  norm       String // normalized match key
+  lang       String? // SPOKEN only: en | ar | darija | misc
+  sizeAmount Float? // SIZE only: magnitude in the base unit
+  sizeUnit   String? // SIZE only: "ml" | "g" | "piece"
+  source     String   @default("manual") // manual | backfill-* | learned
+  createdAt  DateTime @default(now())
+
+  @@unique([slug, kind, norm])
+  @@index([slug])
+  @@index([kind, norm])
+  @@index([norm])
+}
+
+/// The FIXED, admin-editable controlled list for TYPE tags (PRODUCT_TAGS §1).
+model ProductTypeOption {
+  id       String @id @default(cuid())
+  name     String @unique
+  position Int    @default(0)
+}
+
 /// A purchasable size/pack of a product. Prices are stored in cents to avoid
 /// floating point rounding errors.
 model ProductVariant {

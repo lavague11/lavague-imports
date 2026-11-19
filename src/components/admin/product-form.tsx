@@ -8,6 +8,7 @@ import { Camera, Check, ExternalLink, Lock, Plus, ScanBarcode, Sparkles, Star, T
 
 import { saveDraftAction, saveProduct } from "@/app/admin/actions";
 import { BarcodeScanner } from "@/components/admin/barcode-scanner";
+import { ProductTags, type ProductTagItem } from "@/components/admin/product-tags";
 import { suggestCleanName } from "@/lib/clean-name";
 import { idleFormState } from "@/lib/form";
 import { UNIT_OPTIONS, formatUnitSize, parseUnitSize } from "@/lib/units";
@@ -141,6 +142,8 @@ export function ProductForm({
   hasDraft = false,
   locks,
   errorCode,
+  tags,
+  typeOptions,
 }: {
   mode: "new" | "edit";
   product?: ProductFormData;
@@ -150,6 +153,8 @@ export function ProductForm({
   hasDraft?: boolean;
   locks?: FieldLocks;
   errorCode?: string | null;
+  tags?: ProductTagItem[];
+  typeOptions?: { id: string; name: string }[];
 }) {
   const isEdit = mode === "edit";
   const router = useRouter();
@@ -753,6 +758,9 @@ export function ProductForm({
         ) : null}
         <label className="flex items-center gap-2 text-sm text-olive-800"><input ref={fragileRef} type="checkbox" name="fragile" defaultChecked={product?.isFragile ?? false} className="h-4 w-4 accent-olive-800" /> Fragile (glass bottle / breakable)</label>
       </div>
+
+      {/* Tags (PRODUCT_TAGS §1) — edit mode; saved immediately, independent of the form */}
+      {isEdit && product ? <ProductTags slug={product.slug} tags={tags ?? []} typeOptions={typeOptions ?? []} /> : null}
 
       {errorMessage ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{errorMessage}</p> : null}
       {isEdit && state.status === "error" ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{state.message}</p> : null}

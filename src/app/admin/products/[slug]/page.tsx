@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getBrandNames, getCategories, sourceLabel } from "@/lib/catalog";
 import { COUNTRY_ISO } from "@/lib/countries";
 import { getPrisma } from "@/lib/db";
+import { getProductTags, listTypeOptions } from "@/lib/admin/product-tags";
 
 export default async function AdminEditProduct({
   params,
@@ -18,6 +19,7 @@ export default async function AdminEditProduct({
   if (!prisma) return <p className="text-olive-700">Database not connected — see the dashboard.</p>;
 
   const { slug } = await params;
+  const [tags, typeOptions] = await Promise.all([getProductTags(slug), listTypeOptions()]);
   const [product, categories, brands, override] = await Promise.all([
     prisma.product.findUnique({
       where: { slug },
@@ -123,6 +125,8 @@ export default async function AdminEditProduct({
           countries={countries}
           brands={brands}
           locks={Object.keys(locks).length ? locks : undefined}
+          tags={tags.map((t) => ({ id: t.id, kind: t.kind, value: t.value, lang: t.lang }))}
+          typeOptions={typeOptions}
         />
       </div>
     </div>
