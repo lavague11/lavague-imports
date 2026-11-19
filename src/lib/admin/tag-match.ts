@@ -148,7 +148,10 @@ export async function resolveSpokenItem(
   // A bare type with no brand/size and no history → ask, don't fuzzy-guess a
   // specific brand. Offer the closest items for the picker (stage 3).
   const hits = await searchCatalog(prisma, query, 6);
-  if (await isVague(prisma, vagueNorm.norm, vagueNorm.tokens, brandNorm, extractSizeHint(vagueText))) {
+  // Judge vagueness on the heard text alone — a brand the MODEL guessed (not one
+  // the speaker said) shouldn't suppress the "which brand and size?" ask. A brand
+  // the speaker actually said shows up as an extra heard token instead.
+  if (await isVague(prisma, vagueNorm.norm, vagueNorm.tokens, "", extractSizeHint(vagueText))) {
     return { match: null, alternatives: hits.slice(0, 3), vague: true, ambiguous: hits.length > 0 };
   }
 
