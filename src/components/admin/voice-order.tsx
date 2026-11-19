@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Mic, Undo2, UserCheck, UserPlus, Volume2, VolumeX, X } from "lucide-react";
+import { Check, Mic, Radio, Square, Undo2, UserCheck, UserPlus, Volume2, VolumeX, X } from "lucide-react";
 
 import { CREDIT_REASONS } from "@/lib/invoice-constants";
 
@@ -174,6 +174,18 @@ export function VoiceOrder({
       return nv;
     });
 
+  // Live listening (item 5): one tap starts a continuous mic session that
+  // segments speech by pauses, matches each utterance, and appends cards.
+  const [live, setLive] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const liveRef = useRef(false);
+  const liveStreamRef = useRef<MediaStream | null>(null);
+  const liveRecRef = useRef<MediaRecorder | null>(null);
+  const liveAcRef = useRef<AudioContext | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const speakingRef = useRef(false);
+  const liveCustomerRef = useRef<{ customer: DetectedCustomer; alts: DetectedCustomer[]; confident: boolean; heard: string | null } | null>(null);
+
   const current = queue[0] ?? null;
   // Ask about the customer when a name was heard and it's unresolved: a detected
   // match that differs from the current customer, or no match at all (offer new).
@@ -316,10 +328,13 @@ export function VoiceOrder({
         const u = new SpeechSynthesisUtterance(text);
         u.lang = hasArabic(text) ? "ar-SA" : "en-US";
         u.rate = 1.05;
-        u.onend = () => resolve();
-        u.onerror = () => resolve();
+        const done = () => { speakingRef.current = false; resolve(); };
+        u.onend = done;
+        u.onerror = done;
+        speakingRef.current = true; // echo-gate the live mic while speaking
         window.speechSynthesis.speak(u);
       } catch {
+        speakingRef.current = false;
         resolve();
       }
     });
@@ -383,6 +398,154 @@ export function VoiceOrder({
       }
     });
   };
+
+  // Transcribe one spoken utterance and append any items/customer it yields.
+  const processLiveChunk = async (blob: Blob) => {
+    if (!blob.size) return;
+    try {
+      const afd = new FormData();
+      afd.append("audio", blob, "live.webm");
+      const tRes = await fetch("/admin/invoices/voice/transcribe", { method: "POST", body: afd });
+      const tData = await tRes.json();
+      const text = typeof tData.text === "string" ? tData.text.trim() : "";
+      if (!text) return;
+      setLiveTranscript((prev) => (prev ? `${prev} ${text}` : text));
+
+      const mfd = new FormData();
+      mfd.append("transcript", text);
+      if (customerId) mfd.append("customerId", customerId);
+      const mRes = await fetch("/admin/invoices/voice/match", { method: "POST", body: mfd });
+      const mData = await mRes.json();
+      const items: VoiceItem[] = Array.isArray(mData.items) ? mData.items : [];
+      if (items.length) setQueue((q) => [...q, ...items]);
+
+      // Capture a detected customer, but don't open the confirm modal mid-stream
+      // (confirming reloads the page). It's surfaced when the user taps Stop.
+      if (mData.customer?.id && !liveCustomerRef.current && mData.customer.id !== customerId) {
+        liveCustomerRef.current = {
+          customer: { id: mData.customer.id, label: mData.customer.label },
+          alts: Array.isArray(mData.customerAlternatives) ? mData.customerAlternatives : [],
+          confident: mData.customerConfident !== false,
+          heard: mData.heardCustomer || null,
+        };
+      }
+    } catch {
+      /* ignore a dropped utterance */
+    }
+  };
+
+  const teardownLive = () => {
+    try { liveStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* ignore */ }
+    try { void liveAcRef.current?.close(); } catch { /* ignore */ }
+    liveStreamRef.current = null;
+    liveRecRef.current = null;
+    liveAcRef.current = null;
+  };
+
+  const startLive = async () => {
+    setNote(null);
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setNote("Couldn't access the microphone. Allow mic access and try again.");
+      return;
+    }
+    liveStreamRef.current = stream;
+    liveRef.current = true;
+    setLive(true);
+    setLiveTranscript("");
+    setDone(false);
+    liveCustomerRef.current = null;
+
+    let ac: AudioContext | null = null;
+    try { ac = new AudioContext(); } catch { ac = null; }
+    liveAcRef.current = ac;
+    const analyser = ac ? ac.createAnalyser() : null;
+    if (ac && analyser) { analyser.fftSize = 512; ac.createMediaStreamSource(stream).connect(analyser); }
+    const time = new Uint8Array(analyser ? analyser.fftSize : 0);
+    const freq = new Uint8Array(analyser ? analyser.frequencyBinCount : 0);
+
+    let speechStarted = false;
+    let lastVoice = Date.now();
+
+    const startRec = () => {
+      let chunks: Blob[] = [];
+      speechStarted = false;
+      const rec = new MediaRecorder(stream);
+      liveRecRef.current = rec;
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        chunks = [];
+        if (speechStarted) void processLiveChunk(blob);
+        if (liveRef.current) startRec();
+        else teardownLive();
+      };
+      rec.start();
+    };
+    startRec();
+
+    const loop = () => {
+      if (!liveRef.current) return;
+      if (analyser) {
+        analyser.getByteTimeDomainData(time);
+        let sum = 0;
+        for (const v of time) { const n = (v - 128) / 128; sum += n * n; }
+        const rms = Math.sqrt(sum / time.length);
+        const now = Date.now();
+        if (rms > 0.045 && !speakingRef.current) { lastVoice = now; speechStarted = true; }
+        // End of an utterance: speech, then ~800ms of silence → flush + restart.
+        if (speechStarted && now - lastVoice > 800) {
+          const rec = liveRecRef.current;
+          if (rec && rec.state === "recording") rec.stop();
+        }
+        // Waveform.
+        const c = canvasRef.current;
+        const ctx = c?.getContext("2d");
+        if (c && ctx) {
+          analyser.getByteFrequencyData(freq);
+          const w = c.width, h = c.height;
+          ctx.clearRect(0, 0, w, h);
+          const bars = 28;
+          const step = Math.max(1, Math.floor(freq.length / bars));
+          ctx.fillStyle = "#59652f";
+          for (let i = 0; i < bars; i += 1) {
+            const val = freq[i * step] / 255;
+            const bh = Math.max(2, val * h);
+            ctx.fillRect(i * (w / bars) + 1, (h - bh) / 2, w / bars - 2, bh);
+          }
+        }
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  };
+
+  const stopLive = () => {
+    liveRef.current = false;
+    setLive(false);
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    const rec = liveRecRef.current;
+    if (rec && rec.state === "recording") { try { rec.stop(); } catch { teardownLive(); } }
+    else teardownLive();
+
+    // Now surface any customer heard during the stream (deferred to avoid a
+    // mid-stream page reload).
+    const c = liveCustomerRef.current;
+    if (c && invoiceId && !pendingCustomer && !customerHandled && c.customer.id !== customerId) {
+      setPendingCustomer(c.customer);
+      setCustomerAlts(c.alts);
+      setCustomerConfident(c.confident);
+      setHeardCustomer(c.heard);
+      setNewBusiness(c.heard || "");
+      setCustMode("confirm");
+    }
+    liveCustomerRef.current = null;
+  };
+
+  // Stop the live session if the component unmounts.
+  useEffect(() => () => { if (liveRef.current) { liveRef.current = false; teardownLive(); } }, []);
 
   const process = useCallback(
     async (blob: Blob) => {
@@ -501,25 +664,25 @@ export function VoiceOrder({
 
   // Desktop shortcuts: Enter = Yes, Esc = No, while an item card is showing.
   useEffect(() => {
-    if (!current || askingCustomer) return;
+    if (!current || askingCustomer || live) return;
     const h = (e: KeyboardEvent) => {
       if (e.key === "Enter") { e.preventDefault(); answer(true); }
       else if (e.key === "Escape") { e.preventDefault(); answer(false); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [current, askingCustomer, answer]);
+  }, [current, askingCustomer, answer, live]);
 
   // Speak each card as it comes to the front (TTS). Re-speaks when the content
   // changes (e.g. after switching to an alternative).
   useEffect(() => {
-    if (!current || askingCustomer) return;
+    if (!current || askingCustomer || live) return;
     const phrase = cardPhrase(current);
     if (phrase === lastSpokenRef.current) return;
     lastSpokenRef.current = phrase;
     void speak(phrase);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, askingCustomer]);
+  }, [current, askingCustomer, live]);
 
   // Tap-to-answer: record a short reply, transcribe, and act on it.
   const answerByVoice = async () => {
@@ -567,6 +730,18 @@ export function VoiceOrder({
         </button>
         <button
           type="button"
+          onClick={live ? stopLive : startLive}
+          aria-pressed={live}
+          disabled={recording || busy}
+          title="Live listening — one tap to start, one tap to stop"
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60 ${
+            live ? "border-red-400 bg-red-600 text-white hover:bg-red-700" : "border-olive-300 bg-white text-olive-800 hover:bg-olive-50"
+          }`}
+        >
+          {live ? <Square className="h-4 w-4" /> : <Radio className="h-4 w-4" />} {live ? "Stop" : "Live"}
+        </button>
+        <button
+          type="button"
           onClick={toggleVoice}
           aria-pressed={voiceOn}
           title={voiceOn ? "Spoken replies on — tap to mute" : "Spoken replies off — tap to unmute"}
@@ -577,6 +752,34 @@ export function VoiceOrder({
           {voiceOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
         </button>
       </span>
+
+      {/* Live listening bar — waveform + running transcript + Stop. */}
+      {live ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-olive-200 bg-white/95 px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.08)] backdrop-blur">
+          <div className="mx-auto flex max-w-2xl items-center gap-3">
+            <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-red-600">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-red-600" /> Live
+            </span>
+            <canvas ref={canvasRef} width={240} height={36} className="h-9 flex-1 rounded bg-olive-50" />
+            <span className="shrink-0 text-xs font-medium text-olive-700">{queue.length} item{queue.length === 1 ? "" : "s"}</span>
+            <button type="button" onClick={stopLive} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-olive-900 px-3 py-2 text-sm font-medium text-white hover:bg-olive-800">
+              <Square className="h-4 w-4" /> Stop &amp; review
+            </button>
+          </div>
+          {queue.length ? (
+            <div className="mx-auto mt-1.5 flex max-w-2xl flex-wrap gap-1.5">
+              {queue.slice(-5).map((it, i) => (
+                <span key={i} className={`rounded-full px-2 py-0.5 text-[11px] ${it.isCredit ? "bg-amber-100 text-amber-800" : "bg-olive-100 text-olive-700"}`}>
+                  {it.quantitySpoken ? `${it.quantity}× ` : ""}{it.name || it.heard}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <p className="mx-auto mt-1.5 max-w-2xl truncate text-xs text-olive-400">
+            {liveTranscript || "Listening… say the customer and items — they appear here as you talk."}
+          </p>
+        </div>
+      ) : null}
       {note ? <p className="mt-1 w-full text-right text-xs text-olive-500">{note}</p> : null}
 
       {/* Hidden form that assigns an existing/alternative customer (POST → reload). */}
@@ -670,8 +873,8 @@ export function VoiceOrder({
         </div>
       ) : null}
 
-      {/* Step 2 — item cards, one at a time */}
-      {current && !askingCustomer ? (
+      {/* Step 2 — item cards, one at a time (suppressed while live; reviewed after Stop) */}
+      {current && !askingCustomer && !live ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className={`w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl ${isCredit ? "ring-2 ring-amber-300" : ""}`}>
             <div className="flex items-center justify-between">
@@ -835,7 +1038,7 @@ export function VoiceOrder({
       ) : null}
 
       {/* Summary after the last card */}
-      {done && !current && !askingCustomer ? (
+      {done && !current && !askingCustomer && !live ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDone(false)}>
           <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
             <p className="font-display text-xl text-olive-900">{tally.added} added · {tally.skipped} skipped</p>
