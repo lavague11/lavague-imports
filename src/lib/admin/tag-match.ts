@@ -124,12 +124,16 @@ async function fromTags(
 /** Resolve one spoken item to a product. */
 export async function resolveSpokenItem(
   prisma: PrismaClient,
-  input: { name: string; brand?: string | null; size?: string | null; customerId?: string | null },
+  input: { name: string; brand?: string | null; size?: string | null; heard?: string | null; customerId?: string | null },
 ): Promise<ResolveResult> {
   const query = [input.brand, input.name].filter(Boolean).join(" ");
   const { norm, tokens } = normalizeUtterance(query);
   const brandNorm = input.brand ? normText(input.brand) : "";
   const sizeHint = extractSizeHint(`${input.name} ${input.size ?? ""}`);
+  // Vagueness is judged on what was actually SAID (heard), not Sonnet's cleaned
+  // name, so "olive oil" asks for brand/size even if the model guessed one.
+  const vagueText = (input.heard && input.heard.trim()) || input.name;
+  const vagueNorm = normalizeUtterance(vagueText);
 
   // 1. History (confident — a known reorder).
   if (input.customerId) {
@@ -144,7 +148,7 @@ export async function resolveSpokenItem(
   // A bare type with no brand/size and no history → ask, don't fuzzy-guess a
   // specific brand. Offer the closest items for the picker (stage 3).
   const hits = await searchCatalog(prisma, query, 6);
-  if (await isVague(prisma, norm, tokens, brandNorm, sizeHint)) {
+  if (await isVague(prisma, vagueNorm.norm, vagueNorm.tokens, brandNorm, extractSizeHint(vagueText))) {
     return { match: null, alternatives: hits.slice(0, 3), vague: true, ambiguous: hits.length > 0 };
   }
 

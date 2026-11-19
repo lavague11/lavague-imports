@@ -367,6 +367,7 @@ export function VoiceOrder({
       fd.append("name", current.name || current.heard);
       fd.append("brand", current.brand || "");
       fd.append("size", current.packSize || "");
+      fd.append("heard", current.heard || "");
       if (force) fd.append("force", "1");
       const r = await fetch("/admin/invoices/voice/create-product", { method: "POST", body: fd });
       const d = await r.json();
@@ -997,9 +998,11 @@ export function VoiceOrder({
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-olive-200 text-xs text-olive-400">{isCredit ? "Credit" : "No photo"}</div>
               )}
               <div className="min-w-0">
-                <p className="font-medium text-olive-900">{current.vague ? current.heard || "Which item?" : current.name || "Unknown item"}</p>
+                <p className="font-medium text-olive-900">{current.vague || !current.sku ? current.heard || current.name || "Which item?" : current.name}</p>
                 {current.vague ? (
                   <p className="text-xs font-medium text-amber-700">Which brand and size?</p>
+                ) : !current.sku && !isCredit && !(current.alternatives?.length) ? (
+                  <p className="text-xs font-medium text-amber-700">Couldn&apos;t find that — create it below?</p>
                 ) : (
                   <>
                     <p className="text-xs text-olive-500">{[current.brand, current.packSize].filter(Boolean).join(" · ") || " "}</p>

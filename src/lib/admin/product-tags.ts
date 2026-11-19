@@ -133,3 +133,36 @@ export async function addTypeOption(name: string): Promise<void> {
 export async function removeTypeOption(id: string): Promise<void> {
   await requirePrisma().productTypeOption.delete({ where: { id } }).catch(() => {});
 }
+
+// --- Guessing tags for a new product (PRODUCT_TAGS §4/§8) --------------------
+
+/** Best-effort guessed tags from a spoken/typed name. The spoken text becomes a
+ *  SPOKEN tag; TYPE is matched against the controlled list; SIZE is parsed from
+ *  the text or a provided size; BRAND is taken from a provided brand. */
+export async function guessTagsFor(
+  text: string,
+  opts: { brand?: string | null; size?: string | null } = {},
+): Promise<Array<{ kind: TagKind; value: string }>> {
+  const prisma = requirePrisma();
+  const out: Array<{ kind: TagKind; value: string }> = [];
+  const t = text.trim();
+  if (t) out.push({ kind: "SPOKEN", value: t });
+  if (opts.brand?.trim()) out.push({ kind: "BRAND", value: opts.brand.trim() });
+
+  const nt = normText(t);
+  if (nt) {
+    const types = await prisma.productTypeOption.findMany({ select: { name: true } });
+    const typeMatch = types
+      .map((ty) => ty.name)
+      .filter((name) => { const n = normText(name); return n && nt.includes(n); })
+      .sort((a, b) => b.length - a.length)[0];
+    if (typeMatch) out.push({ kind: "TYPE", value: typeMatch });
+  }
+
+  const sizeStr =
+    (opts.size && opts.size.trim()) ||
+    (t.match(/\d+(?:[.,]\d+)?\s*(?:l|liter|litre|ml|cl|kg|kilo|g|gr|gram|grams|oz|lb|pcs?|pieces?|ct|count)\b/i)?.[0] ?? "");
+  if (sizeStr && parseSize(sizeStr)) out.push({ kind: "SIZE", value: sizeStr.trim() });
+
+  return out;
+}

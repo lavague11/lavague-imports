@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getPrisma } from "@/lib/db";
 import { createCustomProduct } from "@/lib/admin/products";
+import { addProductTag, guessTagsFor } from "@/lib/admin/product-tags";
 import { findCatalogDuplicates, type CatalogHit } from "@/lib/admin/voice-catalog";
 
 export const runtime = "nodejs";
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   const name = clean(fd?.get("name"));
   const brand = clean(fd?.get("brand"));
   const size = clean(fd?.get("size"));
+  const heard = clean(fd?.get("heard"));
   const force = clean(fd?.get("force")) === "1";
   if (!name) return NextResponse.json({ error: "name" }, { status: 400 });
 
@@ -53,6 +55,14 @@ export async function POST(request: Request) {
       isActive: false,
       needsReview: true,
     });
+
+    // Attach guessed tags as a Draft (editable chips on review). The spoken name
+    // becomes a SPOKEN tag so it's recognized next time.
+    const guesses = await guessTagsFor(heard || name, { brand, size });
+    for (const g of guesses) {
+      await addProductTag(created.slug, g.kind, g.value, { source: "voice" }).catch(() => {});
+    }
+
     const hit: CatalogHit = {
       name,
       brand: brand || null,
