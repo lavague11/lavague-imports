@@ -7,6 +7,7 @@ import { getPrisma } from "@/lib/db";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { searchTermsFor } from "@/lib/invoice-aliases";
 import { CLOSE_ENOUGH, rankCustomers } from "@/lib/admin/customer-match";
+import { resolveSpokenItem } from "@/lib/admin/tag-match";
 import { getKey } from "@/lib/vault";
 
 export const runtime = "nodejs";
@@ -34,28 +35,6 @@ async function candidates(prisma: PrismaClient, transcript: string): Promise<Can
     packSize: p.variants[0]?.name ?? "",
     priceCents: p.variants[0]?.retailPriceCents ?? null,
   }));
-}
-
-// Deterministic catalog match by an item's cleaned name (fallback when Sonnet
-// returns no SKU even though the product exists). Requires the brand / most
-// distinctive word so generic words like "olive oil" don't match the wrong brand.
-async function catalogByName(prisma: PrismaClient, name: string, brand: string) {
-  const terms = searchTermsFor(`${brand} ${name}`);
-  if (terms.length === 0) return null;
-  const brandTerms = brand.trim() ? searchTermsFor(brand) : [];
-  const required = brandTerms[0] || [...terms].sort((a, b) => b.length - a.length)[0];
-  if (!required || required.length < 4) return null; // need a distinctive anchor word
-  const products = await prisma.product.findMany({
-    where: { isActive: true, name: { contains: required, mode: "insensitive" } },
-    select: { name: true, imageUrl: true, variants: { select: { sku: true, name: true, retailPriceCents: true }, take: 1 } },
-    take: 12,
-  });
-  if (products.length === 0) return null;
-  const scored = products
-    .map((p) => ({ p, score: terms.filter((t) => p.name.toLowerCase().includes(t)).length }))
-    .sort((a, b) => b.score - a.score);
-  const p = scored[0].p;
-  return { name: p.name, sku: p.variants[0]?.sku ?? "", packSize: p.variants[0]?.name ?? "", priceCents: p.variants[0]?.retailPriceCents ?? null, imageUrl: p.imageUrl };
 }
 
 async function lastPaid(prisma: PrismaClient, customerId: string, name: string): Promise<{ cents: number; date: string } | null> {
@@ -193,47 +172,47 @@ ${transcript}`;
     const parsed = parseJson(text, "{", "}") as { customerName?: string; items?: Record<string, unknown>[] } | null;
     const rawItems = Array.isArray(parsed?.items) ? parsed!.items : [];
 
-    const bySku = new Map(cands.filter((c) => c.sku).map((c) => [c.sku, c]));
     const items = await Promise.all(
       rawItems.map(async (raw) => {
         const it = { ...raw } as Record<string, unknown>;
         it.quantitySpoken = Boolean(it.quantitySpoken);
-        let sku = String(it.sku ?? "");
         const isCredit = Boolean(it.isCredit);
-        let matchName = sku ? bySku.get(sku)?.name ?? String(it.name ?? "") : String(it.name ?? "");
-        let imageUrl: string | null = sku ? bySku.get(sku)?.imageUrl ?? null : null;
         let priceCents = (it.priceCents as number | null) ?? null;
         let priceSource = String(it.priceSource ?? "none");
 
-        // Deterministic fallback: Sonnet gave no SKU but the product likely exists.
-        if (!sku && !isCredit) {
-          const fb = await catalogByName(prisma, String(it.name ?? ""), String(it.brand ?? ""));
-          if (fb) {
-            sku = fb.sku; matchName = fb.name; imageUrl = fb.imageUrl;
-            it.name = fb.name; it.sku = fb.sku; it.packSize = fb.packSize; it.matchTag = "best guess";
-            if (priceSource !== "spoken") { priceCents = fb.priceCents; priceSource = fb.priceCents != null ? "catalog" : "none"; }
+        if (isCredit) {
+          return { ...it, sku: String(it.sku ?? ""), priceCents, priceSource, imageUrl: null, alternatives: [], vague: false, usualQty: null };
+        }
+
+        // Tag-first resolution: history → tag → fuzzy → fallback.
+        const r = await resolveSpokenItem(prisma, {
+          name: String(it.name ?? ""), brand: String(it.brand ?? ""), size: String(it.packSize ?? ""), customerId,
+        });
+
+        let sku = "";
+        let imageUrl: string | null = null;
+        let usualQty: number | null = null;
+        it.matchTag = "not in catalog";
+
+        if (r.match) {
+          sku = r.match.sku;
+          it.name = r.match.name;
+          it.brand = r.match.brand ?? it.brand;
+          it.packSize = r.match.packSize;
+          imageUrl = r.match.imageUrl;
+          usualQty = r.match.usualQty;
+          it.matchTag = r.match.source === "history" || r.match.confidence >= 0.72 ? "matched" : "best guess";
+
+          if (priceSource !== "spoken") {
+            if (customerId) { const lp = await lastPaid(prisma, customerId, r.match.name); if (lp) { priceCents = lp.cents; priceSource = "last"; } }
+            if (priceSource !== "last" && priceSource !== "spoken") { priceCents = r.match.priceCents; priceSource = r.match.priceCents != null ? "catalog" : "none"; }
           }
         }
 
-        // Prefer this customer's last-paid price for matched, non-spoken, non-credit items.
-        if (customerId && sku && !isCredit && priceSource !== "spoken") {
-          const lp = await lastPaid(prisma, customerId, matchName);
-          if (lp) { priceCents = lp.cents; priceSource = "last"; }
-        }
+        // Default the quantity to how this customer usually orders it (plain numbers only).
+        if (!it.quantitySpoken && usualQty && usualQty > 0) it.quantity = usualQty;
 
-        // Up to 3 catalog alternatives for this item, so the card can offer a
-        // "change match" without a round-trip. Scored by name-word overlap.
-        const q = `${String(it.brand ?? "")} ${String(it.name ?? "")}`.toLowerCase();
-        const qWords = q.split(/[^a-z0-9؀-ۿ]+/i).filter((w) => w.length >= 3);
-        const alternatives = cands
-          .filter((c) => c.sku && c.sku !== sku)
-          .map((c) => ({ c, score: qWords.filter((w) => c.name.toLowerCase().includes(w)).length }))
-          .filter((x) => x.score > 0)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 3)
-          .map((x) => ({ name: x.c.name, brand: x.c.brand, sku: x.c.sku, packSize: x.c.packSize, priceCents: x.c.priceCents, imageUrl: x.c.imageUrl }));
-
-        return { ...it, sku, priceCents, priceSource, imageUrl, alternatives };
+        return { ...it, sku, priceCents, priceSource, imageUrl, alternatives: r.alternatives, vague: Boolean(r.vague), usualQty };
       }),
     );
 

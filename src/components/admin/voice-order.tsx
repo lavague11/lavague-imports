@@ -30,6 +30,8 @@ export interface VoiceItem {
   isCredit?: boolean;
   creditReason?: string;
   alternatives?: CatalogHit[];
+  vague?: boolean;
+  usualQty?: number | null;
 }
 
 interface DetectedCustomer { id: string; label: string }
@@ -293,7 +295,8 @@ export function VoiceOrder({
   // the "change match" panel when nothing matched, so the admin can fix it.
   useEffect(() => {
     if (!current) return;
-    setQty(current.quantitySpoken ? String(current.quantity || 1) : "");
+    // Prefill the quantity: a spoken number, else how this customer usually orders it.
+    setQty(current.quantitySpoken ? String(current.quantity || 1) : current.usualQty ? String(current.usualQty) : "");
     setReason("");
     setChanging(!current.isCredit && current.matchTag === "not in catalog");
     setSearchQ("");
@@ -982,9 +985,15 @@ export function VoiceOrder({
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-olive-200 text-xs text-olive-400">{isCredit ? "Credit" : "No photo"}</div>
               )}
               <div className="min-w-0">
-                <p className="font-medium text-olive-900">{current.name || "Unknown item"}</p>
-                <p className="text-xs text-olive-500">{[current.brand, current.packSize].filter(Boolean).join(" · ") || " "}</p>
-                <p className="text-xs text-olive-500">{current.sku ? `SKU ${current.sku}` : isCredit ? "Credit line" : "No SKU"}</p>
+                <p className="font-medium text-olive-900">{current.vague ? current.heard || "Which item?" : current.name || "Unknown item"}</p>
+                {current.vague ? (
+                  <p className="text-xs font-medium text-amber-700">Which brand and size?</p>
+                ) : (
+                  <>
+                    <p className="text-xs text-olive-500">{[current.brand, current.packSize].filter(Boolean).join(" · ") || " "}</p>
+                    <p className="text-xs text-olive-500">{current.sku ? `SKU ${current.sku}` : isCredit ? "Credit line" : "No SKU"}</p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1006,6 +1015,7 @@ export function VoiceOrder({
             <div className="mt-3">
               <label className="mb-1 flex items-center gap-1.5 text-[11px] text-olive-500">
                 {current.quantitySpoken ? "Quantity" : <span className="font-medium text-olive-700">How many{isCredit ? "" : ` ${current.unit === "case" ? "cases" : "pieces"}`}?</span>}
+                {!current.quantitySpoken && current.usualQty && qtyNum === current.usualQty ? <span className="text-olive-400">usually {current.usualQty}</span> : null}
                 {!current.quantitySpoken && qtyNum < 1 ? <span className="text-red-500">— tell me</span> : null}
               </label>
               <div className="flex items-center gap-2">
