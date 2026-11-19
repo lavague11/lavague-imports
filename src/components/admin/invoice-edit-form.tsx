@@ -200,7 +200,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
 
   return (
     <>
-      <form id={SAVE_FORM_ID} method="post" action={props.action} onSubmit={onSubmit} className="mt-4 space-y-5 pb-24">
+      <form id={SAVE_FORM_ID} method="post" action={props.action} onSubmit={onSubmit} className="mt-4 space-y-5">
         {belowMinimum ? (
           <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             Subtotal {money(subtotalCents)} is below the ${WHOLESALE_MINIMUM_CENTS / 100} wholesale minimum. You can still save, but review before sending.
@@ -318,7 +318,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
 
       {/* Sticky bottom bar — live total + Save / Send, beside the mic. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-olive-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 py-2.5 pl-20 pr-4">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-2.5">
           <div className="min-w-0">
             <p className="text-[11px] text-olive-500">Total</p>
             <p className="text-lg font-semibold leading-tight text-olive-900">{money(totalCents)}</p>
@@ -361,7 +361,7 @@ export function InvoiceEditForm(props: InvoiceEditFormProps) {
 
       {/* Undo toast after removing a line */}
       {undo ? (
-        <div className="fixed bottom-24 left-1/2 z-[55] flex -translate-x-1/2 items-center gap-3 rounded-full bg-olive-900 px-4 py-2 text-sm text-white shadow-lg">
+        <div className="fixed bottom-[8.5rem] left-1/2 z-[55] flex -translate-x-1/2 items-center gap-3 rounded-full bg-olive-900 px-4 py-2 text-sm text-white shadow-lg">
           {undo.kind === "edit" ? "Line updated" : "Line removed"}
           <button type="button" onClick={doUndo} className="font-semibold text-emerald-300 underline">Undo</button>
         </div>

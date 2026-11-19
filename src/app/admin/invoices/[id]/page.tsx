@@ -129,7 +129,7 @@ export default async function InvoicePage({
   const btn = "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium";
 
   return (
-    <div className="mx-auto max-w-5xl pb-24">
+    <div className="mx-auto max-w-5xl pb-28">
       {unavailableLines.length ? (
         <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           ⚠ {unavailableLines.length} item{unavailableLines.length === 1 ? "" : "s"} currently unavailable: {unavailableLines.map((l) => l.description).join(", ")}
@@ -363,10 +363,11 @@ export default async function InvoicePage({
         </CollapsibleSection>
       </section>
 
-      {/* Signature */}
-      <section className="mt-6 mb-4">
-        <h2 className="font-display text-lg text-olive-900">Acceptance</h2>
-        {invoice.signedAt ? (
+      {/* Signature — shown only once the customer has accepted (the "not yet
+          accepted" placeholder was trimmed as noise). */}
+      {invoice.signedAt ? (
+        <section className="mt-6 mb-4">
+          <h2 className="font-display text-lg text-olive-900">Acceptance</h2>
           <div className="mt-2 rounded-xl border border-olive-100 bg-white p-4 text-sm">
             <p className="font-medium text-olive-900">Accepted by {invoice.signerName} on {dateTimeFmt(invoice.signedAt)}</p>
             {invoice.signatureData ? (
@@ -374,21 +375,12 @@ export default async function InvoicePage({
               <img src={invoice.signatureData} alt="Customer signature" className="mt-2 h-20 rounded border border-olive-100 bg-white object-contain" />
             ) : null}
           </div>
-        ) : (
-          <p className="mt-2 text-sm text-olive-500">
-            Not yet accepted. {invoice.publicToken ? "The customer can accept it from their link above." : "Send the invoice to let the customer accept it online."}
-          </p>
-        )}
-      </section>
+        </section>
+      ) : null}
 
-      {/* Photos */}
+      {/* Photos — uploader only (heading, library link and blurb trimmed for a
+          cleaner edit screen; the dropzone is self-labelled). */}
       <section className="mt-6 mb-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg text-olive-900">Photos</h2>
-          <a href="/admin/photos" className="text-sm text-olive-600 hover:text-olive-900">Photo library →</a>
-        </div>
-        <p className="mt-0.5 mb-2 text-xs text-olive-500">Proof of delivery, a check or payment, or anything else — saved to this invoice.</p>
-
         {invoice.photos.length > 0 ? (
           <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {invoice.photos.map((p) => (

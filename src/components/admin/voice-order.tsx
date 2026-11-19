@@ -787,10 +787,10 @@ export function VoiceOrder({
 
   return (
     <>
-      {/* One floating mic, bottom-left. Tap to start/stop live listening; the
-          small badge mutes/unmutes spoken replies. Sits over the sticky save
-          bar's reserved left gutter. */}
-      <div className="fixed bottom-3 left-3 z-[45] flex flex-col items-center">
+      {/* One floating mic, centered above the sticky save bar. Tap to start/stop
+          live listening; the small badge mutes/unmutes spoken replies. Rises
+          above the live-listening bar while it is open. */}
+      <div className={`fixed left-1/2 z-[45] flex -translate-x-1/2 flex-col items-center ${live ? "bottom-[11rem]" : "bottom-20"}`}>
         {note ? (
           <p className="mb-2 max-w-[70vw] rounded-lg bg-olive-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg sm:max-w-xs">{note}</p>
         ) : null}
