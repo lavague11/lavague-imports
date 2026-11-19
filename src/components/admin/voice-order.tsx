@@ -236,10 +236,13 @@ export function VoiceOrder({
   // segments speech by pauses, matches each utterance, and appends cards.
   const [live, setLive] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
+  const [liveError, setLiveError] = useState<string | null>(null);
   const liveRef = useRef(false);
   const liveStreamRef = useRef<MediaStream | null>(null);
   const liveRecRef = useRef<MediaRecorder | null>(null);
   const liveAcRef = useRef<AudioContext | null>(null);
+  const liveFlushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noCustomerAnnouncedRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const speakingRef = useRef(false);
   const liveCustomerRef = useRef<{ customer: DetectedCustomer; alts: DetectedCustomer[]; confident: boolean; heard: string | null } | null>(null);
@@ -508,16 +511,23 @@ export function VoiceOrder({
     });
   };
 
+  // Surface an error in the live bar and (if unmuted) speak it — never silent.
+  const liveFail = (shown: string, spoken: string) => { setLiveError(shown); void speak(spoken); };
+
   // Transcribe one spoken utterance and append any items/customer it yields.
   const processLiveChunk = async (blob: Blob) => {
-    if (!blob.size) return;
+    if (blob.size < 1200) return; // near-empty chunk (silence) — skip
     try {
       const afd = new FormData();
       afd.append("audio", blob, "live.webm");
       const tRes = await fetch("/admin/invoices/voice/transcribe", { method: "POST", body: afd });
+      if (!tRes.ok) { liveFail("Couldn't transcribe — check connection.", "Connection problem."); return; }
       const tData = await tRes.json();
+      if (tData.configured === false) { liveFail("Voice needs an OPENAI_API_KEY (Developers).", "Voice needs an A P I key."); return; }
+      if (tData.error) { liveFail("Transcription failed — try again.", "Transcription failed."); return; }
       const text = typeof tData.text === "string" ? tData.text.trim() : "";
-      if (!text) return;
+      if (!text) return; // genuine silence
+      setLiveError(null);
       setLiveTranscript((prev) => (prev ? `${prev} ${text}` : text));
 
       // A remove/edit command mid-stream? Act on it instead of adding items.
@@ -528,12 +538,27 @@ export function VoiceOrder({
       mfd.append("transcript", text);
       if (customerId) mfd.append("customerId", customerId);
       const mRes = await fetch("/admin/invoices/voice/match", { method: "POST", body: mfd });
+      if (!mRes.ok) { liveFail("Couldn't match — check connection.", "Matching problem."); return; }
       const mData = await mRes.json();
-      const items: VoiceItem[] = clearDefaultReason(Array.isArray(mData.items) ? mData.items : []);
-      if (items.length) setQueue((q) => [...q, ...items]);
+      if (mData.configured === false) { liveFail("Matching needs an ANTHROPIC_API_KEY (Developers).", "Matching needs an A P I key."); return; }
+      if (mData.error) { liveFail("Matching failed — try again.", "Matching failed."); return; }
 
-      // Capture a detected customer, but don't open the confirm modal mid-stream
-      // (confirming reloads the page). It's surfaced when the user taps Stop.
+      const items: VoiceItem[] = clearDefaultReason(Array.isArray(mData.items) ? mData.items : []);
+      if (items.length) {
+        setQueue((q) => [...q, ...items]);
+        // Speak a short confirmation so it clearly "answers".
+        const names = items.map((i) => i.name || i.heard).filter(Boolean);
+        if (names.length) void speak(names.length === 1 ? `Added ${names[0]}.` : `Added ${names.length} items.`);
+        // No customer picked? Say so out loud, once.
+        if (!customerId && !liveCustomerRef.current && !noCustomerAnnouncedRef.current) {
+          noCustomerAnnouncedRef.current = true;
+          liveFail("No customer picked yet — items added. Pick a customer.", "No customer picked yet.");
+        }
+      } else if (!cmd) {
+        liveFail(`Heard “${text}” but found no item.`, "I didn't find that item.");
+      }
+
+      // Capture a detected customer; surfaced when the user taps Stop.
       if (mData.customer?.id && !liveCustomerRef.current && mData.customer.id !== customerId) {
         liveCustomerRef.current = {
           customer: { id: mData.customer.id, label: mData.customer.label },
@@ -543,7 +568,7 @@ export function VoiceOrder({
         };
       }
     } catch {
-      /* ignore a dropped utterance */
+      liveFail("Couldn't process that — check connection.", "Connection problem.");
     }
   };
 
@@ -568,34 +593,47 @@ export function VoiceOrder({
     liveRef.current = true;
     setLive(true);
     setLiveTranscript("");
+    setLiveError(null);
     setDone(false);
     liveCustomerRef.current = null;
+    noCustomerAnnouncedRef.current = false;
 
     let ac: AudioContext | null = null;
-    try { ac = new AudioContext(); } catch { ac = null; }
+    try {
+      ac = new AudioContext();
+      // iOS starts the context SUSPENDED — must resume inside the user gesture,
+      // else the analyser reads silence and the VAD never fires.
+      if (ac.state === "suspended") { try { await ac.resume(); } catch { /* ignore */ } }
+    } catch { ac = null; }
     liveAcRef.current = ac;
-    const analyser = ac ? ac.createAnalyser() : null;
+    const analyser = ac && ac.state === "running" ? ac.createAnalyser() : null;
     if (ac && analyser) { analyser.fftSize = 512; ac.createMediaStreamSource(stream).connect(analyser); }
     const time = new Uint8Array(analyser ? analyser.fftSize : 0);
     const freq = new Uint8Array(analyser ? analyser.frequencyBinCount : 0);
 
-    let speechStarted = false;
     let lastVoice = Date.now();
+    let heard = false;
 
+    // Each utterance is its own recorder so it's an independently valid file.
+    // We flush on a VAD-detected pause OR after a max window — the timer is the
+    // safety net when the analyser is dead/suspended (the original iPhone bug).
     const startRec = () => {
       let chunks: Blob[] = [];
-      speechStarted = false;
+      heard = false;
       const rec = new MediaRecorder(stream);
       liveRecRef.current = rec;
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       rec.onstop = () => {
+        if (liveFlushRef.current) { clearTimeout(liveFlushRef.current); liveFlushRef.current = null; }
         const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
         chunks = [];
-        if (speechStarted) void processLiveChunk(blob);
+        void processLiveChunk(blob); // process unconditionally; empty transcript is skipped
         if (liveRef.current) startRec();
         else teardownLive();
       };
       rec.start();
+      // Max 4.5s per chunk — guarantees progress even if the VAD never fires.
+      liveFlushRef.current = setTimeout(() => { if (rec.state === "recording") rec.stop(); }, 4500);
     };
     startRec();
 
@@ -607,9 +645,9 @@ export function VoiceOrder({
         for (const v of time) { const n = (v - 128) / 128; sum += n * n; }
         const rms = Math.sqrt(sum / time.length);
         const now = Date.now();
-        if (rms > 0.045 && !speakingRef.current) { lastVoice = now; speechStarted = true; }
-        // End of an utterance: speech, then ~800ms of silence → flush + restart.
-        if (speechStarted && now - lastVoice > 800) {
+        if (rms > 0.04 && !speakingRef.current) { lastVoice = now; heard = true; }
+        // End of an utterance: speech, then ~700ms of silence → flush early.
+        if (heard && now - lastVoice > 700) {
           const rec = liveRecRef.current;
           if (rec && rec.state === "recording") rec.stop();
         }
@@ -638,6 +676,7 @@ export function VoiceOrder({
   const stopLive = () => {
     liveRef.current = false;
     setLive(false);
+    if (liveFlushRef.current) { clearTimeout(liveFlushRef.current); liveFlushRef.current = null; }
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
     const rec = liveRecRef.current;
     if (rec && rec.state === "recording") { try { rec.stop(); } catch { teardownLive(); } }
@@ -901,6 +940,9 @@ export function VoiceOrder({
                 </span>
               ))}
             </div>
+          ) : null}
+          {liveError ? (
+            <p className="mx-auto mt-1.5 max-w-2xl rounded-lg bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{liveError}</p>
           ) : null}
           <p className="mx-auto mt-1.5 max-w-2xl truncate text-xs text-olive-400">
             {liveTranscript || "Listening… say the customer and items — they appear here as you talk."}
