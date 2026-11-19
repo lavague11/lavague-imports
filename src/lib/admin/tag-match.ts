@@ -138,8 +138,14 @@ export async function resolveSpokenItem(
   const t = await fromTags(prisma, tokens, brandNorm, sizeHint);
   if (t) return { match: t, alternatives: [], vague: false };
 
-  // 3. Fuzzy name
+  // A bare type with no brand/size and no history → ask, don't fuzzy-guess a
+  // specific brand. Offer the closest items for the picker (stage 3).
   const hits = await searchCatalog(prisma, query, 6);
+  if (await isVague(prisma, norm, tokens, brandNorm, sizeHint)) {
+    return { match: null, alternatives: hits.slice(0, 3), vague: true };
+  }
+
+  // 3. Fuzzy name
   if (hits.length) {
     const best = hits[0];
     const score = diceSim(norm, normText(`${best.brand ?? ""} ${best.name}`));
@@ -147,11 +153,11 @@ export async function resolveSpokenItem(
       return { match: { ...best, source: "fuzzy", confidence: score, usualQty: null }, alternatives: hits.slice(1, 4), vague: false };
     }
     // Weak fuzzy → offer the hits as alternatives (picker, stage 3).
-    return { match: null, alternatives: hits.slice(0, 3), vague: await isVague(prisma, norm, tokens, brandNorm, sizeHint) };
+    return { match: null, alternatives: hits.slice(0, 3), vague: false };
   }
 
   // 4. Fallback
-  return { match: null, alternatives: [], vague: await isVague(prisma, norm, tokens, brandNorm, sizeHint) };
+  return { match: null, alternatives: [], vague: false };
 }
 
 // Vague: a bare type word with no brand / size (e.g. "olive oil") → ask for
