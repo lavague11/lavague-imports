@@ -185,10 +185,10 @@ ${transcript}`;
           return { ...it, sku: String(it.sku ?? ""), priceCents, priceSource, imageUrl: null, alternatives: [], vague: false, usualQty: null };
         }
 
-        // Tag-first resolution: history → tag → fuzzy → fallback.
+        // Resolution order: history → tag → vague-ask → trusted model SKU → fuzzy → fallback.
         const r = await resolveSpokenItem(prisma, {
           name: String(it.name ?? ""), brand: String(it.brand ?? ""), size: String(it.packSize ?? ""),
-          heard: String(it.heard ?? ""), customerId,
+          sku: String(it.sku ?? ""), heard: String(it.heard ?? ""), customerId,
         });
 
         let sku = "";

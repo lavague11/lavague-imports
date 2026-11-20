@@ -11,7 +11,7 @@ import { searchCatalog, type CatalogHit } from "@/lib/admin/voice-catalog";
 // utterance for "which brand and size?".
 
 export interface ResolvedMatch extends CatalogHit {
-  source: "history" | "tag" | "fuzzy";
+  source: "history" | "tag" | "fuzzy" | "llm";
   confidence: number;
   usualQty: number | null;
 }
@@ -145,7 +145,7 @@ function brandConflicts(spokenBrandNorm: string, heardNorm: string, hit: Catalog
 /** Resolve one spoken item to a product. */
 export async function resolveSpokenItem(
   prisma: PrismaClient,
-  input: { name: string; brand?: string | null; size?: string | null; heard?: string | null; customerId?: string | null },
+  input: { name: string; brand?: string | null; size?: string | null; sku?: string | null; heard?: string | null; customerId?: string | null },
 ): Promise<ResolveResult> {
   const query = [input.brand, input.name].filter(Boolean).join(" ");
   const { norm, tokens } = normalizeUtterance(query);
@@ -174,6 +174,21 @@ export async function resolveSpokenItem(
   // the speaker actually said shows up as an extra heard token instead.
   if (await isVague(prisma, vagueNorm.norm, vagueNorm.tokens, "", extractSizeHint(vagueText))) {
     return { match: null, alternatives: hits.slice(0, 3), vague: true, ambiguous: hits.length > 0 };
+  }
+
+  // 2.5. Trust an exact catalog SKU the model already picked. It chose from the
+  // candidate list with full brand/size context, so it beats a from-scratch fuzzy
+  // re-search that under-scores long product names ("Tunisian Harissa La Flamme du
+  // Cap Bon" vs the short query "harissa"). Guard: the SKU must resolve to a real
+  // product, and it must not conflict with a brand the speaker actually named — so a
+  // mis-SKU'd foreign brand (Schweppes → Snaps' sku) still falls through to the picker.
+  const llmSku = (input.sku ?? "").trim();
+  if (llmSku) {
+    const hit = await hitForSku(prisma, llmSku);
+    if (hit && !brandConflicts(brandNorm, vagueNorm.norm, hit)) {
+      const alternatives = hits.filter((h) => h.sku !== hit.sku).slice(0, 3);
+      return { match: { ...hit, source: "llm", confidence: 0.9, usualQty: null }, alternatives, vague: false, ambiguous: false };
+    }
   }
 
   // 3. Fuzzy name.
