@@ -125,8 +125,12 @@ async function fromTags(
  *  clearly DIFFERENT brand (e.g. "Schweppes pomegranate" → "Snaps Pomegranate")
  *  is a cross-brand substitution, not a match. Flag "not in catalog" and offer the
  *  near-miss in the picker rather than silently swapping the brand. */
-function brandConflicts(spokenBrandNorm: string, hit: CatalogHit): boolean {
+function brandConflicts(spokenBrandNorm: string, heardNorm: string, hit: CatalogHit): boolean {
   if (!spokenBrandNorm) return false; // no brand was named → nothing to conflict with
+  // Only guard against a brand the speaker ACTUALLY said. For a bare item ("olive
+  // oil") the model may GUESS a brand; if it isn't in the heard utterance, don't let
+  // that guess reject an otherwise-fine fuzzy match.
+  if (heardNorm && !heardNorm.includes(spokenBrandNorm)) return false;
   const hitBrand = normText(hit.brand ?? "");
   const hitName = normText(hit.name);
   // Spoken brand shows up in the product (same brand, or carried in the name) → fine.
@@ -178,7 +182,7 @@ export async function resolveSpokenItem(
     const score = diceSim(norm, normText(`${best.brand ?? ""} ${best.name}`));
     // Don't let a fuzzy hit that rode on a shared type word substitute a DIFFERENT
     // brand the speaker named ("Schweppes …" → "Snaps …"): treat it as not-in-catalog.
-    if (score >= FUZZY_MIN && !brandConflicts(brandNorm, best)) {
+    if (score >= FUZZY_MIN && !brandConflicts(brandNorm, vagueNorm.norm, best)) {
       // Ambiguous when the best isn't clearly best: low confidence, or a close runner-up.
       const second = hits[1] ? diceSim(norm, normText(`${hits[1].brand ?? ""} ${hits[1].name}`)) : 0;
       const ambiguous = score < CONFIDENT || score - second < 0.1;
