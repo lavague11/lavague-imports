@@ -156,6 +156,7 @@ export async function POST(request: Request) {
   }]
 }
 Match each item to the CANDIDATES below using brand + product + size (وزنية/wazneya = El Ouazzania extra virgin, المغربية = Al Maghribya, داري = Dari, بلبولة/belboula = Dari barley couscous). Prefer the candidate whose brand AND size match. Only use a SKU/price/brand from the candidates — never invent. If nothing fits, matchTag "not in catalog", sku "".
+BRAND IS DECISIVE: match only when a candidate is the SAME brand the speaker named (allow transliteration/spelling of that brand). If the speaker named a brand that is NOT among the candidates, do NOT substitute a different brand of the same product type — set matchTag "not in catalog", sku "", and KEEP the spoken brand and name (never replace them with a different candidate's brand/name). Example: "Schweppes pomegranate" when only "Snaps Pomegranate" exists → name "Schweppes Pomegranate", brand "Schweppes", matchTag "not in catalog", sku "". A different-brand candidate of the same type may still be offered to the user later, but it is NOT a match here.
 PRICE: "ب<n>"/"at n" = unit price; "الكل"/"total" = line total (÷ qty). No price spoken → matched catalog price, priceSource "catalog"; no match → null, "none".
 CREDIT: "credit 2 cases harissa damaged" → isCredit true, reason Damaged. "$40 courtesy credit" → name "Credit", priceCents 4000, reason Courtesy. "credit 2 cases harissa" (no reason said) → isCredit true, creditReason "".
 

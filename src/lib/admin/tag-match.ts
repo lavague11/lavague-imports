@@ -121,6 +121,23 @@ async function fromTags(
   };
 }
 
+/** A fuzzy hit that rode on a shared generic/type word while the speaker named a
+ *  clearly DIFFERENT brand (e.g. "Schweppes pomegranate" → "Snaps Pomegranate")
+ *  is a cross-brand substitution, not a match. Flag "not in catalog" and offer the
+ *  near-miss in the picker rather than silently swapping the brand. */
+function brandConflicts(spokenBrandNorm: string, hit: CatalogHit): boolean {
+  if (!spokenBrandNorm) return false; // no brand was named → nothing to conflict with
+  const hitBrand = normText(hit.brand ?? "");
+  const hitName = normText(hit.name);
+  // Spoken brand shows up in the product (same brand, or carried in the name) → fine.
+  if (hitBrand && (hitBrand.includes(spokenBrandNorm) || spokenBrandNorm.includes(hitBrand))) return false;
+  if (hitName.includes(spokenBrandNorm)) return false;
+  // Tolerate a misspelled/transliterated brand (e.g. "Dary" vs "Dari").
+  if (hitBrand && diceSim(spokenBrandNorm, hitBrand) >= 0.5) return false;
+  // A brand was named, it's nowhere in this product, and it isn't a near-spelling → different brand.
+  return true;
+}
+
 /** Resolve one spoken item to a product. */
 export async function resolveSpokenItem(
   prisma: PrismaClient,
@@ -159,13 +176,15 @@ export async function resolveSpokenItem(
   if (hits.length) {
     const best = hits[0];
     const score = diceSim(norm, normText(`${best.brand ?? ""} ${best.name}`));
-    if (score >= FUZZY_MIN) {
+    // Don't let a fuzzy hit that rode on a shared type word substitute a DIFFERENT
+    // brand the speaker named ("Schweppes …" → "Snaps …"): treat it as not-in-catalog.
+    if (score >= FUZZY_MIN && !brandConflicts(brandNorm, best)) {
       // Ambiguous when the best isn't clearly best: low confidence, or a close runner-up.
       const second = hits[1] ? diceSim(norm, normText(`${hits[1].brand ?? ""} ${hits[1].name}`)) : 0;
       const ambiguous = score < CONFIDENT || score - second < 0.1;
       return { match: { ...best, source: "fuzzy", confidence: score, usualQty: null }, alternatives: hits.slice(1, 4), vague: false, ambiguous };
     }
-    // Weak fuzzy → no confident match; offer the hits for the picker.
+    // Weak fuzzy or a cross-brand substitution → no confident match; offer the hits for the picker.
     return { match: null, alternatives: hits.slice(0, 3), vague: false, ambiguous: true };
   }
 
