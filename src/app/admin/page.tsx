@@ -306,7 +306,7 @@ export default async function AdminDashboard({
           </div>
 
           {/* Goal + sales trend */}
-          <div data-dash-section="goal-trend" className="mt-6 grid gap-4 lg:grid-cols-[1fr_2fr]">
+          <div data-dash-section="goal-trend" className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_2fr]">
             <GoalCard current={monthRevenue} goal={monthlyGoal} />
             <SalesTrendChart points={trendPoints} periodLabel={win.label} />
           </div>
@@ -315,7 +315,7 @@ export default async function AdminDashboard({
           {topRevenue.length || topCases.length ? (
             <section data-dash-section="top-products" className="mt-6">
               <div className="mb-2 flex items-center justify-between"><h2 className="font-display text-lg text-olive-900">Top products · {win.label}</h2><a href={exportHref("top-products")} className="text-xs text-olive-500 underline hover:text-olive-800">Export CSV</a></div>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <TopList title="By revenue" items={topRevenue} />
                 <TopList title="By cases sold" items={topCases} />
               </div>
@@ -326,7 +326,7 @@ export default async function AdminDashboard({
           {topCustomers.length || atRiskCustomers.length ? (
             <section data-dash-section="customers" className="mt-6">
               <div className="mb-2 flex items-center justify-between"><h2 className="font-display text-lg text-olive-900">Customers</h2><a href={exportHref("top-customers")} className="text-xs text-olive-500 underline hover:text-olive-800">Export CSV</a></div>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div className="rounded-xl border border-olive-100 bg-white">
                   <p className="border-b border-olive-50 px-4 py-2.5 text-sm font-medium text-olive-800">Top customers · {win.label}</p>
                   <ul className="divide-y divide-olive-50">
@@ -367,7 +367,7 @@ export default async function AdminDashboard({
           {needsYou ? (
             <section data-dash-section="needs-you" className="mt-6">
               <h2 className="mb-2 font-display text-lg text-olive-900">Needs you</h2>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {overdueList.length ? (
                   <div className="rounded-xl border border-olive-100 bg-white">
                     <p className="border-b border-olive-50 px-4 py-2.5 text-sm font-medium text-olive-800">Overdue invoices</p>
@@ -422,7 +422,7 @@ export default async function AdminDashboard({
           {outstanding > 0 ? (
             <section data-dash-section="collections" className="mt-6">
               <div className="mb-2 flex items-center justify-between"><h2 className="font-display text-lg text-olive-900">Collections</h2><a href={exportHref("biggest-balances")} className="text-xs text-olive-500 underline hover:text-olive-800">Export CSV</a></div>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div className="rounded-xl border border-olive-100 bg-white p-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium text-olive-800">A/R aging</span>
@@ -497,7 +497,7 @@ export default async function AdminDashboard({
           {/* Activity */}
           <section data-dash-section="activity" className="mt-6">
             <h2 className="mb-2 font-display text-lg text-olive-900">Activity</h2>
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="rounded-xl border border-olive-100 bg-white">
                 <p className="border-b border-olive-50 px-4 py-2.5 text-sm font-medium text-olive-800">Recent invoices</p>
                 <ul className="divide-y divide-olive-50">
