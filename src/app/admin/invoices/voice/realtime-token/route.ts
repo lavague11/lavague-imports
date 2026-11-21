@@ -29,18 +29,27 @@ export async function POST() {
   if (!apiKey) return NextResponse.json({ configured: false });
 
   try {
-    const res = await fetch("https://api.openai.com/v1/realtime/transcription_sessions", {
+    // GA ephemeral-key endpoint (the older /realtime/transcription_sessions now 404s).
+    // The session config is nested; the token comes back at top-level `value`.
+    const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        input_audio_format: "pcm16", // 16-bit PCM, 24kHz, mono, little-endian
-        input_audio_transcription: {
-          model: "gpt-live-transcribe", // OpenAI's recommended streaming model
-          prompt: VOCAB,
+        session: {
+          type: "transcription",
+          audio: {
+            input: {
+              format: { type: "audio/pcm", rate: 24000 }, // 16-bit PCM, 24kHz, mono
+              transcription: {
+                model: "gpt-live-transcribe", // OpenAI's recommended streaming model
+                prompt: VOCAB,
+              },
+              // gpt-live-transcribe has no server VAD — the client does its own VAD
+              // and commits each turn, so disable server turn detection here.
+              turn_detection: null,
+            },
+          },
         },
-        // gpt-live-transcribe has no server VAD — the client does its own VAD and
-        // commits each turn, so disable server turn detection here.
-        turn_detection: null,
       }),
     });
 
@@ -48,18 +57,18 @@ export async function POST() {
       const detail = (await res.text().catch(() => "")).slice(0, 300);
       console.error("[voice] realtime token failed", res.status, detail);
       // Surface status + a short detail to the admin caller so a bad request body
-      // (the docs have conflicting shapes) is diagnosable without server-log access.
+      // (the docs have a few shape ambiguities) is diagnosable without server-log access.
       return NextResponse.json({ configured: true, error: "token", status: res.status, detail });
     }
 
-    const data = (await res.json()) as { client_secret?: { value?: string; expires_at?: number } };
-    const token = data.client_secret?.value ?? null;
-    if (!token) return NextResponse.json({ configured: true, error: "token", detail: "no client_secret" });
+    const data = (await res.json()) as { value?: string; expires_at?: number };
+    const token = data.value ?? null;
+    if (!token) return NextResponse.json({ configured: true, error: "token", detail: "no token value" });
 
     return NextResponse.json({
       configured: true,
       token,
-      expiresAt: data.client_secret?.expires_at ?? null,
+      expiresAt: data.expires_at ?? null,
       model: "gpt-live-transcribe",
     });
   } catch (error) {
