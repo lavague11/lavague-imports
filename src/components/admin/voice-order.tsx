@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Mic, Square, Undo2, UserCheck, UserPlus, Volume2, VolumeX, X } from "lucide-react";
 
 import { CREDIT_REASONS } from "@/lib/invoice-constants";
+import { LiveTranscriber } from "@/lib/admin/live-transcribe";
 
 export interface CatalogHit {
   name: string;
@@ -229,6 +230,10 @@ export function VoiceOrder({
   const liveRecRef = useRef<MediaRecorder | null>(null);
   const liveAcRef = useRef<AudioContext | null>(null);
   const liveFlushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Realtime streaming session (preferred); null when we fell back to chunked capture.
+  const liveTranscriberRef = useRef<LiveTranscriber | null>(null);
+  // Finalized transcript so far, in streaming mode (deltas render on top of it).
+  const liveCommittedRef = useRef("");
   const noCustomerAnnouncedRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const speakingRef = useRef(false);
@@ -515,7 +520,17 @@ export function VoiceOrder({
       if (!text) return; // genuine silence
       setLiveError(null);
       setLiveTranscript((prev) => (prev ? `${prev} ${text}` : text));
+      await processTranscriptSegment(text);
+    } catch {
+      liveFail("Couldn't process that — check connection.", "Connection problem.");
+    }
+  };
 
+  // Match one finalized transcript segment and append its items / customer. Shared
+  // by the chunked path (above) and the realtime streaming path (which supplies the
+  // transcript directly and handles the live-transcript display itself).
+  const processTranscriptSegment = async (text: string) => {
+    try {
       // A remove/edit command mid-stream? Act on it instead of adding items.
       const cmd = parseCommand(text);
       if (cmd && handleCommand(cmd)) return;
@@ -583,6 +598,28 @@ export function VoiceOrder({
     setDone(false);
     liveCustomerRef.current = null;
     noCustomerAnnouncedRef.current = false;
+    liveCommittedRef.current = "";
+
+    // Prefer realtime streaming — the transcript appears word-by-word and items are
+    // matched per segment as you speak. If the session can't be set up (no key, a
+    // blocked WebSocket, an older webview), fall back to the chunked path below.
+    const transcriber = new LiveTranscriber({
+      onPartial: (t) => {
+        setLiveError(null);
+        const base = liveCommittedRef.current;
+        setLiveTranscript(base ? `${base} ${t}` : t);
+      },
+      onSegment: (t) => {
+        liveCommittedRef.current = liveCommittedRef.current ? `${liveCommittedRef.current} ${t}` : t;
+        setLiveTranscript(liveCommittedRef.current);
+        void processTranscriptSegment(t);
+      },
+      onError: (shown, spoken) => liveFail(shown, spoken),
+      onConfigError: () => liveFail("Voice needs an OPENAI_API_KEY (Developers).", "Voice needs an A P I key."),
+    });
+    let streaming = false;
+    try { streaming = await transcriber.start(stream); } catch { streaming = false; }
+    liveTranscriberRef.current = streaming ? transcriber : null;
 
     let ac: AudioContext | null = null;
     try {
@@ -621,7 +658,8 @@ export function VoiceOrder({
       // Max 4.5s per chunk — guarantees progress even if the VAD never fires.
       liveFlushRef.current = setTimeout(() => { if (rec.state === "recording") rec.stop(); }, 4500);
     };
-    startRec();
+    // Streaming owns capture when active; only the chunked fallback records here.
+    if (!streaming) startRec();
 
     const loop = () => {
       if (!liveRef.current) return;
@@ -632,8 +670,9 @@ export function VoiceOrder({
         const rms = Math.sqrt(sum / time.length);
         const now = Date.now();
         if (rms > 0.04 && !speakingRef.current) { lastVoice = now; heard = true; }
-        // End of an utterance: speech, then ~700ms of silence → flush early.
-        if (heard && now - lastVoice > 700) {
+        // End of an utterance: speech, then ~700ms of silence → flush early. Only the
+        // chunked fallback drives the recorder; streaming does its own VAD/commit.
+        if (!streaming && heard && now - lastVoice > 700) {
           const rec = liveRecRef.current;
           if (rec && rec.state === "recording") rec.stop();
         }
@@ -664,9 +703,13 @@ export function VoiceOrder({
     setLive(false);
     if (liveFlushRef.current) { clearTimeout(liveFlushRef.current); liveFlushRef.current = null; }
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    const rec = liveRecRef.current;
-    if (rec && rec.state === "recording") { try { rec.stop(); } catch { teardownLive(); } }
-    else teardownLive();
+    // Streaming session: flush + close it, then tear down the mic/waveform.
+    if (liveTranscriberRef.current) { try { liveTranscriberRef.current.stop(); } catch { /* ignore */ } liveTranscriberRef.current = null; teardownLive(); }
+    else {
+      const rec = liveRecRef.current;
+      if (rec && rec.state === "recording") { try { rec.stop(); } catch { teardownLive(); } }
+      else teardownLive();
+    }
 
     // Now surface any customer heard during the stream (deferred to avoid a
     // mid-stream page reload).
@@ -683,7 +726,7 @@ export function VoiceOrder({
   };
 
   // Stop the live session if the component unmounts.
-  useEffect(() => () => { if (liveRef.current) { liveRef.current = false; teardownLive(); } }, []);
+  useEffect(() => () => { if (liveRef.current) { liveRef.current = false; try { liveTranscriberRef.current?.stop(); } catch { /* ignore */ } liveTranscriberRef.current = null; teardownLive(); } }, []);
 
   // Stash the in-progress queue so it resumes after the customer-assign reload.
   const stashQueue = (label: string | null) => {
