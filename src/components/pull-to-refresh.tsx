@@ -6,11 +6,34 @@ import { RefreshCw } from "lucide-react";
 // Pull-to-refresh for touch devices: swipe down while scrolled to the very top
 // to reload the page. A spinner follows the pull and spins on release. Works in
 // the browser and, importantly, in the iOS/Android home-screen standalone app
-// where the browser's own pull-to-refresh is gone. Skips /admin so a half-filled
-// form can't be reloaded by accident.
+// where the browser's own pull-to-refresh is gone.
 const THRESHOLD = 64; // px of pull needed to trigger a refresh
 const MAX = 90; // px the indicator travels
 const RESIST = 0.55; // drag resistance
+
+// Admin read-only view pages where a refresh is safe (dashboard, lists, reports).
+// Editor/form routes (invoice edit, product/customer forms, /new, settings, …) are
+// deliberately excluded so a half-filled form can't be reloaded by accident — new
+// admin views opt in here; new editors stay safe by default. Storefront pages are
+// always on.
+const ADMIN_PTR_OK = new Set([
+  "/admin",
+  "/admin/invoices",
+  "/admin/customers",
+  "/admin/products",
+  "/admin/orders",
+  "/admin/reports",
+  "/admin/notifications",
+]);
+
+// Checked live at gesture time (not at mount): this component sits in the root
+// layout and never remounts across client navigations, so a once-at-mount path
+// check goes stale the moment the user navigates.
+function pullAllowedHere() {
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (!path.startsWith("/admin")) return true; // storefront: always on
+  return ADMIN_PTR_OK.has(path);
+}
 
 function scrollTop() {
   return Math.max(
@@ -31,12 +54,11 @@ export function PullToRefresh() {
 
   useEffect(() => {
     if (typeof window === "undefined" || !("ontouchstart" in window)) return;
-    if (window.location.pathname.startsWith("/admin")) return;
 
     const set = (v: number) => { pullRef.current = v; setPull(v); };
 
     const onStart = (e: TouchEvent) => {
-      if (refreshingRef.current || e.touches.length !== 1) { startY.current = null; return; }
+      if (refreshingRef.current || e.touches.length !== 1 || !pullAllowedHere()) { startY.current = null; return; }
       startY.current = scrollTop() <= 0 ? e.touches[0].clientY : null;
       activeRef.current = false;
     };
