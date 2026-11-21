@@ -39,27 +39,31 @@ export async function POST(request: Request) {
 
   try {
     const client = new OpenAI({ apiKey });
-    const file = await toFile(Buffer.from(await audio.arrayBuffer()), "order.webm", {
+    // OpenAI selects the audio decoder from the FILENAME extension, so name the
+    // file to match the real container. iPhone Safari records audio/mp4; desktop
+    // Chrome records audio/webm — a hardcoded ".webm" on iOS audio makes OpenAI
+    // try to decode MP4 as WebM and fail ("transcription failed").
+    const type = (audio.type || "").toLowerCase();
+    const ext =
+      type.includes("mp4") ? "mp4"
+      : type.includes("m4a") || type.includes("aac") ? "m4a"
+      : type.includes("ogg") || type.includes("opus") ? "ogg"
+      : type.includes("wav") ? "wav"
+      : type.includes("mpeg") || type.includes("mp3") ? "mp3"
+      : "webm";
+    const file = await toFile(Buffer.from(await audio.arrayBuffer()), `order.${ext}`, {
       type: audio.type || "audio/webm",
     });
     const result = await client.audio.transcriptions.create({
       file,
-      model: "gpt-transcribe", // current model; gpt-4o-transcribe is being retired
+      model: "gpt-transcribe", // OpenAI's recommended default; strong on bilingual AR/EN
       prompt: VOCAB,
       // language omitted on purpose → auto-detect (speakers mix Arabic + English)
       response_format: "json",
-      include: ["logprobs"], // token logprobs → an overall STT confidence
+      // NOTE: do NOT add include:["logprobs"] here — that's only valid for the
+      // gpt-4o-transcribe family and makes gpt-transcribe reject the whole request.
     });
-    // Confidence = exp(mean token logprob). Not every deployment returns logprobs,
-    // so treat it as optional and fall back to "unknown" (null).
-    const logprobs = (result as unknown as { logprobs?: { logprob?: number }[] }).logprobs;
-    let confidence: number | null = null;
-    if (Array.isArray(logprobs) && logprobs.length) {
-      const vals = logprobs.map((l) => (typeof l.logprob === "number" ? l.logprob : 0));
-      const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
-      confidence = Math.max(0, Math.min(1, Math.exp(mean)));
-    }
-    return NextResponse.json({ configured: true, text: result.text ?? "", confidence });
+    return NextResponse.json({ configured: true, text: result.text ?? "", confidence: null });
   } catch (error) {
     console.error("[voice] transcribe failed", error);
     return NextResponse.json({ configured: true, error: "failed" });
