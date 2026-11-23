@@ -127,6 +127,15 @@ export function AdminNav({ email, isAdmin }: { email: string; isAdmin: boolean }
                 <a href="/" target="_blank" rel="noreferrer" className="block px-3 py-2 text-sm text-olive-700 hover:bg-olive-50">
                   View store ↗
                 </a>
+                <form action="/admin/preview-store" method="post" target="_blank">
+                  <button
+                    type="submit"
+                    onClick={() => setProfileOpen(false)}
+                    className="block w-full px-3 py-2 text-left text-sm text-olive-700 hover:bg-olive-50"
+                  >
+                    Preview as customer ↗
+                  </button>
+                </form>
                 <form action="/admin/logout" method="post" className="border-t border-olive-100">
                   <button className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
                     Sign out
