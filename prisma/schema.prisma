@@ -1482,6 +1482,10 @@ enum OrderRequestStatus {
   APPROVED
   DECLINED
   CANCELLED
+  /// Customer asked for changes to the quote — back to admin to re-price.
+  CHANGES_REQUESTED
+  /// Approved quote has been turned into a CustomerInvoice (terminal for the request).
+  INVOICED
 }
 
 model OrderRequest {
@@ -1493,6 +1497,22 @@ model OrderRequest {
   /// Customer's note at submit, and the admin's note on decision.
   note      String?
   adminNote String?
+
+  // --- Quote (pricing-models.md §2–3). The quote lives on the request: admin
+  // enters per-line prices (OrderRequestLine.quoted*), these totals mirror a
+  // CustomerInvoice, the customer approves in-account, then it's INVOICED.
+  quoteSubtotalCents Int?
+  quoteDiscountCents Int?
+  quoteShippingCents Int?
+  quoteTaxCents      Int?
+  quoteTotalCents    Int?
+  /// When the admin sent the quote to the customer (status → QUOTED).
+  quoteSentAt        DateTime?
+  /// When the customer approved the quote (status → APPROVED).
+  approvedAt         DateTime?
+  /// What the customer asked to change (status → CHANGES_REQUESTED).
+  customerChangeNote String?
+
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
@@ -1514,6 +1534,10 @@ model OrderRequestLine {
   unitSize    String?
   casePack    Int?
   cases       Int
+  /// Admin-entered quote price per case, and the line total (cases × unit).
+  /// Null until the request is quoted (pricing-models.md §3).
+  quotedUnitPriceCents Int?
+  quotedLineTotalCents Int?
   createdAt   DateTime @default(now())
 
   @@index([requestId])
