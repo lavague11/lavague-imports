@@ -56,10 +56,10 @@ export function dollarsToCents(input: string | null | undefined): number | null 
   return Math.round(n * 100);
 }
 
-// Quote lifecycle emails (customer on send; admin on approve/changes) are built
-// in @/lib/mail but NOT sent until this flag is turned on — the copy is reviewed
-// first (pricing-models.md stage 3). Flip to true to enable sending.
-export const QUOTE_EMAILS_ENABLED = false;
+// Quote lifecycle emails (customer on send; admin on approve/changes), built in
+// @/lib/mail. Copy approved 2026-11-24 → ON. Delivery still requires a mail key
+// (RESEND_API_KEY or SMTP_*) in the vault/env; without one, sendEmail no-ops.
+export const QUOTE_EMAILS_ENABLED = true;
 
 export type QuoteAction = "save" | "send";
 
