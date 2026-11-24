@@ -147,8 +147,6 @@ Flow end to end: **Submitted → (admin prices & sends) Quoted → (customer) Ap
 3. **Quote lives on the `OrderRequest`** (not the invoice), so "Quoted" and "Invoiced" are distinct states. Add **`CHANGES_REQUESTED`** and **`INVOICED`** to the status enum.
 4. **Dormant CRM models** (`BusinessAccount`/`Quote`/`WholesaleOrder`): **leave in place, untouched.** Not used by this build.
 
-### Still open — need a call before the stages they affect (not stage 1)
-5. **Who turns an approved quote into the invoice** (affects stage 4). *Automatic* on approval, or an admin **"Generate invoice"** click? → **Recommend: admin click** — a person eyeballs the final numbers before an invoice goes out; one extra click, far fewer "oops, wrong invoice sent" moments.
-6. **Does approving the quote need an e-signature, or is a plain "Approve" button enough** (affects stage 3)? The binding **e-signature already exists at the invoice stage** (`/invoice/[token]`). → **Recommend: a plain "Approve" click for the quote** (record `approvedAt` + the signed-in customer's identity), and keep the legal e-signature on the invoice. Rationale: the quote-approval is an internal go-ahead to raise the invoice; the invoice is the document that's actually signed. A click keeps the customer's step light; the real signature still happens once, on the invoice.
-
-Stages 1–2 do not depend on #5/#6. I'll build stage 1 now and pause for your call on #5/#6 before stages 3–4.
+### Decided (recorded 2026-11-24)
+5. **Who turns an approved quote into the invoice** (stage 4): **admin clicks "Generate invoice"** after the customer approves — **no auto-invoice.** A person eyeballs the final numbers before an invoice goes out.
+6. **Quote approval** (stage 3): a **plain "Approve" button** — record **who** (the signed-in customer) and **when** (`approvedAt`). The binding **e-signature stays on the invoice only** (`/invoice/[token]`). The quote-approval is the go-ahead to raise the invoice; the invoice is the document that's actually signed.
