@@ -2,11 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Phone, MessageSquare, Bell, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
+import { CatalogDownload } from "@/components/admin/catalog-download";
 import { DashboardCustomize } from "@/components/admin/dashboard-customize";
 import { DateRangePicker } from "@/components/admin/date-range-picker";
 import { NewMenu } from "@/components/admin/new-menu";
 import { GoalCard } from "@/components/admin/goal-card";
 import { SalesTrendChart } from "@/components/admin/sales-trend-chart";
+import { getCountryFilters } from "@/lib/catalog";
 import { getCurrentUser } from "@/lib/auth";
 import { rangeWindow } from "@/lib/admin/range";
 import { getPrisma } from "@/lib/db";
@@ -134,6 +136,8 @@ export default async function AdminDashboard({
   ]);
   const monthRevenue = monthRevAgg._sum.totalCents ?? 0;
   const monthlyGoal = goalRow?.value ?? 0;
+  // Countries for the "Download catalog" modal (same list the storefront uses).
+  const catalogCountries = (await getCountryFilters()).map((c) => ({ slug: c.slug, name: c.name, count: c.count }));
   const rangeQS = `range=${rangeKey}${firstValue(sp.from) ? `&from=${firstValue(sp.from)}` : ""}${firstValue(sp.to) ? `&to=${firstValue(sp.to)}` : ""}`;
   const exportHref = (card: string) => `/admin/dashboard/export?card=${card}&${rangeQS}`;
 
@@ -283,6 +287,7 @@ export default async function AdminDashboard({
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <DateRangePicker current={rangeKey} from={firstValue(sp.from)} to={firstValue(sp.to)} />
             <div className="flex flex-wrap gap-2 text-sm">
+              <CatalogDownload countries={catalogCountries} />
               <Link href="/admin/invoices" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Record payment</Link>
               <Link href="/admin/products/new" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Add product</Link>
               <Link href="/admin/customers" className="rounded-lg border border-olive-200 bg-white px-3 py-1.5 font-medium text-olive-700 hover:bg-olive-50">Add customer</Link>
