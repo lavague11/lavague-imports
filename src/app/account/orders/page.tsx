@@ -56,15 +56,26 @@ export default async function AccountOrders() {
               <div key={o.id} className="overflow-hidden rounded-card border border-olive-100 bg-white">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-olive-50 bg-olive-50/40 p-4">
                   <div className="flex items-center gap-3">
-                    <span className="font-medium text-olive-900">{o.reference}</span>
+                    <a href={`/account/orders/${o.id}`} className="font-medium text-olive-900 hover:underline">{o.reference}</a>
                     <OrderStatusPill status={o.status} />
                     <span className="text-sm text-olive-500">{dateFmt(o.createdAt)}</span>
                   </div>
-                  <form method="post" action={`/account/orders/${o.id}/reorder`}>
-                    <button className="inline-flex items-center gap-1.5 rounded-full border border-olive-200 px-3 py-1.5 text-xs font-medium text-olive-700 hover:bg-olive-50">
-                      <RotateCcw className="h-3.5 w-3.5" /> Reorder these
-                    </button>
-                  </form>
+                  <div className="flex items-center gap-2">
+                    {o.status === "QUOTED" ? (
+                      <a href={`/account/orders/${o.id}`} className="inline-flex items-center gap-1.5 rounded-full bg-olive-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-olive-800">
+                        Review quote →
+                      </a>
+                    ) : (
+                      <a href={`/account/orders/${o.id}`} className="inline-flex items-center rounded-full border border-olive-200 px-3 py-1.5 text-xs font-medium text-olive-700 hover:bg-olive-50">
+                        View
+                      </a>
+                    )}
+                    <form method="post" action={`/account/orders/${o.id}/reorder`}>
+                      <button className="inline-flex items-center gap-1.5 rounded-full border border-olive-200 px-3 py-1.5 text-xs font-medium text-olive-700 hover:bg-olive-50">
+                        <RotateCcw className="h-3.5 w-3.5" /> Reorder these
+                      </button>
+                    </form>
+                  </div>
                 </div>
                 <ul className="divide-y divide-olive-50">
                   {o.lines.map((l) => (

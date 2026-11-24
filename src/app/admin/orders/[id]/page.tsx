@@ -116,7 +116,13 @@ export default async function OrderRequestDetail({
       ) : null}
       {order.status === "CHANGES_REQUESTED" && order.customerChangeNote ? (
         <p className="mt-3 rounded-lg bg-orange-50 px-3 py-2 text-sm text-orange-800">
-          <span className="font-medium">Changes requested:</span> {order.customerChangeNote}
+          <span className="font-medium">Changes requested:</span> {order.customerChangeNote} <span className="text-orange-600">(they may have edited case quantities below)</span>
+        </p>
+      ) : null}
+      {(order.status === "APPROVED" || order.status === "INVOICED") ? (
+        <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          <span className="font-medium">Approved</span> by {c.businessName || c.name || c.email}
+          {order.approvedAt ? ` on ${order.approvedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}.
         </p>
       ) : null}
 

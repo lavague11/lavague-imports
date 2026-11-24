@@ -56,6 +56,11 @@ export function dollarsToCents(input: string | null | undefined): number | null 
   return Math.round(n * 100);
 }
 
+// Quote lifecycle emails (customer on send; admin on approve/changes) are built
+// in @/lib/mail but NOT sent until this flag is turned on — the copy is reviewed
+// first (pricing-models.md stage 3). Flip to true to enable sending.
+export const QUOTE_EMAILS_ENABLED = false;
+
 export type QuoteAction = "save" | "send";
 
 export interface ApplyQuoteInput {
@@ -124,4 +129,73 @@ export async function applyQuote(
   ]);
 
   return { ok: true, status: input.action === "send" ? "QUOTED" : order.status };
+}
+
+// --------------------------------------------------------------------------
+// Customer side (pricing-models.md stage 3). Both are owner-gated: the order
+// must belong to `customerId`, or they return not-owner and change nothing.
+// --------------------------------------------------------------------------
+
+export interface CustomerActionResult {
+  ok: boolean;
+  reason?: string;
+}
+
+/** Customer approves a sent quote → APPROVED + approvedAt. Only the owning
+ *  customer, and only from a QUOTED+sent quote. */
+export async function approveQuote(
+  prisma: PrismaClient,
+  orderId: string,
+  customerId: string,
+): Promise<CustomerActionResult> {
+  const order = await prisma.orderRequest.findUnique({
+    where: { id: orderId },
+    select: { customerId: true, status: true, quoteSentAt: true },
+  });
+  if (!order) return { ok: false, reason: "not-found" };
+  if (order.customerId !== customerId) return { ok: false, reason: "not-owner" };
+  if (order.status !== "QUOTED" || order.quoteSentAt == null) return { ok: false, reason: `not-approvable:${order.status}` };
+
+  await prisma.orderRequest.update({
+    where: { id: orderId },
+    data: { status: "APPROVED", approvedAt: new Date() },
+  });
+  return { ok: true };
+}
+
+/** Customer requests changes → CHANGES_REQUESTED + note, and optionally new case
+ *  quantities per line. Only the owning customer, only from a QUOTED quote. */
+export async function requestQuoteChanges(
+  prisma: PrismaClient,
+  orderId: string,
+  customerId: string,
+  input: { note: string; caseEdits?: Record<string, number> },
+): Promise<CustomerActionResult> {
+  const order = await prisma.orderRequest.findUnique({
+    where: { id: orderId },
+    select: { customerId: true, status: true, lines: { select: { id: true } } },
+  });
+  if (!order) return { ok: false, reason: "not-found" };
+  if (order.customerId !== customerId) return { ok: false, reason: "not-owner" };
+  if (order.status !== "QUOTED") return { ok: false, reason: `not-changeable:${order.status}` };
+
+  const ownLineIds = new Set(order.lines.map((l) => l.id));
+  const edits = Object.entries(input.caseEdits ?? {})
+    .filter(([lineId, cases]) => ownLineIds.has(lineId) && Number.isFinite(cases) && cases >= 1)
+    .map(([lineId, cases]) => ({ lineId, cases: Math.min(Math.round(cases), 9999) }));
+
+  await prisma.$transaction([
+    ...edits.map((e) =>
+      prisma.orderRequestLine.update({
+        where: { id: e.lineId },
+        // Cases changed; the old quoted line total is stale until admin re-quotes.
+        data: { cases: e.cases, quotedLineTotalCents: null },
+      }),
+    ),
+    prisma.orderRequest.update({
+      where: { id: orderId },
+      data: { status: "CHANGES_REQUESTED", customerChangeNote: input.note.trim() || null },
+    }),
+  ]);
+  return { ok: true };
 }

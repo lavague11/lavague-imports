@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/auth";
 import { requirePrisma } from "@/lib/db";
-import { applyQuote, dollarsToCents } from "@/lib/wholesale-quote";
+import { quoteReadyEmail, sendEmail } from "@/lib/mail";
+import { formatPrice } from "@/lib/utils";
+import { applyQuote, dollarsToCents, QUOTE_EMAILS_ENABLED } from "@/lib/wholesale-quote";
 
 // Admin quote screen (pricing-models.md §3). Full-page POST → 303 (Hostinger).
 // "Save draft" stores prices without sending; "Send quote" sets QUOTED +
@@ -41,6 +43,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const prisma = requirePrisma();
     const res = await applyQuote(prisma, id, { lines, adjustments, action });
     if (!res.ok) return redirectTo(`/admin/orders/${id}?error=quote`);
+
+    // Tell the customer their quote is ready (gated until the copy is approved).
+    if (action === "send" && QUOTE_EMAILS_ENABLED) {
+      try {
+        const o = await prisma.orderRequest.findUnique({
+          where: { id },
+          select: { reference: true, quoteTotalCents: true, customer: { select: { businessName: true, name: true, email: true } } },
+        });
+        if (o?.customer.email) {
+          const base = process.env.NEXT_PUBLIC_SITE_URL || "https://lavagueimport.com";
+          const mail = quoteReadyEmail({
+            reference: o.reference,
+            businessName: o.customer.businessName || o.customer.name || o.customer.email,
+            totalLabel: formatPrice(o.quoteTotalCents ?? 0),
+            url: `${base}/account/orders/${id}`,
+          });
+          await sendEmail({ to: o.customer.email, ...mail });
+        }
+      } catch {
+        /* email best-effort */
+      }
+    }
     return redirectTo(`/admin/orders/${id}?${action === "send" ? "sent" : "saved"}=1`);
   } catch (error) {
     console.error("[quote] apply failed", error);

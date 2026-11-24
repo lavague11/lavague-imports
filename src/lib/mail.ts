@@ -346,6 +346,80 @@ export function wholesaleNotificationEmail(a: WholesaleNotificationInput): { sub
   return { subject, html: shell("New wholesale application", info.html, a.savedToDb), text };
 }
 
+// ---------------------------------------------------------------------------
+// Wholesale quote lifecycle (pricing-models.md stage 3). Sending is gated by
+// QUOTE_EMAILS_ENABLED in @/lib/wholesale-quote until the copy is approved.
+// ---------------------------------------------------------------------------
+
+/** To the CUSTOMER when an admin sends their quote. */
+export function quoteReadyEmail(opts: {
+  reference: string;
+  businessName: string;
+  totalLabel: string;
+  url: string;
+}): { subject: string; html: string; text: string } {
+  const { reference, businessName, totalLabel, url } = opts;
+  const subject = `Your quote ${reference} from La Vague Imports`;
+  const text = `Hi ${businessName},\n\nYour wholesale quote ${reference} is ready — total ${totalLabel}.\n\nReview the prices and approve it (or ask for changes) here:\n${url}\n\nNothing is charged yet. Once you approve, we'll send the invoice.\n\n— La Vague Imports`;
+  const html = shell(
+    `Your quote is ready`,
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 16px">Hi ${esc(businessName)}, your wholesale quote <strong>${esc(reference)}</strong> is ready.</p>
+     <table style="border-collapse:collapse;font-size:14px;line-height:1.6;margin:0 0 16px">
+       <tr><td style="padding:2px 16px 2px 0;color:#6b7150">Quote</td><td style="padding:2px 0;color:#2b2b22"><strong>${esc(reference)}</strong></td></tr>
+       <tr><td style="padding:2px 16px 2px 0;color:#6b7150">Total</td><td style="padding:2px 0;color:#2b2b22">${esc(totalLabel)}</td></tr>
+     </table>
+     <p style="margin:0 0 20px"><a href="${url}" style="display:inline-block;background:#3a3f27;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9999px;font-size:14px">Review &amp; approve quote</a></p>
+     <p style="font-size:12px;color:#8a8f70;line-height:1.5;margin:0">Nothing is charged yet. Approve the quote and we'll send the invoice; or ask for changes and we'll re-quote.</p>`,
+    true,
+  );
+  return { subject, html, text };
+}
+
+/** To SALES when a customer approves their quote. */
+export function quoteApprovedEmail(opts: {
+  reference: string;
+  businessName: string;
+  who: string;
+  totalLabel: string;
+  adminUrl: string;
+}): { subject: string; html: string; text: string } {
+  const { reference, businessName, who, totalLabel, adminUrl } = opts;
+  const subject = `Quote ${reference} approved — ${businessName}`;
+  const text = `${businessName} approved quote ${reference} (${who}).\n\nTotal ${totalLabel}. Generate the invoice when ready:\n${adminUrl}\n\n— La Vague Imports`;
+  const html = shell(
+    `Quote approved`,
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 16px"><strong>${esc(businessName)}</strong> approved quote <strong>${esc(reference)}</strong>.</p>
+     ${fields([["Approved by", who], ["Total", totalLabel]]).html}
+     <p style="margin:0 0 8px"><a href="${adminUrl}" style="display:inline-block;background:#3a3f27;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9999px;font-size:14px">Open the order</a></p>
+     <p style="font-size:12px;color:#8a8f70;line-height:1.5;margin:0">Next step: generate the invoice.</p>`,
+    true,
+  );
+  return { subject, html, text };
+}
+
+/** To SALES when a customer requests changes to their quote. */
+export function quoteChangesEmail(opts: {
+  reference: string;
+  businessName: string;
+  who: string;
+  note: string;
+  adminUrl: string;
+}): { subject: string; html: string; text: string } {
+  const { reference, businessName, who, note, adminUrl } = opts;
+  const subject = `Changes requested on quote ${reference} — ${businessName}`;
+  const text = `${businessName} (${who}) asked for changes to quote ${reference}:\n\n"${note}"\n\nThey may also have edited case quantities. Re-quote here:\n${adminUrl}\n\n— La Vague Imports`;
+  const html = shell(
+    `Changes requested`,
+    `<p style="font-size:15px;line-height:1.6;margin:0 0 16px"><strong>${esc(businessName)}</strong> asked for changes to quote <strong>${esc(reference)}</strong>.</p>
+     ${fields([["From", who]]).html}
+     <p style="font-size:14px;line-height:1.6;background:#f1f3ea;border-radius:8px;padding:10px 12px;margin:0 0 16px;white-space:pre-wrap">${esc(note)}</p>
+     <p style="font-size:13px;color:#6b7150;line-height:1.5;margin:0 0 16px">They may also have edited case quantities — check the order.</p>
+     <p style="margin:0"><a href="${adminUrl}" style="display:inline-block;background:#3a3f27;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9999px;font-size:14px">Re-quote the order</a></p>`,
+    true,
+  );
+  return { subject, html, text };
+}
+
 export interface ContactNotificationInput {
   reference: string;
   name: string;

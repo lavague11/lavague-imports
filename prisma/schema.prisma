@@ -1508,7 +1508,8 @@ model OrderRequest {
   quoteTotalCents    Int?
   /// When the admin sent the quote to the customer (status → QUOTED).
   quoteSentAt        DateTime?
-  /// When the customer approved the quote (status → APPROVED).
+  /// When the customer approved the quote (status → APPROVED). Who approved is
+  /// the owning customer (this page is owner-gated), via the customer relation.
   approvedAt         DateTime?
   /// What the customer asked to change (status → CHANGES_REQUESTED).
   customerChangeNote String?
