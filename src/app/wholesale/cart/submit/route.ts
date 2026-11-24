@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return redirectTo("/login?next=/wholesale/order");
   }
 
-  const cart = await readWholesaleCart();
+  const cart = await readWholesaleCart(customer.id);
   const slugs = Object.keys(cart);
   if (slugs.length === 0) return redirectTo("/wholesale/order");
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await writeWholesaleCart({});
+    await writeWholesaleCart(customer.id, {});
 
     // Notify sales (best-effort; no prices — this is a request to quote).
     const list = lines.map((l) => `  ${l.cases} case(s) × ${l.productName}${l.unitSize ? ` (${l.unitSize})` : ""}`).join("\n");

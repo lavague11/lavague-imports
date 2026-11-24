@@ -26,7 +26,7 @@ export default async function WholesaleCartPage({
 
   const params = await searchParams;
   const hadError = params.error === "1";
-  const cart = await readWholesaleCart();
+  const cart = await readWholesaleCart(customer.id);
   const slugs = Object.keys(cart);
 
   const products = slugs.length

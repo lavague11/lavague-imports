@@ -19,10 +19,10 @@ export async function POST(request: Request) {
   const back = safeReturn(form.get("from"));
 
   if (slug) {
-    const cart = await readWholesaleCart();
+    const cart = await readWholesaleCart(customer.id);
     if (Number.isFinite(cases) && cases > 0) cart[slug] = Math.min(cases, 9999);
     else delete cart[slug];
-    await writeWholesaleCart(cart);
+    await writeWholesaleCart(customer.id, cart);
   }
   return new NextResponse(null, { status: 303, headers: { Location: back } });
 }

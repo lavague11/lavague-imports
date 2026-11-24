@@ -37,7 +37,7 @@ export default async function WholesaleOrderPage({
   const params = await searchParams;
   const q = (firstValue(params.q) || "").trim();
   const country = (firstValue(params.country) || "").trim();
-  const cart = await readWholesaleCart();
+  const cart = await readWholesaleCart(customer.id);
 
   // Reorder grid — the customer's usual items (past order requests, or paid
   // invoice history for imported customers), most-recent then most-frequent

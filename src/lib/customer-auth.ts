@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 
 import { requirePrisma } from "@/lib/db";
+import { clearWholesaleCart } from "@/lib/wholesale-cart";
 
 const COOKIE = "lv_customer_session";
 // "Remember me" keeps them signed in for 30 days (persistent cookie). Without it,
@@ -34,6 +35,9 @@ export async function createCustomerSession(customerId: string, remember = true)
     // Persistent cookie when remembered; otherwise a session cookie (no expiry).
     ...(remember ? { expires: expiresAt } : {}),
   });
+  // Start every new session with an empty wholesale cart so one account never
+  // inherits a draft left behind by another on the same device.
+  await clearWholesaleCart();
 }
 
 export async function destroyCustomerSession(): Promise<void> {
@@ -47,6 +51,8 @@ export async function destroyCustomerSession(): Promise<void> {
     }
   }
   store.delete(COOKIE);
+  // Drop any wholesale draft so it can't carry to the next person on this device.
+  await clearWholesaleCart();
 }
 
 /** The signed-in customer, or null. Never throws. */

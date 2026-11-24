@@ -19,11 +19,11 @@ export async function POST() {
 
   const items = await usualItems(prisma, customer.id);
   if (items.size) {
-    const cart = await readWholesaleCart();
+    const cart = await readWholesaleCart(customer.id);
     for (const it of items.values()) {
       cart[it.slug] = Math.max(cart[it.slug] ?? 0, it.lastQty);
     }
-    await writeWholesaleCart(cart);
+    await writeWholesaleCart(customer.id, cart);
   }
   return new NextResponse(null, { status: 303, headers: { Location: "/wholesale/cart" } });
 }

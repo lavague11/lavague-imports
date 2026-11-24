@@ -35,9 +35,9 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       where: { slug: { in: slugs }, isActive: true, wholesaleEnabled: true },
       select: { slug: true },
     });
-    const cart = await readWholesaleCart();
+    const cart = await readWholesaleCart(customer.id);
     for (const p of valid) cart[p.slug] = Math.max(cart[p.slug] ?? 0, wanted.get(p.slug) ?? 1);
-    await writeWholesaleCart(cart);
+    await writeWholesaleCart(customer.id, cart);
   }
 
   return redirectTo("/wholesale/cart");
