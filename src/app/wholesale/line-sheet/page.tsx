@@ -7,7 +7,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { getCategories, getProducts } from "@/lib/catalog";
 import { fullAddress, site } from "@/lib/site";
-import { formatPriceOrRequest } from "@/lib/utils";
+import { formatPriceOrRequest, publicSku } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Wholesale line sheet",
@@ -116,7 +116,7 @@ export default async function LineSheetPage() {
                           )}
                         </td>
                         <td className="py-3 pr-4 font-mono text-xs text-olive-700">
-                          {variant.sku}
+                          {publicSku(variant.sku)}
                         </td>
                         <td className="py-3 pr-4 text-olive-700">
                           {variant.name}

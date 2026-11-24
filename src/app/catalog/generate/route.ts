@@ -4,7 +4,8 @@ import { generateCatalog } from "@/lib/build-catalog";
 import { getCustomer } from "@/lib/customer-auth";
 import { getPrisma } from "@/lib/db";
 
-const MAX_ON_DEMAND = 500;
+// High enough to include the whole catalog; the PDF paginates as needed.
+const MAX_ON_DEMAND = 10000;
 
 function pdfResponse(bytes: Uint8Array) {
   return new NextResponse(bytes as BodyInit, {

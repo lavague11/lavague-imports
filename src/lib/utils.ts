@@ -22,6 +22,21 @@ export function formatPriceOrRequest(cents: number | null | undefined) {
   return cents == null ? PRICE_ON_REQUEST : currency.format(cents / 100);
 }
 
+/**
+ * Customer-facing SKU: hides Amazon fulfillment tags (FBA / FBM) that leaked in
+ * from imported listings, while the raw SKU stays as the internal/admin value.
+ * Only strips FBA/FBM when they appear as a standalone token (preceded by a
+ * space or dash), so real product codes that merely contain the letters — e.g.
+ * "CFBAB37", "CFBA4/4" — are left untouched.
+ */
+export function publicSku(sku: string | null | undefined): string {
+  if (!sku) return "";
+  return sku
+    .replace(/[\s\-–]+(?:FBA|FBM)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 /** Generates a short, human-readable reference like `LVQ-7K3M2A`. */
 export function makeReference(prefix: string) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

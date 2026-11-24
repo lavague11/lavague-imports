@@ -4,6 +4,7 @@ import { isoFor } from "@/lib/countries";
 import type { getPrisma } from "@/lib/db";
 import { site } from "@/lib/site";
 import { getThumb } from "@/lib/thumbs";
+import { publicSku } from "@/lib/utils";
 
 type Prisma = NonNullable<ReturnType<typeof getPrisma>>;
 export type SortMode = "country" | "category";
@@ -85,7 +86,7 @@ export async function generateCatalog(
       categoryName: p.category.name,
       prod: {
         name: p.name,
-        sku: v?.sku ?? "",
+        sku: publicSku(v?.sku),
         size,
         meta: [size, secondary].filter(Boolean).join("  ·  "),
         casePack,
@@ -168,7 +169,7 @@ export async function generateCatalog(
   const pdf = await buildCatalogPdf({
     scopeLabel: rows.length >= max ? `${scope}  (first ${max})` : scope,
     dateLabel: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long" }),
-    shopUrl: (process.env.NEXT_PUBLIC_SITE_URL || "https://lavagueimports.com") + "/shop",
+    shopUrl: (process.env.NEXT_PUBLIC_SITE_URL || "https://lavagueimport.com") + "/shop",
     phone: site.phone,
     email: site.email,
     sections,

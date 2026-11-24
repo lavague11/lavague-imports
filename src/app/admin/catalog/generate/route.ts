@@ -9,7 +9,8 @@ import { getPrisma } from "@/lib/db";
 // wholesale CUSTOMER session. The admin modal fetches this, so empty selections
 // return 404 (shown inline) rather than redirecting to a customer page.
 
-const MAX_ON_DEMAND = 500;
+// High enough to include the whole catalog; the PDF paginates as needed.
+const MAX_ON_DEMAND = 10000;
 
 function pdfResponse(bytes: Uint8Array) {
   return new NextResponse(bytes as BodyInit, {
