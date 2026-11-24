@@ -48,7 +48,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             note: note || "(no note)",
             adminUrl: `${base}/admin/orders/${id}`,
           });
-          await sendEmail({ to: salesInbox(), ...mail });
+          const sent = await sendEmail({ to: salesInbox(), ...mail });
+          console.log(
+            sent.ok
+              ? `[quote-email] changes notice sent to sales (${o.reference})`
+              : `[quote-email] changes notice NOT sent to sales (${o.reference}) — ${sent.reason}`,
+          );
         }
       } catch {
         /* email best-effort */

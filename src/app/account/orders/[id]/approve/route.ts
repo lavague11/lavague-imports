@@ -39,7 +39,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
             totalLabel: formatPrice(o.quoteTotalCents ?? 0),
             adminUrl: `${base}/admin/orders/${id}`,
           });
-          await sendEmail({ to: salesInbox(), ...mail });
+          const sent = await sendEmail({ to: salesInbox(), ...mail });
+          console.log(
+            sent.ok
+              ? `[quote-email] approved notice sent to sales (${o.reference})`
+              : `[quote-email] approved notice NOT sent to sales (${o.reference}) — ${sent.reason}`,
+          );
         }
       } catch {
         /* email best-effort */

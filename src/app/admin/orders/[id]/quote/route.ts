@@ -59,7 +59,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             totalLabel: formatPrice(o.quoteTotalCents ?? 0),
             url: `${base}/account/orders/${id}`,
           });
-          await sendEmail({ to: o.customer.email, ...mail });
+          const sent = await sendEmail({ to: o.customer.email, ...mail });
+          console.log(
+            sent.ok
+              ? `[quote-email] quote-ready sent to ${o.customer.email} (${o.reference})`
+              : `[quote-email] quote-ready NOT sent to ${o.customer.email} (${o.reference}) — ${sent.reason}`,
+          );
         }
       } catch {
         /* email best-effort */
