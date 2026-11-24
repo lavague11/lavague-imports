@@ -169,7 +169,7 @@ export async function submitQuoteRequest(
     return {
       status: "error",
       message:
-        "We couldn't save your request. Please call 646-396-0775 or email Sales@lavagueimports.com and we'll take it down directly.",
+        "We couldn't save your request. Please call 646-396-0775 or email Sales@lavagueimport.com and we'll take it down directly.",
     };
   }
 

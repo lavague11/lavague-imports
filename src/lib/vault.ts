@@ -92,7 +92,7 @@ export const KNOWN_KEYS: KnownKey[] = [
   {
     name: "MAIL_FROM",
     label: "Mail “from” address",
-    description: 'Visible sender, e.g. "La Vague Imports <sales@lavagueimports.com>".',
+    description: 'Visible sender, e.g. "La Vague Imports <sales@lavagueimport.com>".',
     kind: "config",
     group: "Email",
   },

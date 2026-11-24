@@ -15,7 +15,7 @@ const cfg = (name: string): string | undefined => getKey(name);
  *   2. SMTP     — set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
  *                 (works with Hostinger email, Gmail app passwords, etc.).
  * In both cases MAIL_FROM sets the visible sender, e.g.
- *   MAIL_FROM="La Vague Imports <sales@lavagueimports.com>".
+ *   MAIL_FROM="La Vague Imports <sales@lavagueimport.com>".
  * Returns { ok, reason } — never throws — so callers can report status.
  */
 

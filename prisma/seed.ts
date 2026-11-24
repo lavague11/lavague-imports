@@ -162,7 +162,7 @@ async function main() {
       state: "NJ",
       postalCode: "07643",
       phone: "646-396-0775",
-      email: "Sales@lavagueimports.com",
+      email: "Sales@lavagueimport.com",
     },
   });
 

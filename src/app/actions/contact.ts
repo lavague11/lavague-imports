@@ -69,7 +69,7 @@ export async function submitContactMessage(
     return {
       status: "error",
       message:
-        "We couldn't send that. Please call 646-396-0775 or email Sales@lavagueimports.com directly.",
+        "We couldn't send that. Please call 646-396-0775 or email Sales@lavagueimport.com directly.",
     };
   }
 

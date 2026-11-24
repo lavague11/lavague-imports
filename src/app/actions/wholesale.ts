@@ -111,7 +111,7 @@ export async function submitWholesaleApplication(
     return {
       status: "error",
       message:
-        "We couldn't save your application. Please email Sales@lavagueimports.com or call 646-396-0775 and we'll set you up directly.",
+        "We couldn't save your application. Please email Sales@lavagueimport.com or call 646-396-0775 and we'll set you up directly.",
     };
   }
 

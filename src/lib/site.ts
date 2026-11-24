@@ -4,7 +4,7 @@ export const site = {
   tagline: "Specialty food importer — New York & New Jersey",
   description:
     "La Vague Imports brings Moroccan olive oil, Egyptian beverages, and North African specialty foods to retailers, restaurants, and homes across New York and New Jersey.",
-  email: "Sales@lavagueimports.com",
+  email: "Sales@lavagueimport.com",
   phone: "646-396-0775",
   phoneHref: "tel:+16463960775",
   address: {
