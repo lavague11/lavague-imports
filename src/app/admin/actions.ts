@@ -320,15 +320,43 @@ export async function reviewApplication(fd: FormData): Promise<void> {
     },
   });
 
-  // Flip the linked customer's role on approval.
-  if (approved && app.customerId) {
+  // On approval, make sure there's a WHOLESALE customer for this business.
+  // Applications submitted while logged out have no linked customer, so without
+  // this the business would never appear in the wholesale customer base. We
+  // find-or-create a customer by email, promote to WHOLESALE, and link it back
+  // to the application (idempotent: re-running changes nothing new).
+  if (approved) {
     try {
-      await prisma.customer.update({
-        where: { id: app.customerId },
-        data: { role: "WHOLESALE" },
-      });
-    } catch {
-      /* customer may have been deleted; the application stays approved */
+      if (app.customerId) {
+        await prisma.customer.update({ where: { id: app.customerId }, data: { role: "WHOLESALE" } });
+      } else {
+        const addr = {
+          street: app.addressLine1 || null,
+          unit: app.addressLine2 || null,
+          city: app.city || null,
+          state: app.state || null,
+          zip: app.postalCode || null,
+        };
+        const customer = await prisma.customer.upsert({
+          where: { email: app.email },
+          // An existing account (e.g. a retail signup with the same email) is
+          // promoted to wholesale; business details are left as the customer set them.
+          update: { role: "WHOLESALE" },
+          create: {
+            email: app.email,
+            role: "WHOLESALE",
+            name: app.contactName ? titleCaseName(app.contactName) : null,
+            businessName: app.businessName ? titleCaseName(app.businessName) : null,
+            phone: app.phone || null,
+            ...addr,
+            address: composeAddress(addr),
+          },
+        });
+        await prisma.wholesaleApplication.update({ where: { id }, data: { customerId: customer.id } });
+      }
+    } catch (err) {
+      // Don't fail the approval if the customer write hiccups; surface it in logs.
+      console.error("[application] approve: could not create/link wholesale customer", err);
     }
   }
 
