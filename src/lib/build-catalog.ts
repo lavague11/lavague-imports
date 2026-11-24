@@ -77,6 +77,8 @@ export async function generateCatalog(
     const v = p.variants[0];
     const size = v?.name && !/^each$/i.test(v.name) ? v.name : "";
     const secondary = sortMode === "country" ? p.category.name : p.origin;
+    const upc = v?.unitsPerCase ?? null;
+    const casePack = upc && upc > 0 ? `${upc}/case` : null;
     return {
       origin: p.origin,
       categorySlug: p.category.slug,
@@ -86,6 +88,7 @@ export async function generateCatalog(
         sku: v?.sku ?? "",
         size,
         meta: [size, secondary].filter(Boolean).join("  ·  "),
+        casePack,
         origin: p.origin,
         image: images[idx],
       } as PdfProduct,

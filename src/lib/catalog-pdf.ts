@@ -19,6 +19,8 @@ export interface PdfProduct {
   size: string;
   /** Secondary line under the name, e.g. "70 g · Spices & Herbs". */
   meta: string;
+  /** Case-pack label (units per case), e.g. "12/case"; null if unknown. */
+  casePack?: string | null;
   /** Country of origin (drives the flag icon); null if unknown. */
   origin: string | null;
   image?: { bytes: Uint8Array; type: "png" | "jpg" } | null;
@@ -214,7 +216,15 @@ async function drawCard(ctx: Ctx, page: PDFPage, prod: PdfProduct, x: number, ce
     page.drawRectangle({ x: x + pad, y: metaY - 1, width: fw, height: fh, borderColor: LINE, borderWidth: 0.4 });
     mx = x + pad + fw + 5;
   }
-  if (prod.meta) page.drawText(wrap(prod.meta, ctx.sans, 7, imgW - (mx - (x + pad)), 1)[0] ?? "", { x: mx, y: metaY + 1, size: 7, font: ctx.sans, color: GRAY });
+  // Case pack (units per case) — the wholesale buyer's key number. Right-aligned
+  // and bold on the meta row, so the meta (size · category) wraps to its left.
+  let metaRight = x + cellW - pad;
+  if (prod.casePack) {
+    const cpW = ctx.sansBold.widthOfTextAtSize(prod.casePack, 7);
+    page.drawText(prod.casePack, { x: metaRight - cpW, y: metaY + 1, size: 7, font: ctx.sansBold, color: OLIVE });
+    metaRight -= cpW + 6;
+  }
+  if (prod.meta) page.drawText(wrap(prod.meta, ctx.sans, 7, Math.max(10, metaRight - mx), 1)[0] ?? "", { x: mx, y: metaY + 1, size: 7, font: ctx.sans, color: GRAY });
 }
 
 /** Section (country/category) header, drawn atop every page of that section. */
@@ -350,7 +360,8 @@ function drawOrderPages(ctx: Ctx, sections: PdfSection[], input: CatalogPdfInput
     for (const prod of all.slice(p * perPage, (p + 1) * perPage)) {
       page.drawText(prod.sku || "—", { x: colX.sku + 2, y, size: 8, font: ctx.sans, color: OLIVE_MID });
       page.drawText(wrap(prod.name, ctx.sans, 8.5, colX.size - colX.name - 8, 1)[0] ?? "", { x: colX.name, y, size: 8.5, font: ctx.sans, color: OLIVE });
-      page.drawText(wrap(prod.size || "", ctx.sans, 8, colX.qty - colX.size - 8, 1)[0] ?? "", { x: colX.size, y, size: 8, font: ctx.sans, color: GRAY });
+      const sizeCol = [prod.size, prod.casePack].filter(Boolean).join("  ·  ");
+      page.drawText(wrap(sizeCol, ctx.sans, 8, colX.qty - colX.size - 8, 1)[0] ?? "", { x: colX.size, y, size: 8, font: ctx.sans, color: GRAY });
       page.drawRectangle({ x: colX.qty, y: y - 4, width: 56, height: 16, borderColor: LINE, borderWidth: 0.75 });
       page.drawLine({ start: { x: MARGIN, y: y - 8 }, end: { x: PAGE_W - MARGIN, y: y - 8 }, thickness: 0.4, color: LINE });
       y -= rowH;
@@ -394,6 +405,7 @@ export async function buildCatalogPdf(input: CatalogPdfInput): Promise<Uint8Arra
             sku: ascii(p.sku),
             size: ascii(p.size),
             meta: ascii(p.meta),
+            casePack: p.casePack ? ascii(p.casePack) : null,
             origin: p.origin,
           })),
         })),
