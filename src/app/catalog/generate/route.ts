@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { generateCatalog } from "@/lib/build-catalog";
+import { getCustomer } from "@/lib/customer-auth";
 import { getPrisma } from "@/lib/db";
 
 const MAX_ON_DEMAND = 500;
@@ -17,6 +18,14 @@ function pdfResponse(bytes: Uint8Array) {
 }
 
 export async function GET(request: Request) {
+  // Catalog downloads are for approved wholesale accounts only. Anyone else
+  // (logged out, or a retail CUSTOMER whose wholesale application isn't
+  // approved) is bounced to the catalog page, which shows the right gate.
+  const customer = await getCustomer();
+  if (customer?.role !== "WHOLESALE") {
+    return NextResponse.redirect(new URL("/catalog", request.url), 303);
+  }
+
   const prisma = getPrisma();
   if (!prisma) return new NextResponse("Catalog is temporarily unavailable.", { status: 503 });
 

@@ -11,7 +11,7 @@ import { Container } from "@/components/ui/container";
 import { navigation, site } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-type Account = { loggedIn: boolean; name?: string | null };
+type Account = { loggedIn: boolean; name?: string | null; role?: string | null };
 
 export function Header() {
   const pathname = usePathname();
@@ -34,6 +34,8 @@ export function Header() {
   }, []);
 
   const firstName = account.name ? account.name.split(" ")[0] : "Account";
+  // The catalog download is for approved wholesale accounts only.
+  const isWholesale = account.role === "WHOLESALE";
 
   return (
     <header className="sticky top-0 z-40 border-b border-olive-100 bg-white/95 backdrop-blur">
@@ -84,12 +86,14 @@ export function Header() {
           <div className="flex items-center gap-2">
             {account.loggedIn ? (
               <>
-                <Link
-                  href="/catalog"
-                  className="hidden rounded-full px-3 py-2 text-sm font-medium text-olive-700 transition-colors hover:bg-olive-50 hover:text-olive-900 sm:inline-flex"
-                >
-                  Catalog
-                </Link>
+                {isWholesale ? (
+                  <Link
+                    href="/catalog"
+                    className="hidden rounded-full px-3 py-2 text-sm font-medium text-olive-700 transition-colors hover:bg-olive-50 hover:text-olive-900 sm:inline-flex"
+                  >
+                    Catalog
+                  </Link>
+                ) : null}
                 <Link
                   href="/account"
                   className="hidden max-w-[140px] items-center truncate rounded-full border border-olive-200 px-3 py-2 text-sm font-medium text-olive-800 transition-colors hover:bg-olive-50 sm:inline-flex"
@@ -145,13 +149,15 @@ export function Header() {
             ))}
             {account.loggedIn ? (
               <>
-                <Link
-                  href="/catalog"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="mt-1 border-t border-olive-100 px-2 pt-3 pb-3 text-sm font-medium text-olive-700 hover:bg-olive-50"
-                >
-                  Catalog
-                </Link>
+                {isWholesale ? (
+                  <Link
+                    href="/catalog"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="mt-1 border-t border-olive-100 px-2 pt-3 pb-3 text-sm font-medium text-olive-700 hover:bg-olive-50"
+                  >
+                    Catalog
+                  </Link>
+                ) : null}
                 <Link
                   href="/account"
                   onClick={() => setIsMenuOpen(false)}
