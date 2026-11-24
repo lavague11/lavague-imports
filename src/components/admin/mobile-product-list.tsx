@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, MoreVertical, Trash2, X } from "lucide-react";
+import { Copy, ImageOff, MoreVertical, Trash2, X } from "lucide-react";
 
 import { quickUpdateProduct } from "@/app/admin/actions";
 import { StatusSelect } from "@/components/admin/status-select";
@@ -98,7 +98,9 @@ export function MobileProductList({ items }: { items: MobileProductItem[] }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded object-contain" />
             ) : (
-              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded bg-amber-50 text-[10px] font-medium text-amber-700">none</span>
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded bg-olive-50 text-olive-300" aria-label="No image">
+                <ImageOff className="h-6 w-6" aria-hidden="true" />
+              </span>
             )}
 
             <div className="min-w-0 flex-1">

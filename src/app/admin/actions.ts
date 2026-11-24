@@ -21,6 +21,7 @@ import {
   setProductsBrand,
   type VariantPack,
 } from "@/lib/admin/products";
+import { buildProductWhere, parseProductParams } from "@/lib/admin/product-query";
 import { composeAddress } from "@/lib/address";
 import { titleCaseName } from "@/lib/capitalize";
 import { requirePrisma } from "@/lib/db";
@@ -214,8 +215,22 @@ export async function setMonthlyGoal(fd: FormData): Promise<void> {
 
 export async function bulkSetActive(fd: FormData): Promise<void> {
   const user = await requireUser();
-  const slugs = fd.getAll("slug").filter((s): s is string => typeof s === "string");
   const action = fd.get("action");
+
+  // Scope: the checked rows, or every product matching the current filter when
+  // the user chose "Select all N results" (we re-resolve server-side so bulk
+  // actions reach beyond the current page).
+  let slugs: string[];
+  if (fd.get("allMatching") === "1") {
+    const prisma = requirePrisma();
+    const params = Object.fromEntries(new URLSearchParams(str(fd, "filterQs")));
+    const where = await buildProductWhere(prisma, parseProductParams(params));
+    const all = await prisma.product.findMany({ where, select: { slug: true } });
+    slugs = all.map((r) => r.slug);
+  } else {
+    slugs = fd.getAll("slug").filter((s): s is string => typeof s === "string");
+  }
+
   if (action === "setBrand") {
     if (slugs.length) await setProductsBrand(slugs, str(fd, "brand"));
     revalidatePath("/admin/products");

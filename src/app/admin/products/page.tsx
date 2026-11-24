@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ImageOff } from "lucide-react";
 
 import { bulkSetActive } from "@/app/admin/actions";
 import { BulkBar } from "@/components/admin/bulk-bar";
+import { BulkSelectAllCheckbox } from "@/components/admin/bulk-select-all";
 import { ColumnFilter, type FilterOption } from "@/components/admin/column-filter";
 import { ExportMenu } from "@/components/admin/export-menu";
 import { FilterDrawer } from "@/components/admin/filter-drawer";
@@ -240,7 +242,7 @@ export default async function AdminProducts({
         </div>
       ) : null}
 
-      <BulkBar action={bulkSetActive} brands={brandNames} />
+      <BulkBar action={bulkSetActive} brands={brandNames} total={total} filterParams={cur} />
 
       {total === 0 ? (
         <div className="mt-5 rounded-xl border border-olive-100 bg-white p-10 text-center">
@@ -259,7 +261,7 @@ export default async function AdminProducts({
           <table className="w-full text-sm">
             <thead className="border-b border-olive-100 bg-olive-50/60 text-left text-olive-600">
               <tr>
-                <th className="w-8 p-3"></th>
+                <th className="w-8 p-3"><BulkSelectAllCheckbox /></th>
                 <th className="w-16 p-3">Image</th>
                 <th className="p-3">{sortLink("Product", "name")}</th>
                 <th className="p-3">{sortLink("Source", "source")}<ColumnFilter kind="multi" param="source" label="Source" options={sourceOptions} searchable /></th>
@@ -283,7 +285,9 @@ export default async function AdminProducts({
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={p.imageUrl} alt="" className="h-10 w-10 rounded object-contain" />
                       ) : (
-                        <span className="inline-flex h-10 w-10 items-center justify-center rounded bg-amber-50 text-[10px] font-medium text-amber-700">none</span>
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded bg-olive-50 text-olive-300" title="No image" aria-label="No image">
+                          <ImageOff className="h-5 w-5" aria-hidden="true" />
+                        </span>
                       )}
                     </td>
                     <td className="max-w-xs p-3">
