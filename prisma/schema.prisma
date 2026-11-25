@@ -100,6 +100,7 @@ model Product {
 
   variants      ProductVariant[]
   accountPrices AccountProductPrice[]
+  pendingPhotos PendingProductPhoto[]
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 
@@ -488,6 +489,31 @@ model ImageThumb {
   key       String   @id
   data      Bytes
   createdAt DateTime @default(now())
+}
+
+/// Sourced product photos awaiting admin review (#8). The image bytes live in a
+/// MediaAsset (mediaUrl = /media/<id>); nothing touches the product's live image
+/// until an admin approves it on /admin/photo-review.
+model PendingProductPhoto {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Our stored copy, e.g. "/media/<assetId>".
+  mediaUrl   String
+  /// Where the photo was found (logged for provenance).
+  sourceUrl  String
+  width      Int?
+  height     Int?
+  /// "high" | "medium" | "low" — only high is a normal pending item.
+  confidence String
+  /// "pending" | "approved" | "rejected".
+  status     String    @default("pending")
+  note       String?
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+
+  @@index([status])
+  @@index([productId])
 }
 
 /// A researched competitor price for a product, powering the price-comparison

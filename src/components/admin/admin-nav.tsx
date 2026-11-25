@@ -19,6 +19,7 @@ const CORE = [
 const MORE = [
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/photos", label: "Photo library" },
+  { href: "/admin/photo-review", label: "Photo review" },
   { href: "/admin/wholesale", label: "Applications" },
   { href: "/admin/pricing", label: "Pricing" },
   { href: "/admin/price-compare", label: "Price compare" },
